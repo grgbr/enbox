@@ -4,6 +4,7 @@
 #include <enbox/config.h>
 #include <utils/pwd.h>
 #include <unistd.h>
+#include <sys/prctl.h>
 
 #if defined(CONFIG_ENBOX_ASSERT)
 
@@ -20,6 +21,29 @@
 	__nonull(_arg_index, ## __VA_ARGS__)
 
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
+
+/*
+ * Drop all ambient set capabilities.
+ *
+ * Requires CAP_SETPCAP capability.
+ */
+static inline int __nothrow
+enbox_drop_ambient_caps(void)
+{
+	if (!prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0))
+		return 0;
+
+	return -errno;
+}
+
+extern int
+enbox_drop_bounding_caps(void) __nothrow __leaf;
+
+extern int
+enbox_lock_caps(void) __nothrow __leaf;
+
+extern void
+enbox_drop_caps(void) __nothrow __leaf;
 
 /*
  * Require the CAP_SETUID capability.
