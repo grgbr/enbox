@@ -1,0 +1,13 @@
+config ENBOX_ASSERT
+	bool "Assertion"
+	default n
+	help
+	  Build enbox library with internal assertions.
+
+config ENBOX_VERBOSE
+	bool "Enable verbose logging"
+	default n
+	help
+	  Build enbox library with internal verbose logging support.
+
+# ex: filetype=kconfig
