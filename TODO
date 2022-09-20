@@ -1,0 +1,67 @@
+Rationalize:
+* get passwd / group entry checking (assert vs runtime checking)
+* label setting checking
+* generalize struct user usage (for host / jail entries)
+* error vs info logging review
+* ensure path is absolute for host entry definitions ?
+* disable memory free() logic if debug off
+
+Features:
+* forbid strace
+* forbid ld_preload / ld_audit
+* rlimits
+* scheduling
+* close unwanted fds
+* environment variables
+* umask
+* keyring
+* seccomp
+
+Command configuration should look something like:
+<code>
+cmd = {
+	umask       = 0077,
+	cwd         = "/",
+	exec        = [ "/bin/sh", "-c", "echo toto" ]
+	
+	# Inherit from environment variable listed below
+	keepenv     = ( USER, LOGNAME ),
+	setenv      = {
+		HOME = "/myhome"
+	},
+	# Keep file descriptors opened before execve().
+	keep_fds    = [ 1, 2 ],
+
+	# Resource limits (see getrlimit(2) man page).
+	rlimits     = {
+		as         = 1m,
+		core       = 0,
+		cpu        = 10,
+		data       = 512k,
+		fsize      = 1g,
+		memlock    = 0,
+		msgqueue   = 128k,
+		nice       = 40,
+		nofile     = 7,
+		nproc      = 0,
+		rtprio     = 0,
+		rttime     = 0,
+		sigpending = 4,
+		stack      = 1048576
+	},
+
+	# See sched(7)
+	sched_fifo     = { },
+	sched_rr       = { },
+	sched_deadline = { },
+	sched_other    = { },
+	sched_batch    = { },
+	sched_idle     = { },
+
+	# See ionice(1)
+	ioprio_rt      = {},
+	ioprio_be      = {},
+	ioprio_idle    = {},
+
+}
+</code>

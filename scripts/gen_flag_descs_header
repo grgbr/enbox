@@ -1,0 +1,27 @@
+#!/usr/bin/awk -f
+
+# This script expects an option given though a -v awk option to name the
+# output macro. Something like:
+#     `gen_flag_descs_header -v macro=MYMACRO mount_flags.in'
+
+BEGIN {
+	if (length(macro) <= 0) {
+		print "gen_flag_descs_header: missing macro name definition" \
+		      > "/dev/stderr"
+		exit 1
+	}
+	kword_nr = 0
+	kword_list_len = 0
+}
+
+$0 !~ /^#/ {
+	kword_nr++
+	kword_list_len += length($1)
+}
+
+END {
+	if (length(macro) > 0)
+		printf("#define %s (%uU)\n",
+		       macro,
+		       kword_list_len + kword_nr - 1)
+}

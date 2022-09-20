@@ -1,0 +1,23 @@
+# List of general mounting flags supported.
+#
+# This file is used to generate mounting flag descriptors related definitions
+# using `gen_mount_flags_header' and `gen_flag_descs_src' scripts.
+# See ebuild.mk for details about the generation workflow.
+#
+# string keyword accepted by     corresponding mounting
+# enbox configuration logic      flag accepted by mount(2)
+# --------------------------------------------------------
+  ro                             MS_RDONLY
+  nosuid                         MS_NOSUID
+  nodev                          MS_NODEV
+  noexec                         MS_NOEXEC
+  sync                           MS_SYNCHRONOUS
+  mand                           MS_MANDLOCK
+  dirsync                        MS_DIRSYNC
+  nosymfollow                    MS_NOSYMFOLLOW
+  noatime                        MS_NOATIME
+  nodiratime                     MS_NODIRATIME
+  silent                         MS_SILENT
+  relatime                       MS_RELATIME
+  strictatime                    MS_STRICTATIME
+  lazytime                       MS_LAZYTIME

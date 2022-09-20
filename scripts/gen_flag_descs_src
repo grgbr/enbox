@@ -1,0 +1,5 @@
+#!/usr/bin/awk -f
+
+$0 !~ /^#/ {
+	printf("\tENBOX_INIT_FLAG_DESC(\"%s\", %s),\n", $1, $2)
+}

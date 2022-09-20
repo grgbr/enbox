@@ -10,4 +10,46 @@ config ENBOX_VERBOSE
 	help
 	  Build enbox library with internal verbose logging support.
 
+config ENBOX_INCLUDE_DIR
+	string "Configuration include directory"
+	default "/etc/enbox"
+	help
+	  Pathname to default configuration include directory.
+
+config ENBOX_DISABLE_DUMP
+	bool "Disable coredump generation"
+	default y
+	help
+	  Disable generation of coredumps for current process. As side effect, it
+	  can not be attached via ptrace(2) PTRACE_ATTACH either.
+	  See sections about `/proc/sys/fs/suid_dumpable' and PR_SET_DUMPABLE
+	  operation of proc(5) and prctl(2) man pages respectively.
+
+config ENBOX_SKEL
+	bool "Enable skeleton utility"
+	default y
+	help
+	  Build enbox library skeleton tool.
+
+config ENBOX_SKEL_STDLOG_SEVERITY
+	int "STDIO logger severity"
+	range 0 7
+	default 4
+	depends on ENBOX_SKEL
+	help
+	  Internal skeleton tool messages with severity greater than this won't
+	  be sent to standard I/O logger.
+	  See syslog(3) levels for more informations about available severities.
+
+config ENBOX_SKEL_STDLOG_FORMAT
+	hex "STDIO logger format"
+	range 0 0x1f
+	default 0x10
+	depends on ENBOX_SKEL
+	help
+	  Internal skeleton tool messages sent to standard I/O logger will be
+	  logged according to this format.
+	  See eLog library's header elog_format enum for more informations about
+	  available format flags.
+
 # ex: filetype=kconfig
