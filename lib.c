@@ -11,9 +11,9 @@
 #include <linux/securebits.h>
 
 struct elog * enbox_logger;
-mode_t        enbox_umask = -1;
-uid_t         enbox_uid = -1;
-gid_t         enbox_gid = -1;
+mode_t        enbox_umask = (mode_t)-1;
+uid_t         enbox_uid = (uid_t)-1;
+gid_t         enbox_gid = (gid_t)-1;
 
 /******************************************************************************
  * Raw API
@@ -501,19 +501,17 @@ err:
  * - current process execve(2) a program that has file capabilities exceeding
  *   those already permitted.
  */
-int
-enbox_setup_dump(enum enbox_dumpable dump)
+void
+enbox_setup_dump(bool on)
 {
-	if (prctl(PR_SET_DUMPABLE, dump, 0, 0, 0)) {
-		int err = errno;
+	enbox_assert(!enbox_uid);
+	enbox_assert(!enbox_gid);
+	enbox_assert(enbox_umask != (mode_t)-1);
 
-		enbox_info("cannot setup dumpable state: %s (%d)",
-		           strerror(err),
-		           err);
-		return -err;
-	}
+	int err;
 
-	return 0;
+	err = prctl(PR_SET_DUMPABLE, (int)on, 0, 0, 0);
+	enbox_assert(!err);
 }
 
 /*
@@ -1789,36 +1787,25 @@ enbox_read_umask(void)
 }
 
 int
-enbox_setup(struct elog * logger)
+enbox_setup(struct elog * __restrict logger)
 {
-	int err;
+	enbox_assert(logger);
 
 	enbox_logger = logger;
 
 	enbox_uid = geteuid();
-	if (enbox_uid) {
-		err = -EACCES;
-		enbox_info("must be run as root !");
-		goto err;
-	}
-
-#if defined(CONFIG_ENBOX_DISABLE_DUMP)
-	err = enbox_setup_dump(ENBOX_DISABLE_DUMP);
-	if (err) {
-		enbox_info("cannot disable coredump generation: %s (%d)",
-		           strerror(-err),
-		           -err);
-		goto err;
-	}
-#endif /* defined(CONFIG_ENBOX_DISABLE_DUMP) */
-
 	enbox_gid = getegid();
+	if (enbox_uid || enbox_gid) {
+		enbox_info("must be run as root !");
+		enbox_err("setup failed");
+		return -EACCES;
+	}
+
 	enbox_umask = enbox_read_umask();
 
+#if defined(CONFIG_ENBOX_DISABLE_DUMP)
+	enbox_setup_dump(ENBOX_DISABLE_DUMP);
+#endif /* defined(CONFIG_ENBOX_DISABLE_DUMP) */
+
 	return 0;
-
-err:
-	enbox_err("setup failed: %s (%d)", strerror(-err), -err);
-
-	return err;
 }

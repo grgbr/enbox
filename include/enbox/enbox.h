@@ -131,17 +131,11 @@ enbox_drop_bounding_caps(void) __nothrow;
 extern int
 enbox_lock_caps(void) __nothrow;
 
-enum enbox_dumpable {
-	/* Disable coredump generation */
-	ENBOX_DISABLE_DUMP = 0,
-	/* Coredump generation allowed. */
-	ENBOX_ENABLE_DUMP  = 1,
-	/* Coredump generation allowed but readable by root only. */
-	ENBOX_RDROOT_DUMP  = 2
-};
+#define ENBOX_ENABLE_DUMP  (1)
+#define ENBOX_DISABLE_DUMP (0)
 
-extern int
-enbox_setup_dump(enum enbox_dumpable dump) __nothrow;
+extern void
+enbox_setup_dump(bool on) __nothrow;
 
 #define ENBOX_KEEP_SUPP_GROUPS (false)
 #define ENBOX_DROP_SUPP_GROUPS (true)
@@ -286,7 +280,21 @@ enbox_destroy_conf(struct enbox_conf * __restrict conf) __enbox_nonull(1);
 
 struct elog;
 
-extern int __nothrow __leaf
+/**
+ * Initialize Enbox library.
+ *
+ * May alter calling process dumpable attribute according to
+ * #CONFIG_ENBOX_DISABLE_DUMP build option.
+ *
+ * MUST be called as *root* prior to any other Enbox's library function.
+ *
+ * @param[inout] logger an initialized Elog logger instance.
+ *
+ * @return An errno-like error code
+ * @retval 0        success
+ * @retval -EACCESS not called as root
+ */
+extern int __enbox_nonull(1) __nothrow __warn_result
 enbox_setup(struct elog * __restrict logger);
 
 #endif /* _ENBOX_H */
