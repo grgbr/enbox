@@ -22,6 +22,7 @@ gid_t         enbox_gid = (gid_t)-1;
 static int __enbox_nonull(1) __nothrow
 enbox_chown(const char * path, uid_t uid, gid_t gid)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert((uid != ENBOX_KEEP_UID) || (gid != ENBOX_KEEP_GID));
 
@@ -42,6 +43,7 @@ enbox_chown(const char * path, uid_t uid, gid_t gid)
 static int __enbox_nonull(1) __nothrow
 enbox_chmod(const char * path, mode_t mode)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(!(mode & ~ALLPERMS));
 
@@ -61,6 +63,7 @@ enbox_chmod(const char * path, mode_t mode)
 int
 enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(!(mode & ~ALLPERMS) || (mode == ENBOX_KEEP_MODE));
 	enbox_assert((uid != ENBOX_KEEP_UID) ||
@@ -95,6 +98,7 @@ err:
 int
 enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(uid != ENBOX_KEEP_UID);
 	enbox_assert(gid != ENBOX_KEEP_GID);
@@ -104,13 +108,20 @@ enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
 
 	err = upath_mkdir(path, S_IRWXU);
 	if (err) {
+		/* Directory creation failed... */
 		if (err == -EEXIST) {
+			/*
+			 * ... because it already exists: ensure it complies
+			 * with requested UID, GID and permissions.
+			 */
 			struct stat stat;
 
+			/* Prevent from following symlinks ! */
 			err = upath_lstat(path, &stat);
 			if (err)
 				goto err;
 
+			/* Not a directory: not of our business. */
 			if (!S_ISDIR(stat.st_mode)) {
 				err = -ENOTDIR;
 				goto err;
@@ -132,6 +143,7 @@ enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
 			goto err;
 	}
 	else {
+		/* Directory has been successfully created. */
 		if ((uid != enbox_uid) || (gid != enbox_gid)) {
 			err = enbox_chown(path, uid, gid);
 			if (err)
@@ -148,6 +160,7 @@ enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
 	return 0;
 
 rmdir:
+	/* In case of error: remove the directory just created. */
 	upath_rmdir(path);
 err:
 	enbox_info("'%s': cannot create directory: %s (%d)",
@@ -485,33 +498,6 @@ err:
 	enbox_info("cannot lock capabilities: %s (%d)", strerror(err), err);
 
 	return -err;
-}
-
-/*
- * Disable generation of coredumps for current process.
- * As side effect, it can not be attached via ptrace(2) PTRACE_ATTACH either.
- *
- * Normally, the "dumpable" attribute is set to 1. However, it is reset to the
- * current value contained in the file /proc/sys/fs/suid_dumpable (which by
- * default has the value 0), in the following circumstances:
- * - current process EUID or EGID is changed ;
- * - current process FSUID or FSGID is changed ;
- * - current process execve(2) a SUID / SGID program incurring a EUID / EGID
- *   change ;
- * - current process execve(2) a program that has file capabilities exceeding
- *   those already permitted.
- */
-void
-enbox_setup_dump(bool on)
-{
-	enbox_assert(!enbox_uid);
-	enbox_assert(!enbox_gid);
-	enbox_assert(enbox_umask != (mode_t)-1);
-
-	int err;
-
-	err = prctl(PR_SET_DUMPABLE, (int)on, 0, 0, 0);
-	enbox_assert(!err);
 }
 
 /*
@@ -1780,13 +1766,19 @@ enbox_read_umask(void)
 {
 	mode_t msk;
 
+	/*
+	 * This is likely the most simple and efficient way to retrieve current
+	 * process file mode creation mask value.
+	 * On Linux, the only alternative I'm aware of involves parsing the
+	 * `/proc/<pid>/status` file to retrieve the `Umask` field content.
+	 */
 	msk = umask(0);
 	umask(msk);
 
 	return msk;
 }
 
-int
+void
 enbox_setup(struct elog * __restrict logger)
 {
 	enbox_assert(logger);
@@ -1795,12 +1787,6 @@ enbox_setup(struct elog * __restrict logger)
 
 	enbox_uid = geteuid();
 	enbox_gid = getegid();
-	if (enbox_uid || enbox_gid) {
-		enbox_info("must be run as root !");
-		enbox_err("setup failed");
-		return -EACCES;
-	}
-
 	enbox_umask = enbox_read_umask();
 
 #if defined(CONFIG_ENBOX_DISABLE_DUMP)

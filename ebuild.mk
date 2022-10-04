@@ -78,3 +78,9 @@ endef
 
 pkgconfigs          := libenbox.pc
 libenbox.pc-tmpl    := libenbox_pkgconf_tmpl
+
+.PHONY: dox
+dox:
+	env OUTDIR=$(BUILDDIR)/doc \
+	    INCDIR="$(patsubst -I%,%,$(filter -I%,$(common-cflags)))" \
+	doxygen $(SRCDIR)/doc/Doxyfile
