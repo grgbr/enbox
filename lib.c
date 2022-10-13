@@ -177,12 +177,14 @@ enbox_make_slink(const char * __restrict path,
                  uid_t                   uid,
                  gid_t                   gid)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(upath_validate_path_name(target) > 0);
 	enbox_assert(uid != ENBOX_KEEP_UID);
 	enbox_assert(gid != ENBOX_KEEP_GID);
 
-	int err;
+	int    err;
+	char * lnk;
 
 	err = upath_symlink(target, path);
 	if (err) {
@@ -197,6 +199,29 @@ enbox_make_slink(const char * __restrict path,
 				err = -EEXIST;
 				goto err;
 			}
+
+			lnk = malloc(PATH_MAX);
+			if (!lnk) {
+				err = -errno;
+				goto err;
+			}
+
+			err = readlink(path, lnk, PATH_MAX);
+			enbox_assert(err);
+			enbox_assert(err < PATH_MAX);
+			if (err < 0) {
+				enbox_assert(errno != EFAULT);
+				err = -errno;
+				goto free;
+			}
+			lnk[err] = '\0';
+
+			if (strncmp(target, lnk, err + 1)) {
+				err = -EPERM;
+				goto free;
+			}
+
+			free(lnk);
 
 			if ((uid != stat.st_uid) || (gid != stat.st_gid)) {
 				err = enbox_chown(path, uid, gid);
@@ -219,6 +244,8 @@ enbox_make_slink(const char * __restrict path,
 
 	return 0;
 
+free:
+	free(lnk);
 err:
 	enbox_info("'%s': cannot create symbolic link: %s (%d)",
 	           path,
@@ -231,6 +258,7 @@ err:
 static int __enbox_nonull(1) __nothrow
 enbox_make_node(const char * path, mode_t mode, dev_t dev, uid_t uid, gid_t gid)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(!(mode & ~(S_IFCHR | S_IFBLK | DEFFILEMODE)));
 	enbox_assert(S_ISCHR(mode) ^ S_ISBLK(mode));
@@ -300,6 +328,7 @@ enbox_make_chrdev(const char * path,
                   unsigned int major,
                   unsigned int minor)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(uid != ENBOX_KEEP_UID);
 	enbox_assert(gid != ENBOX_KEEP_GID);
@@ -1792,6 +1821,4 @@ enbox_setup(struct elog * __restrict logger)
 #if defined(CONFIG_ENBOX_DISABLE_DUMP)
 	enbox_setup_dump(ENBOX_DISABLE_DUMP);
 #endif /* defined(CONFIG_ENBOX_DISABLE_DUMP) */
-
-	return 0;
 }

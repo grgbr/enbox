@@ -195,8 +195,11 @@ enbox_get_gid(void)
  * @p uid equals #ENBOX_KEEP_UID.
  * Group membership is modified according to group ID @p gid passed in argument
  * or left untouched in case @p gid equals #ENBOX_KEEP_GID.
- * Permissions are modified according to @p mode passed in argument or left
- * untouched in case @p mode equals #ENBOX_KEEP_MODE.
+ *
+ * Permissions are either left untouched in case @p mode equals
+ * #ENBOX_KEEP_MODE, or modified according to @p mode passed in argument. In the
+ * latter case, @p mode MUST fit within the bitmask defined by the octal value
+ * `07777`.
  *
  * @param[in] path Pathname to filesystem entry to modify
  * @param[in] uid  Owner UID
@@ -223,14 +226,16 @@ enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
  *
  * Basically calls [mkdir(2)] to create a directory pointed to by @p path
  * according to @p uid user ID, @p gid group ID and @p mode permissions.
- * In case the directory already existed, ensure it is consistent with @p uid
+ * In case the directory already exists, ensure it is consistent with @p uid
  * user ID, @p gid group ID and @p mode permissions passed in arguments.
  *
  * Should an error occur:
- * - an entry existing (and matching @p path pathname) prior to this call will
- *   be left in an unpredicted state ;
- * - otherwise, the new directory will be deleted using [rmdir(2)] before
- *   returning to the caller.
+ * - an entry matching @p path pathname existing prior to this call and not
+ *   being a directory will be left untouched ;
+ * - a directory matching @p path pathname existing prior to this call will be
+ *   left in an unpredictable state ;
+ * - otherwise, the new directory just created will be deleted using [rmdir(2)]
+ *   before returning to the caller.
  *
  * @param[in] path Pathname to filesystem directory
  * @param[in] uid  Directory owner UID
@@ -253,6 +258,43 @@ extern int
 enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
 	__enbox_nonull(1) __nothrow;
 
+/**
+ * Ensure a filesystem symbolic link is properly created.
+ *
+ * Basically calls [symlink(2)] to create a symbolic link @p path targeting @p
+ * target according to @p uid user ID and @p gid group ID.
+ * In case the symbolic link already exists, ensure it is consistent with @p
+ * uid user ID, @p gid group ID and @p target passed in arguments.
+ *
+ * @p mode MUST fit within the bitmask defined by the octal value `07777`.
+ *
+ * @note Permissions of symbolic links are irrelevant.
+ *
+ * Should an error occur:
+ * - an entry matching @p path pathname existing prior to this call and not
+ *   being a symbolic link will be left untouched ;
+ * - a symbolic link existing and matching @p path pathname prior to this call
+ *   will be left in an unpredictable state ;
+ * - otherwise, the new symbolic link will be deleted using [unlink(2)] before
+ *   returning to the caller.
+ *
+ * @param[in] path   Pathname to filesystem symbolic link
+ * @param[in] target Target pathname which @p path will point to
+ * @param[in] uid    Symbolic link owner UID
+ * @param[in] gid    Symbolic link group GID
+ *
+ * @return An errno-like error code.
+ *
+ * @see [symlink(2)]
+ * @see [readlink(2)]
+ * @see [chown(2)]
+ * @see [unlink(2)]
+ *
+ * [symlink(2)]: https://man7.org/linux/man-pages/man2/symlink.2.html
+ * [readlink(2)]: https://man7.org/linux/man-pages/man2/readlink.2.html
+ * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
+ * [unlink(2)]: https://man7.org/linux/man-pages/man2/unlink.2.html
+ */
 extern int
 enbox_make_slink(const char * __restrict path,
                  const char * __restrict target,
@@ -260,6 +302,48 @@ enbox_make_slink(const char * __restrict path,
                  gid_t                   gid)
 	__enbox_nonull(1, 2) __nothrow;
 
+/**
+ * Ensure a filesystem character devide node is properly created.
+ *
+ * Basically calls [mknod(2)] to create a character device node pointed to by
+ * @p path according to @p uid user ID, @p gid group ID, @p mode permissions,
+ * @p major and @p minor numbers.
+ * In case the character device node already exists, ensure it is consistent
+ * with @p uid user ID, @p gid group ID, @p mode permissions, @p major and @p
+ * minor numbers passed in arguments.
+ *
+ * @p mode MUST fit within the bitmask defined by the octal value `0666`.
+ * @p major MUST be `> 0`.
+ *
+ * Should an error occur:
+ * - an entry matching @p path pathname existing prior to this call and not
+ *   being a symbolic link will be left untouched ;
+ * - a symbolic link existing and matching @p path pathname prior to this call
+ *   will be left in an unpredictable state ;
+ * - otherwise, the new symbolic link will be deleted using [unlink(2)] before
+ *   returning to the caller.
+ *
+ * @param[in] path   Pathname to filesystem symbolic link
+ * @param[in] uid    Device node owner UID
+ * @param[in] gid    Device node group GID
+ * @param[in] mode   Device node permissions
+ * @param[in] major  Device node major number
+ * @param[in] minor  Device node minor number
+ *
+ * @return An errno-like error code.
+ *
+ * @see [mknod(2)]
+ * @see [makedev(3)]
+ * @see [chown(2)]
+ * @see [chmod(2)]
+ * @see [unlink(2)]
+ *
+ * [mknod(2)]: https://man7.org/linux/man-pages/man2/mknod.2.html
+ * [makedev(3)]: https://man7.org/linux/man-pages/man3/makedev.3.html
+ * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
+ * [chmod(2)]: https://man7.org/linux/man-pages/man2/chmod.2.html
+ * [unlink(2)]: https://man7.org/linux/man-pages/man2/unlink.2.html
+ */
 extern int
 enbox_make_chrdev(const char * path,
                   uid_t        uid,
