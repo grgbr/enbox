@@ -206,7 +206,7 @@ enbox_get_gid(void)
  * @param[in] gid  Group GID
  * @param[in] mode Filesystem permissions
  *
- * @return An errno-like error code.
+ * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see #ENBOX_KEEP_UID
  * @see #ENBOX_KEEP_GID
@@ -242,7 +242,7 @@ enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
  * @param[in] gid  Directory group GID
  * @param[in] mode Directory permissions
  *
- * @return An errno-like error code.
+ * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see [mkdir(2)]
  * @see [chown(2)]
@@ -283,7 +283,7 @@ enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
  * @param[in] uid    Symbolic link owner UID
  * @param[in] gid    Symbolic link group GID
  *
- * @return An errno-like error code.
+ * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see [symlink(2)]
  * @see [readlink(2)]
@@ -317,20 +317,20 @@ enbox_make_slink(const char * __restrict path,
  *
  * Should an error occur:
  * - an entry matching @p path pathname existing prior to this call and not
- *   being a symbolic link will be left untouched ;
- * - a symbolic link existing and matching @p path pathname prior to this call
- *   will be left in an unpredictable state ;
- * - otherwise, the new symbolic link will be deleted using [unlink(2)] before
- *   returning to the caller.
+ *   being a character device node will be left untouched ;
+ * - a character device node existing and matching @p path pathname prior to
+ *   this call will be left in an unpredictable state ;
+ * - otherwise, the new character device node will be deleted using [unlink(2)]
+ *   before returning to the caller.
  *
- * @param[in] path   Pathname to filesystem symbolic link
+ * @param[in] path   Pathname to filesystem device node
  * @param[in] uid    Device node owner UID
  * @param[in] gid    Device node group GID
  * @param[in] mode   Device node permissions
  * @param[in] major  Device node major number
  * @param[in] minor  Device node minor number
  *
- * @return An errno-like error code.
+ * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see [mknod(2)]
  * @see [makedev(3)]
@@ -353,6 +353,48 @@ enbox_make_chrdev(const char * path,
                   unsigned int minor)
 	__enbox_nonull(1) __nothrow;
 
+/**
+ * Ensure a filesystem block devide node is properly created.
+ *
+ * Basically calls [mknod(2)] to create a block device node pointed to by
+ * @p path according to @p uid user ID, @p gid group ID, @p mode permissions,
+ * @p major and @p minor numbers.
+ * In case the block device node already exists, ensure it is consistent
+ * with @p uid user ID, @p gid group ID, @p mode permissions, @p major and @p
+ * minor numbers passed in arguments.
+ *
+ * @p mode MUST fit within the bitmask defined by the octal value `0666`.
+ * @p major MUST be `> 0`.
+ *
+ * Should an error occur:
+ * - an entry matching @p path pathname existing prior to this call and not
+ *   being a block device node will be left untouched ;
+ * - a block device node existing and matching @p path pathname prior to this
+ *   call will be left in an unpredictable state ;
+ * - otherwise, the new block device node will be deleted using [unlink(2)]
+ *   before returning to the caller.
+ *
+ * @param[in] path   Pathname to filesystem device node
+ * @param[in] uid    Device node owner UID
+ * @param[in] gid    Device node group GID
+ * @param[in] mode   Device node permissions
+ * @param[in] major  Device node major number
+ * @param[in] minor  Device node minor number
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see [mknod(2)]
+ * @see [makedev(3)]
+ * @see [chown(2)]
+ * @see [chmod(2)]
+ * @see [unlink(2)]
+ *
+ * [mknod(2)]: https://man7.org/linux/man-pages/man2/mknod.2.html
+ * [makedev(3)]: https://man7.org/linux/man-pages/man3/makedev.3.html
+ * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
+ * [chmod(2)]: https://man7.org/linux/man-pages/man2/chmod.2.html
+ * [unlink(2)]: https://man7.org/linux/man-pages/man2/unlink.2.html
+ */
 extern int
 enbox_make_blkdev(const char * path,
                   uid_t        uid,
@@ -362,18 +404,172 @@ enbox_make_blkdev(const char * path,
                   unsigned int minor)
 	__enbox_nonull(1) __nothrow;
 
+/**
+ * Ensure a filesystem named pipe is properly created.
+ *
+ * Basically calls [mkfifo(3)] to create a named pipe (FIFO) pointed to by
+ * @p path according to @p uid user ID, @p gid group ID and @p mode permissions.
+ * In case the named pipe already exists, ensure it is consistent
+ * with @p uid user ID, @p gid group ID and @p mode permissions passed in
+ * arguments.
+ *
+ * @p mode MUST fit within the bitmask defined by the octal value `0666`.
+ *
+ * Should an error occur:
+ * - an entry matching @p path pathname existing prior to this call and not
+ *   being a named pipe will be left untouched ;
+ * - a named pipe existing and matching @p path pathname prior to this call will
+ *   be left in an unpredictable state ;
+ * - otherwise, the new named pipe will be deleted using [unlink(2)] before
+ *   returning to the caller.
+ *
+ * @param[in] path   Pathname to filesystem named pipe
+ * @param[in] uid    Named pipe owner UID
+ * @param[in] gid    Named pipe group GID
+ * @param[in] mode   Named pipe permissions
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see [mkfifo(3)]
+ * @see [chown(2)]
+ * @see [chmod(2)]
+ * @see [unlink(2)]
+ *
+ * [mkfifo(3)]: https://man7.org/linux/man-pages/man3/mkfifo.3.html
+ * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
+ * [chmod(2)]: https://man7.org/linux/man-pages/man2/chmod.2.html
+ * [unlink(2)]: https://man7.org/linux/man-pages/man2/unlink.2.html
+ */
 extern int
 enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
 	__enbox_nonull(1) __nothrow;
 
+/**
+ * Clear ambient capability set.
+ *
+ * Remove all capabilities from current thread's ambient set.
+ *
+ * For more informations about Linux capability sets, refer to section `Thread
+ * capability sets` of [capabilities(7)].
+ *
+ * @warning Requires CAP_SETPCAP capability.
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see sections `Thread capability sets` and `CAP_SETPCAP` of [capabilities(7)]
+ * @see section `PR_CAP_AMBIENT_CLEAR_ALL` of [prctl(2)]
+ *
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * [prctl(2)]:        https://man7.org/linux/man-pages/man2/prctl.2.html
+ */
 extern int
-enbox_drop_ambient_caps(void) __nothrow;
+enbox_clear_ambient_caps(void) __nothrow;
 
+/**
+ * Clear bounding capability set.
+ *
+ * Remove all capabilities from current thread's bounding set.
+ *
+ * For more informations about Linux capability sets, refer to section `Thread
+ * capability sets` of [capabilities(7)].
+ *
+ * @warning Requires CAP_SETPCAP capability.
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see sections `Thread capability sets` and `CAP_SETPCAP` of [capabilities(7)]
+ * @see section `PR_CAPBSET_DROP` of [prctl(2)]
+ *
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * [prctl(2)]:        https://man7.org/linux/man-pages/man2/prctl.2.html
+ */
 extern int
-enbox_drop_bounding_caps(void) __nothrow;
+enbox_clear_bounding_caps(void) __nothrow;
 
+/**
+ * Lock capability sets.
+ *
+ * This will basically setup the following Linux kernel's security and
+ * capability related features:
+ * - set the [no_new_privs] attribute to 1, instructing next [execve(2)] call
+ *   not to grant privileges to do anything that could not have been done
+ *   without the [execve(2)] call ;
+ * - set the `SECBIT_NOROOT` securebits flag to 1 to disable the granting of
+ *   capabilities when a SUID root program is executed or when a process with an
+ *   effective or real UID of 0 calls [execve(2)] ;
+ * - set the `SECBIT_NO_CAP_AMBIENT_RAISE` securebits flag to 1 to disallow
+ *   raising ambient capabilities ;
+ * - clear all other available securebits flags ;
+ * - lock all securebits flags in an irreversible manner.
+ *
+ * @warning Requires CAP_SETPCAP capability.
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see sections `PR_SET_NO_NEW_PRIVS` and `PR_SET_SECUREBITS` of [prctl(2)]
+ * @see sections `Thread capability sets` and `The securebits flags` of
+ *      [capabilities(7)]
+ *
+ * [no_new_privs]:    https://www.kernel.org/doc/html/latest/userspace-api/no_new_privs.html
+ * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
+ * [prctl(2)]:        https://man7.org/linux/man-pages/man2/prctl.2.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ */
 extern int
 enbox_lock_caps(void) __nothrow;
+
+/**
+ * Request to setup current process's list of supplementary group IDs.
+ *
+ * @see enbox_change_ids()
+ */
+#define ENBOX_RAISE_SUPP_GROUPS (false)
+
+/**
+ * Request to clear current process's list of supplementary group IDs.
+ *
+ * @see enbox_change_ids()
+ */
+#define ENBOX_DROP_SUPP_GROUPS (true)
+
+/**
+ * Switch to user / group IDs.
+ *
+ * Change current process's real, effective and saved user ID to UID matching
+ * @p user user name passed in argument.
+ *
+ * In addition, change current process's real, effective and saved group ID to
+ * primary GID of @p user.
+ *
+ * Finally, setup current process's list of supplementary group IDs according
+ * to the following :
+ * - when @p drop_supp argument equals #ENBOX_RAISE_SUPP_GROUPS, setup
+ *   supplementary group IDs from system group database in addition to primary
+ *   group ID,
+ * - when @p drop_supp argument equals #ENBOX_DROP_SUPP_GROUPS, clear
+ *   supplementary group list.
+ *
+ * @warning Requires CAP_SETUID capability.
+ *
+ * @param[in] user      Name of user which UID to change to
+ * @param[in] drop_supp Load or clear supplementary groups list (see
+ *                      #ENBOX_RAISE_SUPP_GROUPS and #ENBOX_DROP_SUPP_GROUPS)
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see #ENBOX_RAISE_SUPP_GROUPS
+ * @see #ENBOX_DROP_SUPP_GROUPS
+ * @see [setresuid(2)]
+ * @see [initgroups(3)]
+ * @see [setgroups(2)]
+ *
+ * [setresuid(2)]:  https://man7.org/linux/man-pages/man2/setresuid.2.html
+ * [initgroups(3)]: https://man7.org/linux/man-pages/man3/initgroups.3.html
+ * [setgroups(2)]:  https://man7.org/linux/man-pages/man2/setgroups.2.html
+ */
+extern int
+enbox_change_ids(const char * __restrict user, bool drop_supp)
+	__enbox_nonull(1);
 
 /**
  * Enable process *dumpable* attribute.
@@ -422,6 +618,8 @@ enbox_lock_caps(void) __nothrow;
  *
  * @param[in] on Enable coredumps generation if `true`, disable it otherwise.
  *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
  * @see #ENBOX_ENABLE_DUMP
  * @see #ENBOX_DISABLE_DUMP
  * @see enbox_setup()
@@ -433,23 +631,8 @@ enbox_lock_caps(void) __nothrow;
  * [proc(5)]:                                           https://man7.org/linux/man-pages/man5/proc.5.html
  * [ptrace(2)]:                                         https://man7.org/linux/man-pages/man2/ptrace.2.html
  */
-static inline void __nothrow
-enbox_setup_dump(bool on)
-{
-	enbox_assert_setup();
-
-	int err;
-
-	err = prctl(PR_SET_DUMPABLE, (int)on, 0, 0, 0);
-	enbox_assert(!err);
-}
-
-#define ENBOX_KEEP_SUPP_GROUPS (false)
-#define ENBOX_DROP_SUPP_GROUPS (true)
-
 extern int
-enbox_change_ids(const char * __restrict user, bool drop_supp)
-	__enbox_nonull(1);
+enbox_setup_dump(bool on) __nothrow;
 
 /******************************************************************************
  * High-level API
@@ -595,9 +778,11 @@ struct elog;
  *
  * @param[inout] logger an initialized Elog logger instance.
  *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
  * @see enbox_setup_dump()
  */
-extern void
+extern int
 enbox_setup(struct elog * __restrict logger)
 	__enbox_nonull(1) __nothrow;
 

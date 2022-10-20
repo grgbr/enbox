@@ -361,6 +361,7 @@ enbox_make_blkdev(const char * path,
                   unsigned int major,
                   unsigned int minor)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(major > 0);
 	enbox_assert(uid != ENBOX_KEEP_UID);
@@ -388,6 +389,7 @@ enbox_make_blkdev(const char * path,
 int
 enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(uid != ENBOX_KEEP_UID);
 	enbox_assert(gid != ENBOX_KEEP_GID);
@@ -451,18 +453,15 @@ err:
 	return err;
 }
 
-/*
- * Drop all ambient set capabilities.
- *
- * Requires CAP_SETPCAP capability.
- */
 int
-enbox_drop_ambient_caps(void)
+enbox_clear_ambient_caps(void)
 {
+	enbox_assert_setup();
+
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0)) {
 		int err = errno;
 
-		enbox_info("cannot drop ambient set capabilities: %s (%d)",
+		enbox_info("cannot clear ambient capability set: %s (%d)",
 		           strerror(err),
 		           err);
 		return -err;
@@ -471,14 +470,11 @@ enbox_drop_ambient_caps(void)
 	return 0;
 }
 
-/*
- * Drop all bounding set capabilities.
- *
- * Requires CAP_SETPCAP capability.
- */
 int
-enbox_drop_bounding_caps(void)
+enbox_clear_bounding_caps(void)
 {
+	enbox_assert_setup();
+
 	int cap = 0;
 
 	do {
@@ -498,12 +494,11 @@ enbox_drop_bounding_caps(void)
 	return 0;
 }
 
-/*
- * Requires CAP_SETPCAP capability.
- */
 int
 enbox_lock_caps(void)
 {
+	enbox_assert_setup();
+
 	int err;
 
 	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0))
@@ -660,6 +655,7 @@ enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
 int
 enbox_change_ids(const char * __restrict user, bool drop_supp)
 {
+	enbox_assert_setup();
 	enbox_assert(upwd_validate_user_name(user) > 0);
 
 	const struct passwd * pwd;
@@ -688,6 +684,23 @@ err:
 	           -err);
 
 	return err;
+}
+
+int
+enbox_setup_dump(bool on)
+{
+	enbox_assert_setup();
+
+	if (prctl(PR_SET_DUMPABLE, (int)on, 0, 0, 0)) {
+		int err = errno;
+
+		enbox_info("cannot setup dumpable attribute: %s (%d)",
+		           strerror(err),
+		           err);
+		return -err;
+	}
+
+	return 0;
 }
 
 /******************************************************************************
@@ -1553,7 +1566,7 @@ enbox_enter_jail_bypwd(int                              namespaces,
 	 * Effective, permitted, inheritable and ambient sets will be cleared at
 	 * execve() time.
 	 */
-	err = enbox_drop_bounding_caps();
+	err = enbox_clear_bounding_caps();
 	if (err)
 		return err;
 
@@ -1807,7 +1820,7 @@ enbox_read_umask(void)
 	return msk;
 }
 
-void
+int
 enbox_setup(struct elog * __restrict logger)
 {
 	enbox_assert(logger);
@@ -1819,6 +1832,8 @@ enbox_setup(struct elog * __restrict logger)
 	enbox_umask = enbox_read_umask();
 
 #if defined(CONFIG_ENBOX_DISABLE_DUMP)
-	enbox_setup_dump(ENBOX_DISABLE_DUMP);
+	return enbox_setup_dump(ENBOX_DISABLE_DUMP);
+#else  /* ! defined(CONFIG_ENBOX_DISABLE_DUMP) */
+	return 0;
 #endif /* defined(CONFIG_ENBOX_DISABLE_DUMP) */
 }
