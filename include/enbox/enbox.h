@@ -431,6 +431,7 @@ enbox_make_blkdev(const char * path,
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see [mkfifo(3)]
+ * @see [pipe(7)]
  * @see [chown(2)]
  * @see [chmod(2)]
  * @see [unlink(2)]
@@ -439,6 +440,7 @@ enbox_make_blkdev(const char * path,
  * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
  * [chmod(2)]: https://man7.org/linux/man-pages/man2/chmod.2.html
  * [unlink(2)]: https://man7.org/linux/man-pages/man2/unlink.2.html
+ * [pipe(7)]: https://man7.org/linux/man-pages/man7/pipe.7.html
  */
 extern int
 enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
@@ -638,33 +640,144 @@ enbox_setup_dump(bool on) __nothrow;
  * High-level API
  ******************************************************************************/
 
+/**
+ * File system entry type identifier.
+ *
+ * Identifies types of filesystem entries that Enbox may create when populating
+ * jail and / or host filesystems.
+ */
 enum enbox_entry_type {
+	/** Directory entry. @see enbox_dir_entry */
 	ENBOX_DIR_ENTRY_TYPE = 0,
+	/** Symbolic link entry. @see enbox_slink_entry */
 	ENBOX_SLINK_ENTRY_TYPE,
+	/** Character device node entry. @see enbox_dev_entry */
 	ENBOX_CHRDEV_ENTRY_TYPE,
+	/** Block device node entry. @see enbox_dev_entry */
 	ENBOX_BLKDEV_ENTRY_TYPE,
+	/** Named pipe entry. @see enbox_fifo_entry */
 	ENBOX_FIFO_ENTRY_TYPE,
+	/** `/proc` mount point entry. @see enbox_mount_entry */
 	ENBOX_PROC_ENTRY_TYPE,
+	/** (sub-)tree bind mount point entry. @see enbox_bind_entry */
 	ENBOX_TREE_ENTRY_TYPE,
+	/** File bind mount point entry. @see enbox_bind_entry */
 	ENBOX_FILE_ENTRY_TYPE,
+	/** Number of entry types. */
 	ENBOX_ENTRY_TYPE_NR
 };
 
+/**
+ * Directory entry descriptor.
+ *
+ * Depicts how to create a directory entry when :
+ * - populating jail filesystem using enbox_enter_jail(),
+ * - or populating host filesystem using enbox_populate_host().
+ *
+ * Embedded within a #enbox_entry structure and used in combination with
+ * #ENBOX_DIR_ENTRY_TYPE identifier to instruct enbox_populate_host() and / or
+ * enbox_enter_jail() to create a directory entry.
+ *
+ * @see #enbox_entry_type
+ * @see #ENBOX_DIR_ENTRY_TYPE
+ * @see #enbox_entry
+ * @see enbox_populate_host()
+ * @see enbox_enter_jail()
+ * @see enbox_make_dir()
+ * @see section «The file type and mode» of [inode(7)]
+ *
+ * [inode(7)]: https://man7.org/linux/man-pages/man7/inode.7.html
+ */
 struct enbox_dir_entry {
+	/** Mode, i.e., permission bits for the directory. */
 	mode_t mode;
 };
 
+/**
+ * Symbolic link entry descriptor.
+ *
+ * Depicts how to create a symbolic link entry when :
+ * - populating jail filesystem using enbox_enter_jail(),
+ * - or populating host filesystem using enbox_populate_host().
+ *
+ * Embedded within a #enbox_entry structure and used in combination with
+ * #ENBOX_SLINK_ENTRY_TYPE identifier to instruct enbox_populate_host() and / or
+ * enbox_enter_jail() to create a symbolic link entry.
+ *
+ * @see #enbox_entry_type
+ * @see #ENBOX_SLINK_ENTRY_TYPE
+ * @see #enbox_entry
+ * @see enbox_populate_host()
+ * @see enbox_enter_jail()
+ * @see enbox_make_slink()
+ */
 struct enbox_slink_entry {
+	/** Symbolic link target, i.e., pathname this symlink will point to. */
 	const char * target;
 };
 
+/**
+ * Device node entry descriptor.
+ *
+ * Depicts how to create a device node entry (wether character or block) when :
+ * - populating jail filesystem using enbox_enter_jail(),
+ * - or populating host filesystem using enbox_populate_host().
+ *
+ * Embedded within a #enbox_entry structure and used in combination with
+ * #ENBOX_CHRDEV_ENTRY_TYPE or #ENBOX_BLKDEV_ENTRY_TYPE identifiers to instruct
+ * enbox_populate_host() and / or enbox_enter_jail() to create a character
+ * or a block device node entry respectively.
+ *
+ * @see #enbox_entry_type
+ * @see #ENBOX_CHRDEV_ENTRY_TYPE
+ * @see #ENBOX_BLKDEV_ENTRY_TYPE
+ * @see #enbox_entry
+ * @see enbox_populate_host()
+ * @see enbox_enter_jail()
+ * @see enbox_make_chrdev()
+ * @see enbox_make_blkdev()
+ * @see [makedev(3)]
+ *
+ * [makedev(3)]: https://man7.org/linux/man-pages/man3/makedev.3.html
+ */
 struct enbox_dev_entry {
+	/**
+	 * Mode, i.e., permission bits for the device node.
+	 * MUST fit within the bitmask defined by the octal value `0666`.
+	 */
 	mode_t       mode;
+	/** Device node major number. */
 	unsigned int major;
+	/** Device node minor number. */
 	unsigned int minor;
 };
 
+/**
+ * FIFO, i.e. (filesystem backed) named pipe entry descriptor.
+ *
+ * Depicts how to create a named pipe entry when :
+ * - populating jail filesystem using enbox_enter_jail(),
+ * - or populating host filesystem using enbox_populate_host().
+ *
+ * Embedded within a #enbox_entry structure and used in combination with
+ * #ENBOX_FIFO_ENTRY_TYPE identifier to instruct enbox_populate_host() and / or
+ * enbox_enter_jail() to create a named pipe entry.
+ *
+ * @see #enbox_entry_type
+ * @see #ENBOX_FIFO_ENTRY_TYPE
+ * @see #enbox_entry
+ * @see enbox_populate_host()
+ * @see enbox_enter_jail()
+ * @see enbox_make_fifo()
+ * @see [pipe(7)]
+ *
+ * [pipe(7)]: https://man7.org/linux/man-pages/man7/pipe.7.html
+ */
 struct enbox_fifo_entry {
+	/**
+	 * Mode, i.e., permission bits for the named pipe.
+	 * MUST fit within the bitmask defined by the octal value `0666`.
+	 */
 	mode_t mode;
 };
 
@@ -679,6 +792,9 @@ struct enbox_bind_entry {
 	const char *  opts;
 };
 
+/**
+ * Document me!
+ */
 struct enbox_entry {
 	const char *                     path;
 	enum enbox_entry_type            type;
@@ -694,11 +810,17 @@ struct enbox_entry {
 	};
 };
 
+/**
+ * Document me !!
+ */
 struct enbox_fsset {
 	unsigned int               nr;
 	const struct enbox_entry * entries;
 };
 
+/**
+ * Document me !!
+ */
 extern int
 enbox_populate_host(const struct enbox_fsset * __restrict host)
 	__enbox_nonull(1);
@@ -727,12 +849,18 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
                       bool                          drop_supp)
 	__enbox_nonull(1, 2);
 
+/**
+ * Document me!
+ */
 struct enbox_jail {
 	int                namespaces;
 	const char *       root_path;
 	struct enbox_fsset fsset;
 };
 
+/**
+ * Document me !!
+ */
 extern int
 enbox_enter_jail(const struct enbox_jail * __restrict jail,
                  const struct enbox_ids * __restrict  ids)
