@@ -690,7 +690,8 @@ main(int argc, char * const argv[])
 	}
 
 	elog_init_stdio(&skel_stdlog, &skel_stdlog_conf);
-	enbox_setup((struct elog *)&skel_stdlog);
+	if (enbox_setup((struct elog *)&skel_stdlog))
+		goto out;
 
 	conf = enbox_create_conf_from_file(argv[optind]);
 	if (!conf)

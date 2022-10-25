@@ -753,7 +753,7 @@ struct enbox_dev_entry {
 };
 
 /**
- * FIFO, i.e. (filesystem backed) named pipe entry descriptor.
+ * FIFO, i.e., (filesystem backed) named pipe, entry descriptor.
  *
  * Depicts how to create a named pipe entry when :
  * - populating jail filesystem using enbox_enter_jail(),
@@ -781,31 +781,230 @@ struct enbox_fifo_entry {
 	mode_t mode;
 };
 
+/**
+ * Mount entry descriptor.
+ *
+ * Depicts how to initially mount a filesystem when populating jail
+ * filesystem using enbox_enter_jail().
+ *
+ * The filesystem will be mounted from within the jail's own mount namespace
+ * using unbindable propagation properties (see «SHARED SUBTREE» section of
+ * [mount_namespaces(7)]).
+ * Mount point directory will be implicitly created if not existing with
+ * permissions, ownership and membership inherited from the original filesystem
+ * root directory.
+ *
+ * Embedded within a #enbox_entry structure and used in combination with
+ * #ENBOX_PROC_ENTRY_TYPE identifier to instruct enbox_enter_jail() to create a
+ * mount entry.
+ *
+ * @warning Do not use if you want to bind mount a filesystem, use
+ *          #enbox_bind_entry instead.
+ *
+ * @see #enbox_entry_type
+ * @see #ENBOX_PROC_ENTRY_TYPE
+ * @see #enbox_entry
+ * @see #enbox_bind_entry
+ * @see enbox_enter_jail()
+ * @see [mount(2)]
+ * @see [mount_namespaces(7)]
+ *
+ * [mount(2)]: https://man7.org/linux/man-pages/man2/mount.2.html
+ * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
+ */
 struct enbox_mount_entry {
+	/**
+	 * Mounting flags passed as 4th argument to [mount(2)]
+	 * (https://man7.org/linux/man-pages/man2/mount.2.html) when mounting
+	 * filesystem.
+	 *
+	 * The set of supported mounting flags is listed below. Any other flags
+	 * will generate unpredictable behavior :
+	 * - `MS_DIRSYNC`
+	 * - `MS_MANDLOCK`
+	 * - `MS_NODEV`
+	 * - `MS_NOEXEC`
+	 * - `MS_NOSUID`
+	 * - `MS_RDONLY`
+	 * - `MS_SILENT`
+	 * - `MS_SYNCHRONOUS`
+	 * - `MS_NOSYMFOLLOW`
+	 * - `MS_LAZYTIME`
+	 * - `MS_NOATIME`
+	 * - `MS_RELATIME`
+	 * - `MS_STRICTATIME`
+	 * - `MS_NODIRATIME`
+	 */
 	unsigned long flags;
-	const char *  opts;
-};
-
-struct enbox_bind_entry {
-	const char *  orig;
-	unsigned long flags;
+	/**
+	 * Mounting options passed as 5th argument to
+	 * [mount(2)](https://man7.org/linux/man-pages/man2/mount.2.html) when
+	 * mounting filesystem.
+	 *
+	 * This is a string of comma-separated options specific to the type of
+	 * mounted filesystem.
+	 */
 	const char *  opts;
 };
 
 /**
- * Document me!
+ * Bind mount entry descriptor.
+ *
+ * Depicts how to bind mount a file or a filesystem (sub-)tree when populating
+ * jail filesystem using enbox_enter_jail(). See «Creating a bind mount» section
+ * of [mount(2)] for more informations about what a bind mount is.
+ *
+ * The bind mount will be performed from within the jail's own mount namespace
+ * using unbindable propagation properties (see «SHARED SUBTREE» section of
+ * [mount_namespaces(7)]).
+ * Mount point directory will be implicitly created if not existing with
+ * permissions, ownership and membership inherited from the source filesystem
+ * mount point entry.
+ *
+ * Embedded within a #enbox_entry structure and used in combination with
+ * #ENBOX_FILE_ENTRY_TYPE or #ENBOX_TREE_ENTRY_TYPE identifiers to instruct
+ * enbox_enter_jail() to create file or (sub-)tree bind mount mount entry
+ * respectively.
+ *
+ * @warning Do not use if you want to initially mount a filesystem, use
+ *          #enbox_mount_entry instead.
+ *
+ * @see #enbox_entry_type
+ * @see #ENBOX_FILE_ENTRY_TYPE
+ * @see #ENBOX_TREE_ENTRY_TYPE
+ * @see #enbox_entry
+ * @see #enbox_bind_entry
+ * @see enbox_enter_jail()
+ * @see [mount(2)]
+ * @see [mount_namespaces(7)]
+ *
+ * [mount(2)]: https://man7.org/linux/man-pages/man2/mount.2.html
+ * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
+ */
+struct enbox_bind_entry {
+	/** Pathname to source filesystem entry to bind mount. */
+	const char *  orig;
+	/**
+	 * Mounting flags passed as 4th argument to [mount(2)]
+	 * (https://man7.org/linux/man-pages/man2/mount.2.html) when bind
+	 * mounting a file or a filesystem (sub-)tree.
+	 *
+	 * The set of supported mounting flags to bind mount a source file using
+	 * #ENBOX_FILE_ENTRY_TYPE is show below. Any other flags will generate
+	 * unpredictable behavior :
+	 * - `MS_MANDLOCK`
+	 * - `MS_NODEV`
+	 * - `MS_NOEXEC`
+	 * - `MS_NOSUID`
+	 * - `MS_RDONLY`
+	 * - `MS_SILENT`
+	 * - `MS_SYNCHRONOUS`
+	 * - `MS_NOSYMFOLLOW`
+	 * - `MS_LAZYTIME`
+	 * - `MS_NOATIME`
+	 * - `MS_RELATIME`
+	 * - `MS_STRICTATIME`
+	 *
+	 * The set of supported mounting flags to bind mount a source filesystem
+	 * tree using #ENBOX_TREE_ENTRY_TYPE is show below. Any other flags will
+	 * generate unpredictable behavior :
+	 * - `MS_DIRSYNC`
+	 * - `MS_MANDLOCK`
+	 * - `MS_NODEV`
+	 * - `MS_NOEXEC`
+	 * - `MS_NOSUID`
+	 * - `MS_RDONLY`
+	 * - `MS_SILENT`
+	 * - `MS_SYNCHRONOUS`
+	 * - `MS_NOSYMFOLLOW`
+	 * - `MS_LAZYTIME`
+	 * - `MS_NOATIME`
+	 * - `MS_RELATIME`
+	 * - `MS_STRICTATIME`
+	 * - `MS_NODIRATIME`
+	 */
+	unsigned long flags;
+	/**
+	 * Mounting options passed as 5th argument to
+	 * [mount(2)](https://man7.org/linux/man-pages/man2/mount.2.html) when
+	 * bind mounting a file or a filesystem (sub-)tree.
+	 *
+	 * This is a string of comma-separated options specific to the type of
+	 * the mounted source filesystem.
+	 */
+	const char *  opts;
+};
+
+/**
+ * Filesystem entry descriptor.
+ *
+ * This depicts how to ensure the filesystem entry identified by @p path is
+ * properly created when:
+ * - populating jail filesystem using enbox_enter_jail(),
+ * - or populating host filesystem using enbox_populate_host().
+ *
+ * @note Populating jail's filesystem(s) will be performed from within the
+ *       jail's own mount namespace using unbindable propagation properties (see
+ *       «SHARED SUBTREE» section of [mount_namespaces(7)]).
+ *
+ * @see enbox_populate_host()
+ * @see enbox_enter_jail()
+ * @see [mount_namespaces(7)]
+ *
+ * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
  */
 struct enbox_entry {
+	/**
+	 * Pathname to entry.
+	 *
+	 * Enbox uses this field as the entry's primary identifier.
+	 */
 	const char *                     path;
+	/** Type of entry. */
 	enum enbox_entry_type            type;
+	/** UID of entry owner. */
 	uid_t                            uid;
+	/** GID of entry group. */
 	gid_t                            gid;
+	/** Per entry type specific settings. */
 	union {
+		/**
+		 * Directory entry specific settings.
+		 *
+		 * @see #ENBOX_DIR_ENTRY_TYPE
+		 */
 		struct enbox_dir_entry   dir;
+		/**
+		 * Symbolic link entry specific settings.
+		 *
+		 * @see #ENBOX_SLINK_ENTRY_TYPE
+		 */
 		struct enbox_slink_entry slink;
+		/**
+		 * Device node entry specific settings.
+		 *
+		 * @see #ENBOX_CHRDEV_ENTRY_TYPE
+		 * @see #ENBOX_BLKDEV_ENTRY_TYPE
+		 */
 		struct enbox_dev_entry   dev;
+		/**
+		 * FIFO, i.e., named pipe entry specific settings.
+		 *
+		 * @see #ENBOX_FILE_ENTRY_TYPE
+		 */
 		struct enbox_fifo_entry  fifo;
+		/**
+		 * Initial mount point entry specific settings.
+		 *
+		 * @see #ENBOX_PROC_ENTRY_TYPE
+		 */
 		struct enbox_mount_entry mount;
+		/**
+		 * Bind mount point entry specific settings.
+		 *
+		 * @see #ENBOX_FILE_ENTRY_TYPE
+		 * @see #ENBOX_TREE_ENTRY_TYPE
+		 */
 		struct enbox_bind_entry  bind;
 	};
 };

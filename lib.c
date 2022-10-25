@@ -710,9 +710,6 @@ enbox_setup_dump(bool on)
 static int __enbox_nonull(1) __nothrow
 enbox_make_dir_entry(const struct enbox_entry * __restrict ent)
 {
-	enbox_assert(ent->uid != (uid_t)-1);
-	enbox_assert(ent->gid != (gid_t)-1);
-
 	return enbox_make_dir(ent->path,
 	                      ent->uid,
 	                      ent->gid,
@@ -722,9 +719,6 @@ enbox_make_dir_entry(const struct enbox_entry * __restrict ent)
 static int __enbox_nonull(1) __nothrow
 enbox_make_slink_entry(const struct enbox_entry * __restrict ent)
 {
-	enbox_assert(ent->uid != (uid_t)-1);
-	enbox_assert(ent->gid != (gid_t)-1);
-
 	return enbox_make_slink(ent->path,
 	                        ent->slink.target,
 	                        ent->uid,
@@ -734,9 +728,6 @@ enbox_make_slink_entry(const struct enbox_entry * __restrict ent)
 static int __enbox_nonull(1) __nothrow
 enbox_make_chrdev_entry(const struct enbox_entry * __restrict ent)
 {
-	enbox_assert(ent->uid != (uid_t)-1);
-	enbox_assert(ent->gid != (gid_t)-1);
-
 	return enbox_make_chrdev(ent->path,
 	                         ent->uid,
 	                         ent->gid,
@@ -748,9 +739,6 @@ enbox_make_chrdev_entry(const struct enbox_entry * __restrict ent)
 static int __enbox_nonull(1) __nothrow
 enbox_make_blkdev_entry(const struct enbox_entry * __restrict ent)
 {
-	enbox_assert(ent->uid != (uid_t)-1);
-	enbox_assert(ent->gid != (gid_t)-1);
-
 	return enbox_make_blkdev(ent->path,
 	                         ent->uid,
 	                         ent->gid,
@@ -762,9 +750,6 @@ enbox_make_blkdev_entry(const struct enbox_entry * __restrict ent)
 static int __enbox_nonull(1) __nothrow
 enbox_make_fifo_entry(const struct enbox_entry * __restrict ent)
 {
-	enbox_assert(ent->uid != (uid_t)-1);
-	enbox_assert(ent->gid != (gid_t)-1);
-
 	return enbox_make_fifo(ent->path,
 	                       ent->uid,
 	                       ent->gid,
@@ -779,6 +764,7 @@ enbox_make_entries(const struct enbox_entry    entries[__restrict_arr],
                    unsigned int                nr,
                    enbox_make_entry_fn * const makers[__restrict_arr])
 {
+	enbox_assert_setup();
 	enbox_assert(entries);
 	enbox_assert(nr);
 	enbox_assert(makers);
@@ -976,8 +962,7 @@ static int __nothrow
 enbox_mount_proc(unsigned long           flags,
                  const char * __restrict opts)
 {
-	enbox_assert(!enbox_get_uid());
-	enbox_assert(!enbox_get_gid());
+	enbox_assert_setup();
 	enbox_assert(!(flags & ~ENBOX_PROC_VALID_FLAGS));
 	enbox_assert_mount_time_flags(flags);
 	enbox_assert(!opts || opts[0]);
@@ -1100,16 +1085,15 @@ enbox_bind_tree(const char * __restrict path,
                 int                     flags,
                 const char * __restrict opts)
 {
-	struct stat stat;
-	int         err;
-
-	enbox_assert(!enbox_get_uid());
-	enbox_assert(!enbox_get_gid());
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(orig) > 0);
 	enbox_assert_bind_mntpt(path);
 	enbox_assert(!(flags & ~ENBOX_TREE_VALID_FLAGS));
 	enbox_assert_mount_time_flags(flags);
 	enbox_assert(!opts || *opts);
+
+	struct stat stat;
+	int         err;
 
 	/* Check that orig points to an existing directory. */
 	err = upath_lstat(orig, &stat);
@@ -1178,16 +1162,15 @@ enbox_bind_file(const char * __restrict path,
                 int                     flags,
                 const char * __restrict opts)
 {
-	struct stat stat;
-	int         err;
-
-	enbox_assert(!enbox_get_uid());
-	enbox_assert(!enbox_get_gid());
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(orig) > 0);
 	enbox_assert_bind_mntpt(path);
 	enbox_assert(!(flags & ~ENBOX_FILE_VALID_FLAGS));
 	enbox_assert_mount_time_flags(flags);
-	
+
+	struct stat stat;
+	int         err;
+
 	err = upath_lstat(orig, &stat);
 	if (err < 0)
 		goto err;
