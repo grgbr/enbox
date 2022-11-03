@@ -1010,32 +1010,92 @@ struct enbox_entry {
 };
 
 /**
- * Document me !!
+ * Filesystem entry descriptor set.
+ *
+ * Aggregate multiple #enbox_entry filesystem entry descriptors. This is used
+ * to ensure that the contained filesystem entries are properly created when:
+ * - populating jail filesystem using enbox_enter_jail(),
+ * - or populating host filesystem using enbox_populate_host().
+ *
+ * @note Populating jail's filesystem(s) will be performed from within the
+ *       jail's own mount namespace using unbindable propagation properties (see
+ *       «SHARED SUBTREE» section of [mount_namespaces(7)]).
+ *
+ * @see #enbox_entry
+ * @see enbox_populate_host()
+ * @see enbox_enter_jail()
+ * @see [mount_namespaces(7)]
+ *
+ * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
  */
 struct enbox_fsset {
+	/**
+	 * Number of #enbox_entry entries contained into
+	 * #enbox_fsset::entries.
+	 */
 	unsigned int               nr;
+	/** Array of #enbox_entry entries. */
 	const struct enbox_entry * entries;
 };
 
 /**
- * Document me !!
+ * Populate host filesystem.
+ *
+ * Ensure that filesystem entries found into #enbox_fsset set given in argument
+ * are properly created from within the «host» mount namespace, i.e., the
+ * initial system-wide mount namespace.
+ *
+ * Entries will be created in the order they appear into the #enbox_fsset set.
+ *
+ * @note Populating jail's filesystem(s) will be performed from within the
+ *       jail's own mount namespace using unbindable propagation properties (see
+ *       «SHARED SUBTREE» section of [mount_namespaces(7)]).
+ *
+ * @param[in] fsset Set of filesystem entries to create
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see #enbox_entry
+ * @see enbox_populate_host()
+ * @see enbox_enter_jail()
+ * @see [mount_namespaces(7)]
+ *
+ * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
  */
 extern int
-enbox_populate_host(const struct enbox_fsset * __restrict host)
+enbox_populate_host(const struct enbox_fsset * __restrict fsset)
 	__enbox_nonull(1);
 
-#define ENBOX_NAMESPACE_FLAGS \
-	(CLONE_NEWNS | \
-	 CLONE_NEWCGROUP | \
-	 CLONE_NEWUTS | \
-	 CLONE_NEWIPC | \
-	 CLONE_NEWNET)
+/**
+ * @struct enbox_ids
+ *
+ * User / group identifiers.
+ *
+ * Opaque structure storing user and group membership informations.
+ *
+ * @see enbox_load_ids_byid()
+ * @see enbox_load_ids_byname()
+ */
+struct enbox_ids;
 
-struct enbox_ids {
-	const struct passwd * pwd;
-	bool                  drop_supp;
-};
-
+/**
+ * Load user and group membership identifiers by UID.
+ *
+ * Given the UID @p id argument, load the related ownership and group membership
+ * informations and store them into @p ids.
+ *
+ * @param[out] ids       Ownership and group membership informations store
+ * @param[in]  id        User UID to load informations for
+ * @param[in]  drop_supp Do not load supplementary groups if
+ *                       #ENBOX_DROP_SUPP_GROUPS, load them if
+ *                       #ENBOX_RAISE_SUPP_GROUPS
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see #ENBOX_DROP_SUPP_GROUPS
+ * @see #ENBOX_RAISE_SUPP_GROUPS
+ * @see enbox_change_ids()
+ */
 extern int
 enbox_load_ids_byid(struct enbox_ids * __restrict ids,
                     uid_t                         id,
@@ -1047,6 +1107,13 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
                       const char * __restrict       user,
                       bool                          drop_supp)
 	__enbox_nonull(1, 2);
+
+#define ENBOX_NAMESPACE_FLAGS \
+	(CLONE_NEWNS | \
+	 CLONE_NEWCGROUP | \
+	 CLONE_NEWUTS | \
+	 CLONE_NEWIPC | \
+	 CLONE_NEWNET)
 
 /**
  * Document me!

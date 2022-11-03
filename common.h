@@ -15,6 +15,11 @@
 	enbox_assert((_ent)->type >= 0); \
 	enbox_assert((_ent)->type < ENBOX_ENTRY_TYPE_NR)
 
+struct enbox_ids {
+	const struct passwd * pwd;
+	bool                  drop_supp;
+};
+
 /* Mask of inode timestamp related mounting flags. */
 #define ENBOX_MOUNT_TIME_FLAGS \
 	(MS_LAZYTIME | MS_NOATIME | MS_RELATIME | MS_STRICTATIME | \

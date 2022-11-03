@@ -787,8 +787,10 @@ enbox_make_entries(const struct enbox_entry    entries[__restrict_arr],
 }
 
 int
-enbox_populate_host(const struct enbox_fsset * __restrict host)
+enbox_populate_host(const struct enbox_fsset * __restrict fsset)
 {
+	enbox_assert(fsset);
+
 	int                                err;
 	static enbox_make_entry_fn * const makers[ENBOX_ENTRY_TYPE_NR] = {
 		[ENBOX_DIR_ENTRY_TYPE]    = enbox_make_dir_entry,
@@ -798,7 +800,7 @@ enbox_populate_host(const struct enbox_fsset * __restrict host)
 		[ENBOX_FIFO_ENTRY_TYPE]   = enbox_make_fifo_entry
 	};
 
-	err = enbox_make_entries(host->entries, host->nr, makers);
+	err = enbox_make_entries(fsset->entries, fsset->nr, makers);
 	if (err) {
 		enbox_err("cannot populate host filesystem: %s (%d)",
 		          strerror(-err),
@@ -1617,6 +1619,7 @@ enbox_load_ids_byid(struct enbox_ids * __restrict ids,
                     uid_t                         id,
                     bool                          drop_supp)
 {
+	enbox_assert_setup();
 	enbox_assert(ids);
 
 	const struct passwd * pwd;
