@@ -1075,6 +1075,8 @@ enbox_populate_host(const struct enbox_fsset * __restrict fsset)
  *
  * @see enbox_load_ids_byid()
  * @see enbox_load_ids_byname()
+ * @see enbox_enter_jail()
+ * @see enbox_run_cmd()
  */
 struct enbox_ids;
 
@@ -1082,19 +1084,28 @@ struct enbox_ids;
  * Load user and group membership identifiers by UID.
  *
  * Given the UID @p id argument, load the related ownership and group membership
- * informations and store them into @p ids.
+ * informations and store them into @p ids. It may then be used as input to
+ * enbox_enter_jail() and / or enbox_run_cmd() to switch to the stored user and
+ * group(s).
+ *
+ * Depending on @p drop_supp argument, group membership informations will be set
+ * to the following :
+ * - user's primary group only when @p drop_supp set to #ENBOX_DROP_SUPP_GROUPS,
+ * - user's primary group and all groups it is a member of when @p drop_supp set
+ *   to #ENBOX_RAISE_SUPP_GROUPS.
  *
  * @param[out] ids       Ownership and group membership informations store
  * @param[in]  id        User UID to load informations for
- * @param[in]  drop_supp Do not load supplementary groups if
- *                       #ENBOX_DROP_SUPP_GROUPS, load them if
- *                       #ENBOX_RAISE_SUPP_GROUPS
+ * @param[in]  drop_supp Drop supplementary group membership
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see #ENBOX_DROP_SUPP_GROUPS
  * @see #ENBOX_RAISE_SUPP_GROUPS
+ * @see enbox_enter_jail()
+ * @see enbox_run_cmd()
  * @see enbox_change_ids()
+ * @see enbox_load_ids_byname()
  */
 extern int
 enbox_load_ids_byid(struct enbox_ids * __restrict ids,
@@ -1102,12 +1113,55 @@ enbox_load_ids_byid(struct enbox_ids * __restrict ids,
                     bool                          drop_supp)
 	__enbox_nonull(1);
 
+/**
+ * Load user and group membership identifiers by user name.
+ *
+ * Given the user name @p name argument, load the related ownership and group
+ * membership informations and store them into @p ids. It may then be used as
+ * input to enbox_enter_jail() and / or enbox_run_cmd() to switch to the stored
+ * user and group(s).
+ *
+ * Depending on @p drop_supp argument, group membership informations will be set
+ * to the following :
+ * - user's primary group only when @p drop_supp set to #ENBOX_DROP_SUPP_GROUPS,
+ * - user's primary group and all groups it is a member of when @p drop_supp set
+ *   to #ENBOX_RAISE_SUPP_GROUPS.
+ *
+ * @param[out] ids       Ownership and group membership informations store
+ * @param[in]  user      User name to load informations for
+ * @param[in]  drop_supp Drop supplementary group membership
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see #ENBOX_DROP_SUPP_GROUPS
+ * @see #ENBOX_RAISE_SUPP_GROUPS
+ * @see enbox_enter_jail()
+ * @see enbox_run_cmd()
+ * @see enbox_change_ids()
+ * @see enbox_load_ids_byid()
+ */
 extern int
 enbox_load_ids_byname(struct enbox_ids * __restrict ids,
                       const char * __restrict       user,
                       bool                          drop_supp)
 	__enbox_nonull(1, 2);
 
+/**
+ * Default list of new namespaces a jail is made a member of.
+ *
+ * The list is set to:
+ * - mount namespace,
+ * - Cgroup namespace,
+ * - UTS namespace,
+ * - IPC namespace,
+ * - and network namespace.
+ *
+ * @see #enbox_jail::namespaces
+ * @see enbox_enter_jail()
+ * @see [mount_namespaces(7)]
+ *
+ * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
+ */
 #define ENBOX_NAMESPACE_FLAGS \
 	(CLONE_NEWNS | \
 	 CLONE_NEWCGROUP | \
@@ -1116,11 +1170,36 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
 	 CLONE_NEWNET)
 
 /**
- * Document me!
+ * Jail descriptor.
+ *
+ * This structure holds properties used to create a jail using
+ * enbox_enter_jail().
+ *
+ * @note Populating jail's filesystem(s) will be performed from within the
+ *       jail's own mount namespace using unbindable propagation properties (see
+ *       «SHARED SUBTREE» section of [mount_namespaces(7)]).
+ *
+ * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
+ *
+ * @see enbox_enter_jail()
  */
 struct enbox_jail {
+	/**
+	 * List of namespaces this jail will be a member of.
+	 *
+	 * @see #ENBOX_NAMESPACE_FLAGS
+	 */
 	int                namespaces;
+	/**
+	 * Pathname to this jail's root filesystem.
+	 *
+	 * Pathname to directory under which this jail's root (TMPFS) filesystem
+	 * will be mounted.
+	 */
 	const char *       root_path;
+	/**
+	 * Set of filesystem entries to create for this jail.
+	 */
 	struct enbox_fsset fsset;
 };
 

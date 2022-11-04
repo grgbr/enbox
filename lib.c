@@ -1657,6 +1657,7 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
                       const char * __restrict       user,
                       bool                          drop_supp)
 {
+	enbox_assert_setup();
 	enbox_assert(ids);
 	enbox_assert(user);
 
