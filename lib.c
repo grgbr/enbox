@@ -1345,6 +1345,7 @@ enbox_setup_jail(const char * __restrict  path,
                  const struct enbox_entry entries[__restrict_arr],
                  size_t                   nr)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(entries);
 	enbox_assert(nr);
@@ -1494,6 +1495,8 @@ static inline void enbox_ensure_cwd_is_root(void) { }
 static int
 enbox_chroot_jail(void)
 {
+	enbox_assert_setup();
+
 	struct statfs stat;
 	int           err;
 
@@ -1527,6 +1530,7 @@ enbox_enter_jail_bypwd(int                              namespaces,
                        const struct enbox_entry         entries[__restrict_arr],
                        size_t                           nr)
 {
+	enbox_assert_setup();
 	enbox_assert(!(namespaces & ~ENBOX_VALID_NAMESPACE_FLAGS));
 	enbox_assert(gid != (gid_t)-1);
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -1593,6 +1597,7 @@ int
 enbox_enter_jail(const struct enbox_jail * __restrict jail,
                  const struct enbox_ids * __restrict  ids)
 {
+	enbox_assert_setup();
 	enbox_assert_jail(jail);
 	enbox_assert(ids);
 	enbox_assert(ids->pwd);

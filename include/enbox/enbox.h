@@ -1204,7 +1204,95 @@ struct enbox_jail {
 };
 
 /**
- * Document me !!
+ * Create and enter a jailed runtime context.
+ *
+ * Allows to create and enter a jail. This jail may be used to further
+ * [execve(2)] a program from within a runtime context isolated from the main
+ * system-wide runtime using enbox_run_cmd().
+ * Jail will be created according to properties passed as @p jail argument.
+ * In addition, @p ids argument must point to user and group membership
+ * identifiers that will be passed to the next enbox_run_cmd() call.
+ *
+ * enbox_enter_jail() carries out the following sequence of actions:
+ * 1. clear the whole environment using [clearenv(3)] ;
+ * 2. lock capability sets using enbox_lock_caps() ;
+ * 3. clear the capability *bounding* set using enbox_clear_bounding_caps() ;
+ *    note that *effective*, *permitted*, *inheritable* and *ambient* sets will
+ *    be cleared at [execve(2)] time ;
+ * 4. isolate from global system namespaces using [unshare(2)] and
+ *    #enbox_jail::namespaces value;
+ * 5. create jail's futur root filesystem (TMPFS) and populate it using
+ *    #enbox_jail::root_path and #enbox_jail::fsset content;
+ * 6. switch the new jail's root filesystem.
+ *
+ * Isolation from global system resources is provided through the Linux kernel
+ * [namespaces(7)] / [unshare(2)] machinery. More specifically, the following
+ * types of namespaces may be created:
+ * - mount namespace (`CLONE_NEWNS`),
+ * - cgroup namespace (`CLONE_NEWCGROUP`),
+ * - UTS namespace (`CLONE_NEWUTS`),
+ * - IPC namespace (`CLONE_NEWIPC`)
+ * - network namespace (`CLONE_NEWNET`).
+ *
+ * In addition, the jail will be implicitly isolated from the global system-wide
+ * filesystem attributes by giving [unshare(2)] the `CLONE_FS` flag in order to
+ * prevent from sharing with any other process :
+ * - the root directory ([chroot(2)]),
+ * - the current working directory ([chdir(2)])
+ * - and [umask(2)] attributes.
+ *
+ * Finally, the jail will be implicitly isolated from the global system-wide
+ * System V semaphore adjustment values by giving [unshare(2)] the
+ * `CLONE_SYSVSEM` flag (see [semop(2)]).
+ *
+ * @warning
+ * Should an error occur, current program state will be left as-is, i.e. in an
+ * unpredictable state. Caller should exit(3) as soon as possible.
+ *
+ * @note
+ * Enbox is meant to run onto embedded systems, i.e., from within a controlled
+ * software runtime. That is the reason why Enbox is a [execve(2)] based
+ * containment system to keep things simple. As a consequence, this comes with a
+ * few limitations with respect to namespace isolation handling:
+ * 1. don't support CLONE_NEWPID since we don't want to handle fork / init
+ *    process machinery ; instead, we may rely upon secure procfs operations to
+ *    provide some sort of PID space isolation (see procfs hidepid / gid /
+ *    subset mount options).
+ * 2. don't support CLONE_NEWUSER since we don't really need it for now (we have
+ *    no use case for emulating a complete virtualized OS while running onto an
+ *    embedded system) ;
+ *    we may however need to investigate possible implications related to kernel
+ *    keyrings isolation...
+ *
+ * @param[in] jail Properties of jail to create
+ * @param[in] ids  User and group membership identifiers used to [execve(2)] as
+ *                 when calling enbox_run_cmd()
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see enbox_load_ids_byid()
+ * @see enbox_load_ids_byname()
+ * @see enbox_run_cmd()
+ * @see enbox_lock_caps()
+ * @see enbox_clear_bounding_caps()
+ * @see [clearenv(3)]
+ * @see [namespaces(7)]
+ * @see [unshare(2)]
+ * @see [execve(2)]
+ * @see [chroot(2)]
+ * @see [chdir(2)]
+ * @see [umask(2)]
+ * @see [semop(2)]
+ *
+ * [clearenv(3)]:   https://man7.org/linux/man-pages/man3/clearenv.3.html
+ * [namespaces(7)]: https://man7.org/linux/man-pages/man7/namespaces.7.html
+ * [unshare(2)]:    https://man7.org/linux/man-pages/man2/unshare.2.html
+ * [execve(2)]:     https://man7.org/linux/man-pages/man2/execve.2.html
+ * [chroot(2)]:     https://man7.org/linux/man-pages/man2/chroot.2.html
+ * [chdir(2)]:      https://man7.org/linux/man-pages/man2/chdir.2.html
+ * [umask(2)]:      https://man7.org/linux/man-pages/man2/umask.2.html
+ * [semop(2)]:      https://man7.org/linux/man-pages/man2/semop.2.html
+ * [exit(3)]:       https://man7.org/linux/man-pages/man3/exit.3.html
  */
 extern int
 enbox_enter_jail(const struct enbox_jail * __restrict jail,

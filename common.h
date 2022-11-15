@@ -76,21 +76,6 @@ enbox_validate_mount_time_flags(unsigned long flags)
 	enbox_assert((_jail)->fsset.nr); \
 	enbox_assert((_jail)->fsset.entries)
 
-/*
- * Enbox is meant to run onto embedded systems, i.e., from within a controlled
- * software runtime. That is the reason why Enbox is a execve() based
- * containment system to keep things simple. As a consequence, this comes with a
- * few limitations with respect to namespace isolation handling:
- * 1. don't support CLONE_NEWPID since we don't want to handle fork / init
- *    process machinery ; instead, we may rely upon secure procfs operations to
- *    provide some sort of PID space isolation (see procfs hidepid / gid /
- *    subset mount options).
- * 2. don't support CLONE_NEWUSER since we don't really need it for now (we have
- *    no use case for emulating a complete virtualized OS while running onto an
- *    embedded system) ;
- *    we may however need to investigate possible implications related to kernel
- *    keyrings isolation...
- */
 #define ENBOX_VALID_NAMESPACE_FLAGS \
 	(CLONE_NEWNS | \
 	 CLONE_NEWCGROUP | \
