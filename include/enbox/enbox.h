@@ -1197,9 +1197,7 @@ struct enbox_jail {
 	 * will be mounted.
 	 */
 	const char *       root_path;
-	/**
-	 * Set of filesystem entries to create for this jail.
-	 */
+	/** Set of filesystem entries to create for this jail. */
 	struct enbox_fsset fsset;
 };
 
@@ -1238,7 +1236,7 @@ struct enbox_jail {
  * filesystem attributes by giving [unshare(2)] the `CLONE_FS` flag in order to
  * prevent from sharing with any other process :
  * - the root directory ([chroot(2)]),
- * - the current working directory ([chdir(2)])
+ * - the current working directory ([chdir(2)]),
  * - and [umask(2)] attributes.
  *
  * Finally, the jail will be implicitly isolated from the global system-wide
@@ -1280,6 +1278,7 @@ struct enbox_jail {
  * @see [unshare(2)]
  * @see [execve(2)]
  * @see [chroot(2)]
+ * @see [pivot_root(2)]
  * @see [chdir(2)]
  * @see [umask(2)]
  * @see [semop(2)]
@@ -1289,6 +1288,7 @@ struct enbox_jail {
  * [unshare(2)]:    https://man7.org/linux/man-pages/man2/unshare.2.html
  * [execve(2)]:     https://man7.org/linux/man-pages/man2/execve.2.html
  * [chroot(2)]:     https://man7.org/linux/man-pages/man2/chroot.2.html
+ * [pivot_root(2)]: https://man7.org/linux/man-pages/man2/pivot_root.2.html
  * [chdir(2)]:      https://man7.org/linux/man-pages/man2/chdir.2.html
  * [umask(2)]:      https://man7.org/linux/man-pages/man2/umask.2.html
  * [semop(2)]:      https://man7.org/linux/man-pages/man2/semop.2.html
@@ -1299,14 +1299,107 @@ enbox_enter_jail(const struct enbox_jail * __restrict jail,
                  const struct enbox_ids * __restrict  ids)
 	__enbox_nonull(1, 2) __nothrow;
 
+/**
+ * Command descriptor.
+ *
+ * This structure holds properties used to [execve(2)] a program using
+ * enbox_run_cmd().
+ *
+ * @see enbox_run_cmd()
+ * @see enbox_enter_jail()
+ * @see enbox_populate_host()
+ * @see [execve(2)]
+ *
+ * [execve(2)]:     https://man7.org/linux/man-pages/man2/execve.2.html
+ */
 struct enbox_cmd {
+	/**
+	 * File creation mode mask of process running this command.
+	 *
+	 * @see [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
+	 */
 	mode_t               umask;
+	/**
+	 * Optional current working directory of process running this command.
+	 *
+	 * @see [chdir(2)](https://man7.org/linux/man-pages/man2/chdir.2.html)
+	 */
 	const char *         cwd;
+	/**
+	 * Array of arguments used to execute this command.
+	 *
+	 * First array entry will be passed to [execve(2)] as first argument.
+	 * The whole array will be passed to [execve(2)] as second argument.
+	 * This array must be `NULL` terminated.
+	 *
+	 * Command will be executed with an empty environment.
+	 *
+	 * @warning The maximum number of array entries is restricted to 1024
+	 *          excluding the terminating `NULL` entry.
+	 *
+	 * @see [execve(2)]
+	 *
+	 * [execve(2)]: https://man7.org/linux/man-pages/man2/execve.2.html
+	 */
 	const char * const * exec;
 };
 
+/**
+ * Run a command.
+ *
+ * [execve(2)] a program according to properties stored into @p exec and @p ids
+ * arguments.
+ *
+ * enbox_run_cmd() carries out the following sequence of actions:
+ * 1. setup current process file creation mode mask according to
+ *    #enbox_cmd::umask value ;
+ * 2. change current process's real, effective and saved user ID and setup
+ *    current process's list of supplementary group IDs according to @p ids
+ *    content ;
+ * 3. optionally change to directory pointed to by #enbox_cmd::cwd if not
+ *    `NULL`;
+ * 4. finally call [execve(2)] using arguments found into #enbox_cmd::exec
+ *    array.
+ *
+ * @p ids argument must point to user and group membership identifiers that will
+ * be switched to before calling [execve(2)]. You may use enbox_load_ids_byid()
+ * or enbox_load_ids_byname() to initialize @p ids.
+ *
+ * See #enbox_cmd::exec for details about how this command is [execve(2)]'ed.
+ *
+ * enbox_populate_host() and / or enbox_enter_jail() may be called prior to
+ * enbox_run_cmd() to setup the «host» mount namespace or the jail container
+ * respectively.
+ *
+ * @warning
+ * Should an error occur, current program state will be left as-is, i.e. in an
+ * unpredictable state. Caller should exit(3) as soon as possible.
+ *
+ * @param[in] cmd Properties used to [execve(2)] this command
+ * @param[in] ids User and group membership identifiers to switch to before
+ *                calling [execve(2)]
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see #enbox_cmd
+ * @see enbox_set_umask()
+ * @see enbox_load_ids_byid()
+ * @see enbox_load_ids_byname()
+ * @see enbox_change_ids()
+ * @see enbox_populate_host()
+ * @see enbox_enter_jail()
+ * @see [execve(2)]
+ * @see [chdir(2)]
+ * @see [umask(2)]
+ * @see [exit(2)]
+ *
+ * [execve(2)]:     https://man7.org/linux/man-pages/man2/execve.2.html
+ * [chdir(2)]:      https://man7.org/linux/man-pages/man2/chdir.2.html
+ * [umask(2)]:      https://man7.org/linux/man-pages/man2/umask.2.html
+ * [exit(3)]:       https://man7.org/linux/man-pages/man3/exit.3.html
+ */
 extern int
-enbox_run_cmd(const struct enbox_cmd * __restrict exec,
+enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
               const struct enbox_ids * __restrict ids)
 	__enbox_nonull(1, 2) __nothrow;
 
@@ -1314,14 +1407,94 @@ enbox_run_cmd(const struct enbox_cmd * __restrict exec,
  * Configuration API
  ******************************************************************************/
 
+/**
+ * @struct enbox_conf
+ *
+ * Enbox configuration.
+ *
+ * Opaque structure storing an Enbox configuration.
+ *
+ * @see enbox_create_conf_from_file()
+ * @see enbox_run_conf()
+ * @see enbox_destroy_conf()
+ */
 struct enbox_conf;
 
+/**
+ * Apply an Enbox configuration.
+ *
+ * Run / apply an Enbox configuration instantiated by
+ * enbox_create_conf_from_file().
+ *
+ * @warning
+ * Should an error occur, current program state will be left as-is, i.e. in an
+ * unpredictable state. Caller should call [exit(3)] as soon as possible.
+ *
+ * @note
+ * In case of error, for debugging purpose and to ensure all resources allocated
+ * by enbox_create_conf_from_file() are properly released, caller may
+ * additionally call enbox_destroy_conf() prior to running [exit(3)].
+ *
+ * @param[in] conf Pointer to configuration to apply
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see #enbox_conf
+ * @see enbox_create_conf_from_file()
+ * @see enbox_destroy_conf()
+ * @see [exit(3)]
+ *
+ * [exit(3)]: https://man7.org/linux/man-pages/man3/exit.3.html
+ */
 extern int
 enbox_run_conf(const struct enbox_conf * __restrict conf) __enbox_nonull(1);
 
+/**
+ * Load and instantiate an Enbox configuration from file content.
+ *
+ * Open, read and parse content of the file pointed to by @p path, then return a
+ * pointer to an allocated Enbox configuration which may be later given to
+ * enbox_run_conf() to apply the loaded configuration.
+ *
+ * File content syntax is detailed into FINISH ME!!
+ *
+ * Resources allocated for the instantiated Enbox configuration should be
+ * released using enbox_destroy_conf() and / or [exit(3)].
+ *
+ * @param[in] path Pathname to configuration file
+ *
+ * @return A pointer to an allocated #enbox_conf structure or `NULL` in case of
+ *         error in which case `errno` will be set accordingly.
+ *
+ * @see #enbox_conf
+ * @see enbox_run_conf()
+ * @see enbox_destroy_conf()
+ * @see [exit(3)]
+ *
+ * [exit(3)]: https://man7.org/linux/man-pages/man3/exit.3.html
+ */
 extern struct enbox_conf *
 enbox_create_conf_from_file(const char * __restrict path) __enbox_nonull(1);
 
+/**
+ * Release configuration resources.
+ *
+ * Release Enbox configuration resources allocated by
+ * enbox_create_conf_from_file().
+ *
+ * @note
+ * May safely be called just before [exit(3)] in case a previous call to
+ * enbox_run_conf() has failed.
+ *
+ * @param[in] conf Pointer to configuration to destroy.
+ *
+ * @see #enbox_conf
+ * @see enbox_create_conf_from_file()
+ * @see enbox_run_conf()
+ * @see [exit(3)]
+ *
+ * [exit(3)]: https://man7.org/linux/man-pages/man3/exit.3.html
+ */
 void
 enbox_destroy_conf(struct enbox_conf * __restrict conf) __enbox_nonull(1);
 

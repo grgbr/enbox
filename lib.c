@@ -1752,6 +1752,7 @@ int
 enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
               const struct enbox_ids * __restrict ids)
 {
+	enbox_assert_setup();
 	enbox_assert(cmd);
 	enbox_assert(!(cmd->umask & ~ALLPERMS));
 	enbox_assert(!cmd->cwd ||
@@ -1778,8 +1779,6 @@ enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
 			goto err;
 		}
 	}
-	else
-		enbox_ensure_cwd_is_root();
 
 	execve(cmd->exec[0], (char * const *)cmd->exec, NULL);
 

@@ -2219,8 +2219,10 @@ destroy:
 int
 enbox_run_conf(const struct enbox_conf * __restrict conf)
 {
+	enbox_assert_setup();
 	enbox_assert(conf);
 	enbox_assert(conf->host || conf->jail || conf->cmd);
+	enbox_assert(!conf->jail || conf->cmd);
 
 	int err;
 
@@ -2245,6 +2247,7 @@ enbox_run_conf(const struct enbox_conf * __restrict conf)
 struct enbox_conf *
 enbox_create_conf_from_file(const char * __restrict path)
 {
+	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
 
 	struct enbox_conf * conf;
@@ -2270,6 +2273,7 @@ free:
 void
 enbox_destroy_conf(struct enbox_conf * __restrict conf)
 {
+	enbox_assert_setup();
 	enbox_assert(conf);
 
 	enbox_unload_conf(conf);
