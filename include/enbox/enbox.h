@@ -1,7 +1,87 @@
 /**
  * @file enbox.h
  * Enbox API interface.
+ */
+
+/**
+ * @mainpage Enbox API
  *
+ * What follows here provides a thorough description of how to use Enbox's
+ * library.
+ *
+ * About {#about-sec}
+ * ==================
+ *
+ * Basically, Enbox library is a C framework meant to instantiate a Linux
+ * process from within a «runtime container», providing the ability to control
+ * the process accesses to system resources according to a predefined
+ * configuration.
+ * The container logic implementation is based upon Linux's namespaces. As
+ * stated into [namespaces(7)] man page :
+ * > A namespace wraps a global system resource in an abstraction that makes it
+ * > appear to the processes within the namespace that they have their own
+ * > isolated instance of the global resource. Changes to the global resource
+ * > are visible to other processes that are members of the namespace, but are
+ * > invisible to other processes.
+ *
+ * The library also comes with additional utility functions allowing to
+ * manipulate Linux system objects in a limited way. These are :
+ * - [capabilities(7)],
+ * - [namespaces(7)],
+ * - filesystem objects,
+ * - process [credentials(7)].
+ *
+ * Usage {#usage-sec}
+ * ==================
+ *
+ * Enbox library API is organized around the following functional areas which
+ * you can refer to for further details :
+ * - [initialization](@ref init),
+ * - [configuration](@ref conf),
+ * - [instantiation](@ref instance),
+ * - and [utilities](@ref utils).
+ *
+ * The typical sequence of operations involves using the first 3 functional
+ * areas mentioned above. Most of the time, you use Enbox library in one of the
+ * 2 following ways :
+ * - [run an Enbox configuration from filesystem](#run-from-fs)
+ * - or [run an Enbox configuration from pre-defined hard-coded values](#run-from-struct).
+ *
+ * Run a configuration from filesystem {#run-from-fs}
+ * --------------------------------------------------
+ *
+ * This mode of operation is meant to apply and execute an Enbox configuration
+ * stored into a file. This file must be formatted according to the
+ * configuration syntax detailed into the [configuration syntax section](#conf-syntax).
+ *
+ * Additional usage details may be found into section @ref conf. This is the
+ * most straightforward way to use the Enbox library.
+ *
+ * Run a configuration from hard-coded values {#run-from-struct}
+ * -------------------------------------------------------------
+ *
+ * This mode of operation is meant to apply and execute an Enbox configuration
+ * from pre-defined hard-coded values found into multiple binary structures
+ * built at compile-time.
+ *
+ * Additional usage details may be found into section @ref instance. This is the
+ * most complex way to use the Enbox library.
+ *
+ * Configuration syntax {#conf-syntax} 
+ * ===================================
+ *
+ * Enbox parses configuration using the [libconfig library]. Configuration
+ * follows syntax rules described in the [libconfig manual]. Please take a look
+ * at the [libconfig manual] for an explanation of basic types.
+ *
+ * COMPLETE ME !!!
+ *
+ * [namespaces(7)]:     https://man7.org/linux/man-pages/man7/namespaces.7.html
+ * [capabilities(7)]:   https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * [credentials(7)]:    https://man7.org/linux/man-pages/man7/credentials.7.html
+ * [execve(2)]:         https://man7.org/linux/man-pages/man2/execve.2.html
+ * [libconfig library]: https://hyperrealm.github.io/libconfig
+ * [libconfig manual]:  http://www.hyperrealm.com/libconfig/libconfig_manual.html
  */
 #ifndef _ENBOX_H
 #define _ENBOX_H
@@ -21,6 +101,19 @@
 #define MS_NOSYMFOLLOW (1UL << 8)
 #endif
 
+/**
+ * @def __enbox_nonull(_arg_index, ...)
+ *
+ * Declare function arguments as non-null pointers.
+ *
+ * When applied to a function, tell compiler that the specified arguments must
+ * be non-null pointers.
+ * @param[in] _arg_index index of first non-null pointer argument
+ * @param[in] ...        subsequent non-null pointer argument indices
+ *
+ * @see [GCC common function attributes]
+ *      (https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#Common-Function-Attributes)
+ */
 #if defined(CONFIG_ENBOX_ASSERT)
 
 #include <utils/assert.h>
@@ -46,9 +139,9 @@
 
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
 
-/******************************************************************************
- * Raw API
- ******************************************************************************/
+/**
+ * @defgroup utils Utilities
+ */
 
 /**
  * @internal
@@ -58,9 +151,12 @@
  * @warning Do not reference this directly ! This is for internal use only. Use
  *          enbox_get_umask() and / or enbox_set_umask() instead.
  *
- * @see [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
- * @see enbox_get_umask()
- * @see enbox_set_umask()
+ * @see
+ * - [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
+ * - enbox_get_umask()
+ * - enbox_set_umask()
+ *
+ * @ingroup utils
  */
 extern mode_t enbox_umask;
 
@@ -72,9 +168,12 @@ extern mode_t enbox_umask;
  * @warning Do not reference this directly ! This is for internal use only. Use
  *          enbox_get_uid() instead.
  *
- * @see [getuid(2)](https://man7.org/linux/man-pages/man2/getuid.2.html)
- * @see [setuid(2)](https://man7.org/linux/man-pages/man2/setuid.2.html)
- * @see enbox_get_uid()
+ * @see
+ * - [getuid(2)](https://man7.org/linux/man-pages/man2/getuid.2.html)
+ * - [setuid(2)](https://man7.org/linux/man-pages/man2/setuid.2.html)
+ * - enbox_get_uid()
+ *
+ * @ingroup utils
  */
 extern uid_t enbox_uid;
 
@@ -86,9 +185,12 @@ extern uid_t enbox_uid;
  * @warning Do not reference this directly ! This is for internal use only. Use
  *          enbox_get_gid() instead.
  *
- * @see [getgid(2)](https://man7.org/linux/man-pages/man2/getgid.2.html)
- * @see [setgid(2)](https://man7.org/linux/man-pages/man2/setgid.2.html)
- * @see enbox_get_gid()
+ * @see
+ * - [getgid(2)](https://man7.org/linux/man-pages/man2/getgid.2.html)
+ * - [setgid(2)](https://man7.org/linux/man-pages/man2/setgid.2.html)
+ * - enbox_get_gid()
+ *
+ * @ingroup utils
  */
 extern gid_t enbox_gid;
 
@@ -97,8 +199,11 @@ extern gid_t enbox_gid;
  *
  * @return file creation mode mask.
  *
- * @see [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
- * @see enbox_set_umask().
+ * @see
+ * - [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
+ * - enbox_set_umask().
+ *
+ * @ingroup utils
  */
 static inline mode_t __nothrow __pure
 enbox_get_umask(void)
@@ -113,8 +218,11 @@ enbox_get_umask(void)
  *
  * @return file creation mode mask value prior to this function call.
  *
- * @see [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
- * @see enbox_get_umask()
+ * @see
+ * - [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
+ * - enbox_get_umask()
+ *
+ * @ingroup utils
  */
 static inline mode_t __nothrow
 enbox_set_umask(mode_t mask)
@@ -136,9 +244,12 @@ enbox_set_umask(mode_t mask)
  *
  * @return user ID.
  *
- * @see [getuid(2)](https://man7.org/linux/man-pages/man2/getuid.2.html)
- * @see [geteuid(2)](https://man7.org/linux/man-pages/man2/geteuid.2.html)
- * @see enbox_get_gid().
+ * @see
+ * - [getuid(2)](https://man7.org/linux/man-pages/man2/getuid.2.html)
+ * - [geteuid(2)](https://man7.org/linux/man-pages/man2/geteuid.2.html)
+ * - enbox_get_gid().
+ *
+ * @ingroup utils
  */
 static inline uid_t __nothrow __pure
 enbox_get_uid(void)
@@ -153,9 +264,12 @@ enbox_get_uid(void)
  *
  * @return group ID.
  *
- * @see [getgid(2)](https://man7.org/linux/man-pages/man2/getgid.2.html)
- * @see [getegid(2)](https://man7.org/linux/man-pages/man2/getegid.2.html)
- * @see enbox_get_uid().
+ * @see
+ * - [getgid(2)](https://man7.org/linux/man-pages/man2/getgid.2.html)
+ * - [getegid(2)](https://man7.org/linux/man-pages/man2/getegid.2.html)
+ * - enbox_get_uid().
+ *
+ * @ingroup utils
  */
 static inline gid_t __nothrow __pure
 enbox_get_gid(void)
@@ -169,6 +283,8 @@ enbox_get_gid(void)
  * Keep filesystem entry owner UID unchanged.
  *
  * @see enbox_change_perms()
+ *
+ * @ingroup utils
  */
 #define ENBOX_KEEP_UID  ((uid_t)-1)
 
@@ -176,6 +292,8 @@ enbox_get_gid(void)
  * Keep filesystem entry group GID unchanged.
  *
  * @see enbox_change_perms()
+ *
+ * @ingroup utils
  */
 #define ENBOX_KEEP_GID  ((gid_t)-1)
 
@@ -183,6 +301,8 @@ enbox_get_gid(void)
  * Keep filesystem entry permissions unchanged.
  *
  * @see enbox_change_perms()
+ *
+ * @ingroup utils
  */
 #define ENBOX_KEEP_MODE ((mode_t)-1)
 
@@ -208,11 +328,14 @@ enbox_get_gid(void)
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see #ENBOX_KEEP_UID
- * @see #ENBOX_KEEP_GID
- * @see #ENBOX_KEEP_MODE
- * @see [chown(2)]
- * @see [chmod(2)]
+ * @see
+ * - #ENBOX_KEEP_UID
+ * - #ENBOX_KEEP_GID
+ * - #ENBOX_KEEP_MODE
+ * - [chown(2)]
+ * - [chmod(2)]
+ *
+ * @ingroup utils
  *
  * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
  * [chmod(2)]: https://man7.org/linux/man-pages/man2/chmod.2.html
@@ -244,10 +367,13 @@ enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see [mkdir(2)]
- * @see [chown(2)]
- * @see [chmod(2)]
- * @see [rmdir(2)]
+ * @see
+ * - [mkdir(2)]
+ * - [chown(2)]
+ * - [chmod(2)]
+ * - [rmdir(2)]
+ *
+ * @ingroup utils
  *
  * [mkdir(2)]: https://man7.org/linux/man-pages/man2/mkdir.2.html
  * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
@@ -285,10 +411,13 @@ enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see [symlink(2)]
- * @see [readlink(2)]
- * @see [chown(2)]
- * @see [unlink(2)]
+ * @see
+ * - [symlink(2)]
+ * - [readlink(2)]
+ * - [chown(2)]
+ * - [unlink(2)]
+ *
+ * @ingroup utils
  *
  * [symlink(2)]: https://man7.org/linux/man-pages/man2/symlink.2.html
  * [readlink(2)]: https://man7.org/linux/man-pages/man2/readlink.2.html
@@ -332,11 +461,14 @@ enbox_make_slink(const char * __restrict path,
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see [mknod(2)]
- * @see [makedev(3)]
- * @see [chown(2)]
- * @see [chmod(2)]
- * @see [unlink(2)]
+ * @see
+ * - [mknod(2)]
+ * - [makedev(3)]
+ * - [chown(2)]
+ * - [chmod(2)]
+ * - [unlink(2)]
+ *
+ * @ingroup utils
  *
  * [mknod(2)]: https://man7.org/linux/man-pages/man2/mknod.2.html
  * [makedev(3)]: https://man7.org/linux/man-pages/man3/makedev.3.html
@@ -383,11 +515,14 @@ enbox_make_chrdev(const char * path,
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see [mknod(2)]
- * @see [makedev(3)]
- * @see [chown(2)]
- * @see [chmod(2)]
- * @see [unlink(2)]
+ * @see
+ * - [mknod(2)]
+ * - [makedev(3)]
+ * - [chown(2)]
+ * - [chmod(2)]
+ * - [unlink(2)]
+ *
+ * @ingroup utils
  *
  * [mknod(2)]: https://man7.org/linux/man-pages/man2/mknod.2.html
  * [makedev(3)]: https://man7.org/linux/man-pages/man3/makedev.3.html
@@ -430,11 +565,14 @@ enbox_make_blkdev(const char * path,
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see [mkfifo(3)]
- * @see [pipe(7)]
- * @see [chown(2)]
- * @see [chmod(2)]
- * @see [unlink(2)]
+ * @see
+ * - [mkfifo(3)]
+ * - [pipe(7)]
+ * - [chown(2)]
+ * - [chmod(2)]
+ * - [unlink(2)]
+ *
+ * @ingroup utils
  *
  * [mkfifo(3)]: https://man7.org/linux/man-pages/man3/mkfifo.3.html
  * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
@@ -458,8 +596,9 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see sections `Thread capability sets` and `CAP_SETPCAP` of [capabilities(7)]
- * @see section `PR_CAP_AMBIENT_CLEAR_ALL` of [prctl(2)]
+ * @see
+ * - sections `Thread capability sets` and `CAP_SETPCAP` of [capabilities(7)]
+ * - section `PR_CAP_AMBIENT_CLEAR_ALL` of [prctl(2)]
  *
  * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  * [prctl(2)]:        https://man7.org/linux/man-pages/man2/prctl.2.html
@@ -479,8 +618,11 @@ enbox_clear_ambient_caps(void) __nothrow;
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see sections `Thread capability sets` and `CAP_SETPCAP` of [capabilities(7)]
- * @see section `PR_CAPBSET_DROP` of [prctl(2)]
+ * @see
+ * - sections `Thread capability sets` and `CAP_SETPCAP` of [capabilities(7)]
+ * - section `PR_CAPBSET_DROP` of [prctl(2)]
+ *
+ * @ingroup utils
  *
  * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  * [prctl(2)]:        https://man7.org/linux/man-pages/man2/prctl.2.html
@@ -508,9 +650,12 @@ enbox_clear_bounding_caps(void) __nothrow;
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see sections `PR_SET_NO_NEW_PRIVS` and `PR_SET_SECUREBITS` of [prctl(2)]
- * @see sections `Thread capability sets` and `The securebits flags` of
- *      [capabilities(7)]
+ * @see
+ * - sections `PR_SET_NO_NEW_PRIVS` and `PR_SET_SECUREBITS` of [prctl(2)]
+ * - sections `Thread capability sets` and `The securebits flags` of
+ *   [capabilities(7)]
+ *
+ * @ingroup utils
  *
  * [no_new_privs]:    https://www.kernel.org/doc/html/latest/userspace-api/no_new_privs.html
  * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
@@ -524,6 +669,8 @@ enbox_lock_caps(void) __nothrow;
  * Request to setup current process's list of supplementary group IDs.
  *
  * @see enbox_change_ids()
+ *
+ * @ingroup utils
  */
 #define ENBOX_RAISE_SUPP_GROUPS (false)
 
@@ -531,6 +678,8 @@ enbox_lock_caps(void) __nothrow;
  * Request to clear current process's list of supplementary group IDs.
  *
  * @see enbox_change_ids()
+ *
+ * @ingroup utils
  */
 #define ENBOX_DROP_SUPP_GROUPS (true)
 
@@ -559,11 +708,14 @@ enbox_lock_caps(void) __nothrow;
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see #ENBOX_RAISE_SUPP_GROUPS
- * @see #ENBOX_DROP_SUPP_GROUPS
- * @see [setresuid(2)]
- * @see [initgroups(3)]
- * @see [setgroups(2)]
+ * @see
+ * - #ENBOX_RAISE_SUPP_GROUPS
+ * - #ENBOX_DROP_SUPP_GROUPS
+ * - [setresuid(2)]
+ * - [initgroups(3)]
+ * - [setgroups(2)]
+ *
+ * @ingroup utils
  *
  * [setresuid(2)]:  https://man7.org/linux/man-pages/man2/setresuid.2.html
  * [initgroups(3)]: https://man7.org/linux/man-pages/man3/initgroups.3.html
@@ -577,12 +729,16 @@ enbox_change_ids(const char * __restrict user, bool drop_supp)
  * Enable process *dumpable* attribute.
  *
  * @see enbox_setup_dump()
+ *
+ * @ingroup utils
  */
 #define ENBOX_ENABLE_DUMP  (1)
 /**
  * Disable process *dumpable* attribute.
  *
  * @see enbox_setup_dump()
+ *
+ * @ingroup utils
  */
 #define ENBOX_DISABLE_DUMP (0)
 
@@ -622,9 +778,12 @@ enbox_change_ids(const char * __restrict user, bool drop_supp)
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see #ENBOX_ENABLE_DUMP
- * @see #ENBOX_DISABLE_DUMP
- * @see enbox_setup()
+ * @see
+ * - #ENBOX_ENABLE_DUMP
+ * - #ENBOX_DISABLE_DUMP
+ * - enbox_setup()
+ *
+ * @ingroup utils
  *
  * [The Linux kernel user’s and administrator’s guide]: https://www.kernel.org/doc/html/latest/admin-guide/index.html
  * [Yama]:                                              https://www.kernel.org/doc/html/latest/admin-guide/LSM/Yama.html
@@ -636,19 +795,34 @@ enbox_change_ids(const char * __restrict user, bool drop_supp)
 extern int
 enbox_setup_dump(bool on) __nothrow;
 
-/******************************************************************************
- * High-level API
- ******************************************************************************/
+/**
+ * @defgroup instance Instantiation
+ *
+ * This involves the following sequence of operations :
+ * -# initialize Enbox library using enbox_setup(),
+ * -# optionally populate the «host» filesystem using enbox_populate_host(),
+ * -# optionally load user and group membership informations required for later
+ *  processing using enbox_load_ids_byid() or enbox_load_ids_byname(),
+ * -# optionally run either of the following sequence of operations :
+ *    - run a command onto the «host» system using enbox_run_cmd(),
+ *    - or run a «jail'ed» command :
+ *      -# instantiate a runtime container, i.e. the so-called jail, using
+ *      enbox_enter_jail()
+ *      -# run a command from within this jail using enbox_run_cmd().
+ *
+ */
 
 /**
  * File system entry type identifier.
  *
  * Identifies types of filesystem entries that Enbox may create when populating
  * jail and / or host filesystems.
+ *
+ * @ingroup instance
  */
 enum enbox_entry_type {
 	/** Directory entry. @see enbox_dir_entry */
-	ENBOX_DIR_ENTRY_TYPE = 0,
+	ENBOX_DIR_ENTRY_TYPE,
 	/** Symbolic link entry. @see enbox_slink_entry */
 	ENBOX_SLINK_ENTRY_TYPE,
 	/** Character device node entry. @see enbox_dev_entry */
@@ -678,13 +852,16 @@ enum enbox_entry_type {
  * #ENBOX_DIR_ENTRY_TYPE identifier to instruct enbox_populate_host() and / or
  * enbox_enter_jail() to create a directory entry.
  *
- * @see #enbox_entry_type
- * @see #ENBOX_DIR_ENTRY_TYPE
- * @see #enbox_entry
- * @see enbox_populate_host()
- * @see enbox_enter_jail()
- * @see enbox_make_dir()
- * @see section «The file type and mode» of [inode(7)]
+ * @see
+ * - #enbox_entry_type
+ * - #ENBOX_DIR_ENTRY_TYPE
+ * - #enbox_entry
+ * - enbox_populate_host()
+ * - enbox_enter_jail()
+ * - enbox_make_dir()
+ * - section «The file type and mode» of [inode(7)]
+ *
+ * @ingroup instance
  *
  * [inode(7)]: https://man7.org/linux/man-pages/man7/inode.7.html
  */
@@ -704,12 +881,15 @@ struct enbox_dir_entry {
  * #ENBOX_SLINK_ENTRY_TYPE identifier to instruct enbox_populate_host() and / or
  * enbox_enter_jail() to create a symbolic link entry.
  *
- * @see #enbox_entry_type
- * @see #ENBOX_SLINK_ENTRY_TYPE
- * @see #enbox_entry
- * @see enbox_populate_host()
- * @see enbox_enter_jail()
- * @see enbox_make_slink()
+ * @see
+ * - #enbox_entry_type
+ * - #ENBOX_SLINK_ENTRY_TYPE
+ * - #enbox_entry
+ * - enbox_populate_host()
+ * - enbox_enter_jail()
+ * - enbox_make_slink()
+ *
+ * @ingroup instance
  */
 struct enbox_slink_entry {
 	/** Symbolic link target, i.e., pathname this symlink will point to. */
@@ -728,15 +908,18 @@ struct enbox_slink_entry {
  * enbox_populate_host() and / or enbox_enter_jail() to create a character
  * or a block device node entry respectively.
  *
- * @see #enbox_entry_type
- * @see #ENBOX_CHRDEV_ENTRY_TYPE
- * @see #ENBOX_BLKDEV_ENTRY_TYPE
- * @see #enbox_entry
- * @see enbox_populate_host()
- * @see enbox_enter_jail()
- * @see enbox_make_chrdev()
- * @see enbox_make_blkdev()
- * @see [makedev(3)]
+ * @see
+ * - #enbox_entry_type
+ * - #ENBOX_CHRDEV_ENTRY_TYPE
+ * - #ENBOX_BLKDEV_ENTRY_TYPE
+ * - #enbox_entry
+ * - enbox_populate_host()
+ * - enbox_enter_jail()
+ * - enbox_make_chrdev()
+ * - enbox_make_blkdev()
+ * - [makedev(3)]
+ *
+ * @ingroup instance
  *
  * [makedev(3)]: https://man7.org/linux/man-pages/man3/makedev.3.html
  */
@@ -763,13 +946,16 @@ struct enbox_dev_entry {
  * #ENBOX_FIFO_ENTRY_TYPE identifier to instruct enbox_populate_host() and / or
  * enbox_enter_jail() to create a named pipe entry.
  *
- * @see #enbox_entry_type
- * @see #ENBOX_FIFO_ENTRY_TYPE
- * @see #enbox_entry
- * @see enbox_populate_host()
- * @see enbox_enter_jail()
- * @see enbox_make_fifo()
- * @see [pipe(7)]
+ * @see
+ * - #enbox_entry_type
+ * - #ENBOX_FIFO_ENTRY_TYPE
+ * - #enbox_entry
+ * - enbox_populate_host()
+ * - enbox_enter_jail()
+ * - enbox_make_fifo()
+ * - [pipe(7)]
+ *
+ * @ingroup instance
  *
  * [pipe(7)]: https://man7.org/linux/man-pages/man7/pipe.7.html
  */
@@ -801,13 +987,16 @@ struct enbox_fifo_entry {
  * @warning Do not use if you want to bind mount a filesystem, use
  *          #enbox_bind_entry instead.
  *
- * @see #enbox_entry_type
- * @see #ENBOX_PROC_ENTRY_TYPE
- * @see #enbox_entry
- * @see #enbox_bind_entry
- * @see enbox_enter_jail()
- * @see [mount(2)]
- * @see [mount_namespaces(7)]
+ * @see
+ * - #enbox_entry_type
+ * - #ENBOX_PROC_ENTRY_TYPE
+ * - #enbox_entry
+ * - #enbox_bind_entry
+ * - enbox_enter_jail()
+ * - [mount(2)]
+ * - [mount_namespaces(7)]
+ *
+ * @ingroup instance
  *
  * [mount(2)]: https://man7.org/linux/man-pages/man2/mount.2.html
  * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
@@ -869,14 +1058,17 @@ struct enbox_mount_entry {
  * @warning Do not use if you want to initially mount a filesystem, use
  *          #enbox_mount_entry instead.
  *
- * @see #enbox_entry_type
- * @see #ENBOX_FILE_ENTRY_TYPE
- * @see #ENBOX_TREE_ENTRY_TYPE
- * @see #enbox_entry
- * @see #enbox_bind_entry
- * @see enbox_enter_jail()
- * @see [mount(2)]
- * @see [mount_namespaces(7)]
+ * @see
+ * - #enbox_entry_type
+ * - #ENBOX_FILE_ENTRY_TYPE
+ * - #ENBOX_TREE_ENTRY_TYPE
+ * - #enbox_entry
+ * - #enbox_bind_entry
+ * - enbox_enter_jail()
+ * - [mount(2)]
+ * - [mount_namespaces(7)]
+ *
+ * @ingroup instance
  *
  * [mount(2)]: https://man7.org/linux/man-pages/man2/mount.2.html
  * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
@@ -947,9 +1139,12 @@ struct enbox_bind_entry {
  *       jail's own mount namespace using unbindable propagation properties (see
  *       «SHARED SUBTREE» section of [mount_namespaces(7)]).
  *
- * @see enbox_populate_host()
- * @see enbox_enter_jail()
- * @see [mount_namespaces(7)]
+ * @see
+ * - enbox_populate_host()
+ * - enbox_enter_jail()
+ * - [mount_namespaces(7)]
+ *
+ * @ingroup instance
  *
  * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
  */
@@ -983,8 +1178,9 @@ struct enbox_entry {
 		/**
 		 * Device node entry specific settings.
 		 *
-		 * @see #ENBOX_CHRDEV_ENTRY_TYPE
-		 * @see #ENBOX_BLKDEV_ENTRY_TYPE
+		 * @see
+		 * - #ENBOX_CHRDEV_ENTRY_TYPE
+		 * - #ENBOX_BLKDEV_ENTRY_TYPE
 		 */
 		struct enbox_dev_entry   dev;
 		/**
@@ -1002,8 +1198,9 @@ struct enbox_entry {
 		/**
 		 * Bind mount point entry specific settings.
 		 *
-		 * @see #ENBOX_FILE_ENTRY_TYPE
-		 * @see #ENBOX_TREE_ENTRY_TYPE
+		 * @see
+		 * - #ENBOX_FILE_ENTRY_TYPE
+		 * - #ENBOX_TREE_ENTRY_TYPE
 		 */
 		struct enbox_bind_entry  bind;
 	};
@@ -1021,10 +1218,13 @@ struct enbox_entry {
  *       jail's own mount namespace using unbindable propagation properties (see
  *       «SHARED SUBTREE» section of [mount_namespaces(7)]).
  *
- * @see #enbox_entry
- * @see enbox_populate_host()
- * @see enbox_enter_jail()
- * @see [mount_namespaces(7)]
+ * @see
+ * - #enbox_entry
+ * - enbox_populate_host()
+ * - enbox_enter_jail()
+ * - [mount_namespaces(7)]
+ *
+ * @ingroup instance
  *
  * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
  */
@@ -1055,10 +1255,13 @@ struct enbox_fsset {
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see #enbox_entry
- * @see enbox_populate_host()
- * @see enbox_enter_jail()
- * @see [mount_namespaces(7)]
+ * @see
+ * - #enbox_entry
+ * - enbox_populate_host()
+ * - enbox_enter_jail()
+ * - [mount_namespaces(7)]
+ *
+ * @ingroup instance
  *
  * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
  */
@@ -1073,10 +1276,13 @@ enbox_populate_host(const struct enbox_fsset * __restrict fsset)
  *
  * Opaque structure storing user and group membership informations.
  *
- * @see enbox_load_ids_byid()
- * @see enbox_load_ids_byname()
- * @see enbox_enter_jail()
- * @see enbox_run_cmd()
+ * @see
+ * - enbox_load_ids_byid()
+ * - enbox_load_ids_byname()
+ * - enbox_enter_jail()
+ * - enbox_run_cmd()
+ *
+ * @ingroup instance
  */
 struct enbox_ids;
 
@@ -1100,18 +1306,20 @@ struct enbox_ids;
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see #ENBOX_DROP_SUPP_GROUPS
- * @see #ENBOX_RAISE_SUPP_GROUPS
- * @see enbox_enter_jail()
- * @see enbox_run_cmd()
- * @see enbox_change_ids()
- * @see enbox_load_ids_byname()
+ * @see
+ * - #ENBOX_DROP_SUPP_GROUPS
+ * - #ENBOX_RAISE_SUPP_GROUPS
+ * - enbox_enter_jail()
+ * - enbox_run_cmd()
+ * - enbox_change_ids()
+ * - enbox_load_ids_byname()
+ *
+ * @ingroup instance
  */
 extern int
 enbox_load_ids_byid(struct enbox_ids * __restrict ids,
                     uid_t                         id,
-                    bool                          drop_supp)
-	__enbox_nonull(1);
+                    bool                          drop_supp) __enbox_nonull(1);
 
 /**
  * Load user and group membership identifiers by user name.
@@ -1133,12 +1341,15 @@ enbox_load_ids_byid(struct enbox_ids * __restrict ids,
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see #ENBOX_DROP_SUPP_GROUPS
- * @see #ENBOX_RAISE_SUPP_GROUPS
- * @see enbox_enter_jail()
- * @see enbox_run_cmd()
- * @see enbox_change_ids()
- * @see enbox_load_ids_byid()
+ * @see
+ * - #ENBOX_DROP_SUPP_GROUPS
+ * - #ENBOX_RAISE_SUPP_GROUPS
+ * - enbox_enter_jail()
+ * - enbox_run_cmd()
+ * - enbox_change_ids()
+ * - enbox_load_ids_byid()
+ *
+ * @ingroup instance
  */
 extern int
 enbox_load_ids_byname(struct enbox_ids * __restrict ids,
@@ -1156,9 +1367,12 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
  * - IPC namespace,
  * - and network namespace.
  *
- * @see #enbox_jail::namespaces
- * @see enbox_enter_jail()
- * @see [mount_namespaces(7)]
+ * @see
+ * - #enbox_jail::namespaces
+ * - enbox_enter_jail()
+ * - [mount_namespaces(7)]
+ *
+ * @ingroup instance
  *
  * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
  */
@@ -1182,6 +1396,8 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
  * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
  *
  * @see enbox_enter_jail()
+ *
+ * @ingroup instance
  */
 struct enbox_jail {
 	/**
@@ -1268,20 +1484,23 @@ struct enbox_jail {
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see enbox_load_ids_byid()
- * @see enbox_load_ids_byname()
- * @see enbox_run_cmd()
- * @see enbox_lock_caps()
- * @see enbox_clear_bounding_caps()
- * @see [clearenv(3)]
- * @see [namespaces(7)]
- * @see [unshare(2)]
- * @see [execve(2)]
- * @see [chroot(2)]
- * @see [pivot_root(2)]
- * @see [chdir(2)]
- * @see [umask(2)]
- * @see [semop(2)]
+ * @see
+ * - enbox_load_ids_byid()
+ * - enbox_load_ids_byname()
+ * - enbox_run_cmd()
+ * - enbox_lock_caps()
+ * - enbox_clear_bounding_caps()
+ * - [clearenv(3)]
+ * - [namespaces(7)]
+ * - [unshare(2)]
+ * - [execve(2)]
+ * - [chroot(2)]
+ * - [pivot_root(2)]
+ * - [chdir(2)]
+ * - [umask(2)]
+ * - [semop(2)]
+ *
+ * @ingroup instance
  *
  * [clearenv(3)]:   https://man7.org/linux/man-pages/man3/clearenv.3.html
  * [namespaces(7)]: https://man7.org/linux/man-pages/man7/namespaces.7.html
@@ -1305,10 +1524,13 @@ enbox_enter_jail(const struct enbox_jail * __restrict jail,
  * This structure holds properties used to [execve(2)] a program using
  * enbox_run_cmd().
  *
- * @see enbox_run_cmd()
- * @see enbox_enter_jail()
- * @see enbox_populate_host()
- * @see [execve(2)]
+ * @see
+ * - enbox_run_cmd()
+ * - enbox_enter_jail()
+ * - enbox_populate_host()
+ * - [execve(2)]
+ *
+ * @ingroup instance
  *
  * [execve(2)]:     https://man7.org/linux/man-pages/man2/execve.2.html
  */
@@ -1381,17 +1603,20 @@ struct enbox_cmd {
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see #enbox_cmd
- * @see enbox_set_umask()
- * @see enbox_load_ids_byid()
- * @see enbox_load_ids_byname()
- * @see enbox_change_ids()
- * @see enbox_populate_host()
- * @see enbox_enter_jail()
- * @see [execve(2)]
- * @see [chdir(2)]
- * @see [umask(2)]
- * @see [exit(2)]
+ * @see
+ * - #enbox_cmd
+ * - enbox_set_umask()
+ * - enbox_load_ids_byid()
+ * - enbox_load_ids_byname()
+ * - enbox_change_ids()
+ * - enbox_populate_host()
+ * - enbox_enter_jail()
+ * - [execve(2)]
+ * - [chdir(2)]
+ * - [umask(2)]
+ * - [exit(2)]
+ *
+ * @ingroup instance
  *
  * [execve(2)]:     https://man7.org/linux/man-pages/man2/execve.2.html
  * [chdir(2)]:      https://man7.org/linux/man-pages/man2/chdir.2.html
@@ -1403,9 +1628,16 @@ enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
               const struct enbox_ids * __restrict ids)
 	__enbox_nonull(1, 2) __nothrow;
 
-/******************************************************************************
- * Configuration API
- ******************************************************************************/
+/**
+ * @defgroup conf Configuration
+ *
+ * This involves the following sequence of operations :
+ * -# initialize Enbox library using enbox_setup(),
+ * -# load and parse an Enbox configuration from the content of a file using
+ *  enbox_create_conf_from_file(),
+ * -# apply and execute the configuration loaded above using enbox_run_conf().
+ *
+ */
 
 /**
  * @struct enbox_conf
@@ -1414,9 +1646,12 @@ enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
  *
  * Opaque structure storing an Enbox configuration.
  *
- * @see enbox_create_conf_from_file()
- * @see enbox_run_conf()
- * @see enbox_destroy_conf()
+ * @see
+ * - enbox_create_conf_from_file()
+ * - enbox_run_conf()
+ * - enbox_destroy_conf()
+ *
+ * @ingroup conf
  */
 struct enbox_conf;
 
@@ -1439,10 +1674,13 @@ struct enbox_conf;
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see #enbox_conf
- * @see enbox_create_conf_from_file()
- * @see enbox_destroy_conf()
- * @see [exit(3)]
+ * @see
+ * - #enbox_conf
+ * - enbox_create_conf_from_file()
+ * - enbox_destroy_conf()
+ * - [exit(3)]
+ *
+ * @ingroup conf
  *
  * [exit(3)]: https://man7.org/linux/man-pages/man3/exit.3.html
  */
@@ -1466,10 +1704,13 @@ enbox_run_conf(const struct enbox_conf * __restrict conf) __enbox_nonull(1);
  * @return A pointer to an allocated #enbox_conf structure or `NULL` in case of
  *         error in which case `errno` will be set accordingly.
  *
- * @see #enbox_conf
- * @see enbox_run_conf()
- * @see enbox_destroy_conf()
- * @see [exit(3)]
+ * @see
+ * - #enbox_conf
+ * - enbox_run_conf()
+ * - enbox_destroy_conf()
+ * - [exit(3)]
+ *
+ * @ingroup conf
  *
  * [exit(3)]: https://man7.org/linux/man-pages/man3/exit.3.html
  */
@@ -1488,19 +1729,24 @@ enbox_create_conf_from_file(const char * __restrict path) __enbox_nonull(1);
  *
  * @param[in] conf Pointer to configuration to destroy.
  *
- * @see #enbox_conf
- * @see enbox_create_conf_from_file()
- * @see enbox_run_conf()
- * @see [exit(3)]
+ * @see
+ * - #enbox_conf
+ * - enbox_create_conf_from_file()
+ * - enbox_run_conf()
+ * - [exit(3)]
+ *
+ * @ingroup conf
  *
  * [exit(3)]: https://man7.org/linux/man-pages/man3/exit.3.html
  */
 void
 enbox_destroy_conf(struct enbox_conf * __restrict conf) __enbox_nonull(1);
 
-/******************************************************************************
- * Initialization API
- ******************************************************************************/
+/**
+ * @defgroup init Initialization
+ *
+ * This module gather all definitions required to initialize the Enbox library.
+ */
 
 struct elog;
 
@@ -1510,11 +1756,16 @@ struct elog;
  * May alter calling process *dumpable* attribute according to
  * #CONFIG_ENBOX_DISABLE_DUMP build option.
  *
+ * @warning
+ * MUST be called prior to every other Enbox library function calls.
+ *
  * @param[inout] logger an initialized Elog logger instance.
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see enbox_setup_dump()
+ *
+ * @ingroup init
  */
 extern int
 enbox_setup(struct elog * __restrict logger)

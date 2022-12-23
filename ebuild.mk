@@ -70,7 +70,7 @@ includedir=$${prefix}/include
 
 Name: libenbox
 Description: Embedded sandboxing library
-Version: %%PKG_VERSION%%
+Version: $(VERSION)
 Requires:
 Cflags: -I$${includedir}
 Libs: -L$${libdir} -lenbox
@@ -79,8 +79,72 @@ endef
 pkgconfigs          := libenbox.pc
 libenbox.pc-tmpl    := libenbox_pkgconf_tmpl
 
-.PHONY: dox
-dox:
-	env OUTDIR=$(BUILDDIR)/doc \
-	    INCDIR="$(patsubst -I%,%,$(filter -I%,$(common-cflags)))" \
-	doxygen $(SRCDIR)/doc/Doxyfile
+################################################################################
+# Documentation generation
+################################################################################
+
+.PHONY: doxy
+doxy: | $(BUILDDIR)/doc/doxy
+	@echo "  DOXY    $(|)"
+	$(Q)env OUTDIR="$(|)" \
+	        INCDIR="$(patsubst -I%,%,$(filter -I%,$(common-cflags)))" \
+	        VERSION="$(VERSION)" \
+	        $(if $(Q),QUIET="YES",QUIET="NO") \
+	    doxygen $(SRCDIR)/doc/Doxyfile
+
+$(BUILDDIR)/doc/doxy:
+	@mkdir -p $(@)
+
+clean: clean-doxy
+
+.PHONY: clean-doxy
+clean-doxy:
+	$(call rmr_recipe,$(BUILDDIR)/doc/doxy)
+
+DOXYREST := /opt/doxyrest/bin/doxyrest
+
+define rest_recipe
+@echo "  REST    $(strip $(2))"
+$(Q)$(DOXYREST) --config=$(SRCDIR)/doc/doxyrest/conf.lua \
+                --output=$(strip $(2)) \
+                $(strip $(1))
+endef
+
+.PHONY: rest
+rest: doxy
+	$(call rest_recipe,$(BUILDDIR)/doc/doxy/xml/index.xml,\
+	                   $(SRCDIR)/doc/api/index.rst)
+
+clean: clean-rest
+
+.PHONY: clean-rest
+clean-rest:
+	$(call rmr_recipe,$(SRCDIR)/doc/api)
+
+SPHINXBUILD := sphinx-build
+
+define html_recipe
+@echo "  HTML    $(strip $(2))"
+$(Q)$(if $(3),env $(3)) \
+    $(SPHINXBUILD) -M html \
+                   "$(strip $(1))" \
+                   "$(strip $(2))" \
+                   $(if $(Q),-Q,-q) \
+                   -a \
+                   -E \
+                   -j 1
+endef
+
+sphinx_env  := VERSION="$(VERSION)" \
+               DOXY_XML_PATH="$(BUILDDIR)/doc/doxy/xml"
+
+.PHONY: html
+html: rest
+	$(call html_recipe,$(SRCDIR)/doc,$(BUILDDIR)/doc,$(sphinx_env))
+
+clean: clean-html
+
+.PHONY: clean-html
+clean-html:
+	$(call rmr_recipe,$(BUILDDIR)/doc/html)
+	$(call rmr_recipe,$(BUILDDIR)/doc/doctrees)

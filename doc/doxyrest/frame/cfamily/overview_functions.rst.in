@@ -1,0 +1,53 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--
+-- local argArray = table.pack(...)
+-- local compound = argArray[1]
+-- local sectionName = argArray[2]
+-- 
+-- includeFile(
+-- 	"overview_common.rst.in",
+-- 	compound,
+-- 	compound.functionArray,
+-- 	getFunctionDeclString,
+-- 	sectionName
+-- 	)
+--
+--------------------------------------------------------------------------------
+local argArray = table.pack(...)
+local compound = argArray[1]
+}
+	// functions
+
+%{
+local isPrevMl = false
+
+for i = 1, #compound.functionArray do
+	local func = compound.functionArray[i]
+	local decl = getFunctionDeclString(func, getItemNameTemplate(func), "\t")
+	local isMl = string.find(decl, "\n")
+	local extraSep = ""
+        local targetFileName = getItemFileName(func)
+
+        if compound.compoundKind ~= "group" and not compound.isBaseCompound then
+                generateFile(targetFileName, "function.rst.in", func)
+        end
+        
+	if i > 1 and isMl or isPrevMl then
+		extraSep = "\n"
+	end
+
+	isPrevMl = isMl
+}
+$extraSep	$decl;
+%{
+end -- for
+}
