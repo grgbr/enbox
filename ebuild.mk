@@ -101,26 +101,6 @@ clean: clean-doxy
 clean-doxy:
 	$(call rmr_recipe,$(BUILDDIR)/doc/doxy)
 
-DOXYREST := /opt/doxyrest/bin/doxyrest
-
-define rest_recipe
-@echo "  REST    $(strip $(2))"
-$(Q)$(DOXYREST) --config=$(SRCDIR)/doc/doxyrest/conf.lua \
-                --output=$(strip $(2)) \
-                $(strip $(1))
-endef
-
-.PHONY: rest
-rest: doxy
-	$(call rest_recipe,$(BUILDDIR)/doc/doxy/xml/index.xml,\
-	                   $(SRCDIR)/doc/api/index.rst)
-
-clean: clean-rest
-
-.PHONY: clean-rest
-clean-rest:
-	$(call rmr_recipe,$(SRCDIR)/doc/api)
-
 SPHINXBUILD := sphinx-build
 
 define html_recipe
@@ -139,7 +119,7 @@ sphinx_env  := VERSION="$(VERSION)" \
                DOXY_XML_PATH="$(BUILDDIR)/doc/doxy/xml"
 
 .PHONY: html
-html: rest
+html: doxy
 	$(call html_recipe,$(SRCDIR)/doc,$(BUILDDIR)/doc,$(sphinx_env))
 
 clean: clean-html

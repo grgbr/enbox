@@ -1040,8 +1040,9 @@ struct enbox_mount_entry {
  * Bind mount entry descriptor.
  *
  * Depicts how to bind mount a file or a filesystem (sub-)tree when populating
- * jail filesystem using enbox_enter_jail(). See «Creating a bind mount» section
- * of [mount(2)] for more informations about what a bind mount is.
+ * jail filesystem using enbox_enter_jail(). See section «Bind mounts» of
+ * [mount(8)] and section «Creating a bind mount» of [mount(2)] for more
+ * informations about what a bind mount is.
  *
  * The bind mount will be performed from within the jail's own mount namespace
  * using unbindable propagation properties (see «SHARED SUBTREE» section of
@@ -1071,6 +1072,7 @@ struct enbox_mount_entry {
  * @ingroup instance
  *
  * [mount(2)]: https://man7.org/linux/man-pages/man2/mount.2.html
+ * [mount(8)]: https://man7.org/linux/man-pages/man8/mount.8.html
  * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
  */
 struct enbox_bind_entry {

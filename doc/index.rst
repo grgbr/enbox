@@ -2,8 +2,21 @@ Welcome to Enbox documentation
 ##############################
 
 .. toctree::
-   :hidden:
+   :numbered:
+   :caption: User manual
 
-   main.rst
-   api.rst
-   genindex.rst
+   main
+   
+.. toctree::
+   :maxdepth: 2
+   :numbered:
+   :caption: API
+
+   api
+   
+.. toctree::
+   :caption: Appendix
+
+   glossary
+   genindex
+   todo

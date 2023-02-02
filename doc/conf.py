@@ -19,9 +19,6 @@
 import os
 import sys
 
-sys.path.insert(1, os.path.abspath('/opt/doxyrest/share/doxyrest/sphinx'))
-
-
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -38,9 +35,8 @@ extensions = ['sphinx.ext.intersphinx',
               'sphinx.ext.graphviz',
               'sphinxcontrib.plantuml',
               'sphinx_rtd_theme',
-              'doxyrest',
-              'cpplexer']
-              #'breathe',
+              'sphinx.ext.autosectionlabel',
+              'breathe']
               # 'docxbuilder']
 
 # Add any paths that contain templates here, relative to this directory.
@@ -85,10 +81,14 @@ language = "en"
 exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+#pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
+
+# -- Setup base URL for manpage role -------------------------------------------
+# see https://www.sphinx-doc.org/en/master/usage/restructuredtext/roles.html#role-manpage
+manpages_url = "https://man7.org/linux/man-pages/man{section}/{page}.{section}.html"
 
 # -- Options for breathe output -------------------------------------------
 doxy_xml_path = os.getenv('DOXY_XML_PATH')
@@ -103,6 +103,7 @@ breathe_domain_by_extension    = { "h" : "c", "c": "c" }
 breathe_show_include           = False
 breathe_order_parameters_first = True
 breathe_separate_member_pages  = False
+breathe_default_members        = ('members', 'undoc-members')
 
 # -- Options for HTML output ----------------------------------------------
 

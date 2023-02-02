@@ -1445,7 +1445,7 @@ enbox_chroot_jail_from_realfs(void)
  * Instead, overmount rootfs with the new root and chroot(2) into it.
  *
  * See Linux kernel documentation about switching an initramfs based root
- * filesystem to another root devices: head to section «What is initramfs» of
+ * filesystem to another root device: head to section «What is initramfs» of
  * initramfs documentation located into file
  * <linux>/doc/Documentation/filesystems/ramfs-rootfs-initramfs.txt
  */

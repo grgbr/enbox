@@ -1,3 +1,6 @@
+Various:
+* check documentation links (run sphinx-build -b linkcheck...)
+
 Rationalize:
 * get passwd / group entry checking (assert vs runtime checking)
 * label setting checking
@@ -7,6 +10,7 @@ Rationalize:
 * disable memory free() logic if debug off
 
 Features:
+* fix signal disposition ?
 * forbid strace
 * forbid ld_preload / ld_audit
 * rlimits
