@@ -5,7 +5,7 @@ Overview
 
 Enbox's primary goal is to secure processes running onto Linux based systems.
 
-Simply put, Enbox provides a way to run a Linux process in a isolated runtime
+Simply put, Enbox provides a way to run a Linux process in an isolated runtime
 environment which we call a |jail|. This runtime container confers the ability
 to control the process accesses to system resources according to a predefined
 configuration.
@@ -57,7 +57,7 @@ kernel features:
 * and |bind mount|.
 
 |host| side filesystem hierarchies may be imported into jail using the |bind
-mounts| machinery. These mounts are performed from within the jail's own mount
+mount| machinery. These mounts are performed from within the jail's own mount
 namespace (see |mount_namespaces(7)|) and are implitcly released once the jail
 dies.
 
@@ -106,7 +106,7 @@ non-privileged user (using |setresuid(2)|) and at |execve(2)| time.
 
 Namespaces
 ----------
-   
+
 The container logic implementation is based upon Linux's namespaces. As stated
 into |namespaces(7)|:
 
@@ -123,7 +123,7 @@ More specifically, Enbox handles the following types of namespace:
 * `UTS` namespaces (see |namespaces(7)|),
 * `IPC` namespaces (see |namespaces(7)|),
 * and |network_namespaces(7)|.
-  
+
 Enbox is mainly designed to run onto embedded systems, i.e., from within a
 controlled software runtime. That is the reason why Enbox is a |execve(2)| based
 containment system only (to keep things simple and lightweight). As a
@@ -137,7 +137,7 @@ isolation handling:
 * |user_namespaces(7)| are not supported either since we don't really need it
   for now (we have no use case for emulating a complete virtualized OS while
   running onto an embedded system).
-  
+
 Features
 ========
 
@@ -193,7 +193,7 @@ into the `IEEE Std 1003.1`_ POSIX specification:
    this document and refer to the corresponding `libconfig library`_ types.
    Please head to the `libconfig manual`_ to refer to related definitions. These
    are:
-   
+
    * the *boolean* type <`BOOL <libconfig-bool_>`_>,
    * the *string* type <`STRING <libconfig-string_>`_>.
 
@@ -203,10 +203,10 @@ into the `IEEE Std 1003.1`_ POSIX specification:
 
    In addition, the following syntax token separators are used in production
    rules. These are defined as:
-   
+
    .. parsed-literal::
       :class: highlight
-   
+
       <**LF**>   ::= '\\n'                    *; line feed*
       <**LSEP**> ::= ',' [<**LF**>]...           *; list separator*
       <**SSEP**> ::= ';' [<**LF**>]... | <**LF**>... *; group setting separator*
@@ -343,54 +343,51 @@ This attribute is *mandatory*.
 fs-bind-opts
 ************
 
-Specify filesystem specific |mount(2)| properties to customize
-FINISH ME !!
-
-Option list |STRING| is passed as fifth argument to |mount(2)| when |bind
-mount|'ing the related filesystem entry (specified by fs-file_ or fs-tree_
-statement).
-
-FINISH ME!!
-Make a |host| file visible from within a |jail|.
+Customize filesystem specific |bind mount| properties.
 
 .. rubric:: Syntax
 
 .. parsed-literal::
    :class: highlight
 
-   <**fs-file**> ::= 'type = "file"'
-                 |SSEP| <`fs-path-attr`_>
-                 |SSEP| <`fs-orig-attr`_>
-                 [|SSEP| <`fs-file-flags`_>]
-                 [|SSEP| <`fs-bind-opts`_>]
+   <**fs-bind-opts**>  ::= 'opts = "' <**fs-mount**opts**> '"'
+   <**fs-mount-opts**> ::= |STRING| [',' |STRING|]...
 
-The specified file is |bind mount|'ed into the |jail|.
+Setup filesystem specific options when making a |host| filesystem entry visible
+from within a |jail| using fs-file_ or fs-tree_ statements.
+Value **fs-mount-opts** is passed as-is as fifth argument to |mount(2)| when
+|bind mount|'ing the original |host| filesystem entry into the |jail|.
 
-Use fs-orig-attr_ to specify the |pathname| identifying the file onto the
-|host|.  Use fs-path-attr_ to specify a |pathname| *relative* to the |jail|'s
-root directory that identifies the file within the |jail|.
+This must be a string of *comma-separated options* understood by the *underlying
+filesystem* hosting the entry to be imported into the |jail|. Options taken into
+account are the *per-mount* options only. See |mount(8)| for details of the
+options available for each filesystem type.
 
-Attributes mentioned above are *mandatory*.
-
-Use fs-file-flags_ and fs-bind-opts_ to customize the way the file is made
-visible from inside the |jail|. These attributes are optional and *defaults* to
-none when unspecified.
+This attribute is optional and *defaults* to none when unspecified.
 
 .. rubric:: Example
 
 .. code-block::
+   :emphasize-lines: 12,13,14
 
-   # Make /bin/busybox visible as /bin/sh from within a jail
-   {
-           type   = "file",
-           # Pathname to host side Busybox
-           orig   = "/bin/busybox",
-           # Pathname as seen from inside the jail (relative to jail's root)
-           path   = "bin/sh",
-           # Busybox is bind mount'ed read-only with SUID bit cleared
-           flags  = [ "ro", "nosuid" ]
+   # Define a jail
+   jail = {
+           ...
+           # Setup jail's filesystem content
+           fsset = (
+                   ...
+                   { # Import /lib host sub-tree into jail
+                           type  = "tree"
+                           path  = "lib"
+                           orig  = "/lib"
+                           flags = [ "ro", "nodev", "nosuid", "noatime" ]
+                           # Bind mount with UBIFS specific options since host
+                           # /lib sub-tree is stored onto an UBIFS filesystem.
+                           opts  = "bulk_read,no_chk_data_crc"
+                   },
+                   ...
+           )
    }
-
 
 fs-blkdev
 *********
@@ -429,19 +426,19 @@ group| when unspecified.
 
    # Define a loopback block device file
    {
-   	type  = "blkdev",
-   	# Pathname to block device file
-   	path  = "/dev/loop0"
-   	# Permission bits expressed as octal integer
-   	mode  = 0640
-   	# Device file major number for loopback block device
-   	major = 7
-   	# Device file minor number for first loopback block device
-   	minor = 0
-   	# Owner UID (root)
-   	user  = 0
-   	# Group name
-   	group = "disk"
+           type  = "blkdev"
+           # Pathname to block device file
+           path  = "/dev/loop0"
+           # Permission bits expressed as octal integer
+           mode  = 0640
+           # Device file major number for loopback block device
+           major = 7
+           # Device file minor number for first loopback block device
+           minor = 0
+           # Owner UID (root)
+           user  = 0
+           # Group name
+           group = "disk"
    }
 
 fs-chrdev
@@ -630,14 +627,67 @@ none when unspecified.
 fs-file-flags
 *************
 
-.. todo:: 
+Customize common |bind mount| properties when making a |host| file entry visible
+from within a |jail|.
 
-   Document me
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**fs-file-flags**>  ::= 'flags = [' <file-flag-list> ']'
+   <**file-flag-list**> ::= '"' <**file-flag**> '"' [|LSEP| '"' <**file-flag**> '"']...
+   <**file-flag**>      ::= 'mand'
+                      | 'nodev'
+                      | 'noexec'
+                      | 'nosuid'
+                      | 'ro'
+                      | 'silent'
+                      | 'sync'
+                      | 'nosymfollow'
+                      | 'lazy'
+                      | 'noatime'
+                      | 'relatime'
+                      | 'strictatime'
+
+Setup common *per-mount-point* flags when making a |host| filesystem entry
+visible from within a |jail| using fs-file_ statement.
+
+Flags are given as an array of |STRING| and are documented in section `Mount
+flags`_.
+This attribute is optional and *defaults* to none when unspecified, meaning that
+original host side file's filesystem mounting flags apply.
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 14,15,16
+
+   # Define a jail
+   jail = {
+           ...
+           # Setup jail's filesystem content
+           fsset = (
+                   ...
+                   { # Make /bin/busybox visible as /bin/sh from within a jail
+                           type   = "file",
+                           # Pathname to host side Busybox
+                           orig   = "/bin/busybox",
+                           # Pathname as seen from inside the jail (relative to
+                           # jail's root)
+                           path   = "bin/sh",
+                           # Busybox is bind mount'ed read-only with SUID bit
+                           # cleared
+                           flags  = [ "ro", "nosuid" ]
+                   }
+                   ...
+           )
+   }
 
 fs-major-attr
 *************
 
-Specify the major number of a filesystem node device file entry.
+Specify the major number of a filesystem device node file entry.
 
 .. rubric:: Syntax
 
@@ -646,10 +696,33 @@ Specify the major number of a filesystem node device file entry.
 
    <**fs-major-attr**> ::= 'major =' <|fs-major|>
 
+Specify the |fs-major| of a device node file specified by a `top-host`_
+statement.
+
+This attribute is *mandatory*.
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 8,9
+
+   # Define a loopback block device file
+   {
+           type  = "blkdev",
+           # Pathname to block device file
+           path  = "/dev/loop0"
+           # Permission bits expressed as octal integer
+           mode  = 0640
+           # Device file major number for loopback block device
+           major = 7
+           # Device file minor number for first loopback block device
+           minor = 0
+   }
+
 fs-minor-attr
 *************
 
-Specify the minor number of a filesystem node device file entry.
+Specify the minor number of a filesystem device node file entry.
 
 .. rubric:: Syntax
 
@@ -657,6 +730,29 @@ Specify the minor number of a filesystem node device file entry.
    :class: highlight
 
    <**fs-minor-attr**> ::= 'minor =' <|fs-minor|>
+
+Specify the |fs-minor| of a device node file specified by a `top-host`_
+statement.
+
+This attribute is *mandatory*.
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 10,11
+
+   # Define a loopback block device file
+   {
+           type  = "blkdev",
+           # Pathname to block device file
+           path  = "/dev/loop0"
+           # Permission bits expressed as octal integer
+           mode  = 0640
+           # Device file major number for loopback block device
+           major = 7
+           # Device file minor number for first loopback block device
+           minor = 0
+   }
 
 fs-mode-attr
 ************
@@ -670,12 +766,57 @@ Define the |file mode bits| of a filesystem entry .
 
    <**fs-mode-attr**> ::= 'mode =' <|fs-mode|>
 
+|fs-mode| must be specified as a *positive octal integer*, i.e. prefixed with a
+leading ``0`` (as octal literals in C).
+
+.. rubric:: Example
+
+.. code-block::
+
+   ...
+   mode = 0640
+   ...
+
 fs-orig-attr
 ************
 
-.. todo:: 
+Define the |pathname| of a |bind mount|'ed filesystem entry.
 
-   Document me
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**fs-orig-attr**> ::= 'orig =' <|pathname|>
+
+|pathname| identifies a |host| filesystem entry to make visible from inside a
+|jail|. It must be specified as *absolute* to the |host|'s root directory.
+
+This attribute is *mandatory*.
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 12,13
+
+   # Define a jail
+   jail = {
+           ...
+           # Setup jail's filesystem content
+           fsset = (
+                   ...
+                   { # Make /lib visible as /lib from within a jail
+                           type  = "tree"
+                           # Pathname as seen from inside the jail (relative to
+                           # jail's root)
+                           path  = "lib"
+                           # Pathname to host side /lib subtree
+                           orig  = "/lib"
+                   },
+                   ...
+           )
+   }
+
 
 fs-path-attr
 ************
@@ -693,14 +834,112 @@ Define a filesystem entry |pathname|.
 
    When used to define a |jail| filesystem entry (thanks to a jail-fsset_
    statement), |pathname| **MUST** be specified as relative to |jail|'s root
-   directory, i.e. with no leading `/`.
+   directory, i.e. with no leading ``/``.
+
+.. rubric:: Example
+
+.. code-block::
+
+   ...
+   path = "/mypath"
+   ...
 
 fs-proc
 *******
 
-.. todo:: 
+Define a |procfs(5)| filesystem entry to be mounted from within a |jail|.
 
-   Document me
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**fs-proc**> ::= 'type = "proc"'
+                 [|SSEP| <`fs-proc-flags`_>]
+                 [|SSEP| <`fs-bind-opts`_>]
+
+Mount a |procfs(5)| filesystem under the :file:`/proc` mount point into the
+|jail|.
+
+.. note:
+
+   Enbox implicitly creates the :file:`/proc` mount point directory into the
+   |jail|.
+
+Use fs-proc-flags_ and fs-bind-opts_ to customize the way the :file:`/proc` is
+made visible from inside the |jail|.
+
+The fs-proc-flags_ attribute is *optional*. See fs-proc-flags_ statement for
+more informations about default flags.
+
+The fs-bind-opts_ attribute is *optional* and defaults to the |STRING|
+``hidepid=invisible,subset=pid`` when unspecified.
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 7-9
+
+   # Define a jail
+   jail = {
+           ...
+           # Setup jail's filesystem content
+           fsset = (
+                   ...
+                   { # Mount a procfs under /proc within the jail
+                           type  = "proc"
+                   },
+                   ...
+           )
+   }
+   
+fs-proc-flags
+*************
+
+Customize mount properties when mounting a |procfs(5)| inside a |jail|.
+
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**fs-proc-flags**>  ::= 'flags = [' <proc-flag-list> ']'
+   <**proc-flag-list**> ::= '"' <**proc-flag**> '"' [|LSEP| '"' <**proc-flag**> '"']...
+   <**file-flag**>      ::= 'nodev'
+                      | 'noexec'
+                      | 'nosuid'
+                      | 'ro'
+                      | 'silent'
+                      | 'lazy'
+                      | 'noatime'
+                      | 'relatime'
+                      | 'strictatime'
+                      | 'nodiratime'
+
+Flags are given as an array of |STRING| and are documented in section `Mount
+flags`_.
+This attribute is optional and *defaults* to the |STRING| array ``[ "nodev",
+"nosuid", "nodev", "noexec", "noatime" ]`` when unspecified.
+
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 9
+
+   # Define a jail
+   jail = {
+           ...
+           # Setup jail's filesystem content
+           fsset = (
+                   ...
+                   { # Mount a procfs under /proc within the jail
+                           type  = "proc"
+                           flags = [ "nodev", "nosuid", "nodev", "noexec" ]
+                   },
+                   ...
+           )
+   }
 
 fs-slink
 ********
@@ -712,21 +951,161 @@ Define a filesystem symbolic link entry.
 .. parsed-literal::
    :class: highlight
 
-   <**fs-slink**> ::= 'type = "slink"'
-                  |SSEP| <`fs-path-attr`_>
-                  |SSEP| 'target = "' <|pathname|> '"'
-                  [|SSEP| <`user-attr`_>]
-                  [|SSEP| <`group-attr`_>]
+   <**fs-slink**>        ::= 'type = "slink"'
+                         |SSEP| <`fs-path-attr`_>
+                         |SSEP| <**fs-slink-target**>
+                         [|SSEP| <`user-attr`_>]
+                         [|SSEP| <`group-attr`_>]
+   <**fs-slink-target**> ::= 'target = "' <|pathname|> '"'
+
+
+Use fs-path-attr_ to specify the pathname of symbolic the link to create. Use
+**fs-slink-target** attribute to specify the target |pathname| the symbolic link
+points to.
+
+Attributes mentioned above are *mandatory*.
+
+You may specify the symbolic link owner thanks to user-attr_. This
+attribute is optional and *defaults* to the current |effective user| when
+unspecified.
+
+You may also specify the symbolic link group membership thanks to group-attr_.
+This attribute is optional and *defaults* to the current |effective group| when
+unspecified.
+
+.. rubric:: Example
+
+.. code-block::
+
+   # Define a symbolic link
+   {
+           type   = "slink"
+           # Symbolic link pathname
+           path   = "/tmp/mylink"
+           # Symbolic link target pathname pointing to /tmp/mytarget...
+           target = "mytarget"
+   }
 
 fs-tree
 *******
 
-.. todo:: 
+Make a |host| filesystem (sub)tree visible from within a |jail|.
 
-   Document me
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**fs-tree**> ::= 'type = "tree"'
+                 |SSEP| <`fs-path-attr`_>
+                 |SSEP| <`fs-orig-attr`_>
+                 [|SSEP| <`fs-tree-flags`_>]
+                 [|SSEP| <`fs-bind-opts`_>]
+
+The specified (sub)tree is |bind mount|'ed into the |jail|.
+
+Use fs-orig-attr_ to specify the |pathname| identifying the (sub)tree onto the
+|host|.  Use fs-path-attr_ to specify a |pathname| *relative* to the |jail|'s
+root directory that identifies the (sub)tree mount point directory within the
+|jail|.
+
+.. note:
+
+   Enbox implicitly creates |jail|'s (sub)tree mount point when needed.
+
+Attributes mentioned above are *mandatory*.
+
+Use fs-tree-flags_ and fs-bind-opts_ to customize the way the (sub)tree is made
+visible from inside the |jail|. These attributes are optional and *defaults* to
+none when unspecified.
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 7-14
+
+   # Define a jail
+   jail = {
+           ...
+           # Setup jail's filesystem content
+           fsset = (
+                   ...
+                   { # Make /lib visible as /lib from within a jail
+                           type  = "tree"
+                           # Pathname as seen from inside the jail (relative to
+                           # jail's root)
+                           path  = "lib"
+                           # Pathname to host side /lib subtree
+                           orig  = "/lib"
+                   },
+                   ...
+           )
+   }
+
+fs-tree-flags
+*************
+
+Customize common |bind mount| properties when making a |host| (sub)tree entry
+visible from within a |jail|.
+
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**fs-tree-flags**>  ::= 'flags = [' <**tree-flag-list**> ']'
+   <**tree-flag-list**> ::= '"' <**tree-flag**> '"' [|LSEP| '"' <**tree-flag**> '"']...
+   <**tree-flag**>      ::= 'dirsync'
+                      | 'mand'
+                      | 'nodev'
+                      | 'noexec'
+                      | 'nosuid'
+                      | 'ro'
+                      | 'silent'
+                      | 'sync'
+                      | 'nosymfollow'
+                      | 'lazy'
+                      | 'noatime'
+                      | 'relatime'
+                      | 'strictatime'
+                      | 'nodiratime'
+
+Setup common *per-mount-point* flags when making a |host| filesystem entry
+visible from within a |jail| using fs-tree_ statement.
+
+Flags are given as an array of |STRING| and are documented in section `Mount
+flags`_.
+This attribute is optional and *defaults* to none when unspecified, meaning that
+original host side (sub)tree's filesystem mounting flags apply.
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 11,12,13,14
+
+   # Define a jail
+   jail = {
+           ...
+           # Setup jail's filesystem content
+           fsset = (
+                   ...
+                   { # Import /lib host sub-tree into jail
+                           type  = "tree"
+                           path  = "lib"
+                           orig  = "/lib"
+                           # Bind mount /lib read-only, with SUID bit cleared,
+                           # with no special # devices support and no inode
+                           # access time updates.
+                           flags = [ "ro", "nodev", "nosuid", "noatime" ]
+                   },
+                   ...
+           )
+   }
 
 group-attr
 **********
+
+Assign specified group membership to the related parent object.
 
 .. rubric:: Syntax
 
@@ -735,6 +1114,28 @@ group-attr
 
    <**group-attr**> ::= 'group =' <**group**>
    <**group**>      ::= <|gid|> | '"' <|groupname|> '"'
+
+Setup group specified by <**group**> statement to permissions of a parent
+filesystem object. See sections `jail-fsset`_ and `top-host`_ for more
+informations about concerned filesystem object types.
+
+As shown above, <**group**> may be specified as either a |gid| or a |groupname|.
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 7,8
+
+   # Define a loopback block device file
+   {
+           type  = "blkdev"
+           # Pathname to block device file
+           path  = "/dev/loop0"
+           ...
+           # Group name
+           group = "disk"
+        ...
+   }
 
 jail-fsset
 **********
@@ -763,6 +1164,7 @@ dies.
 .. rubric:: Example
 
 .. code-block::
+   :emphasize-lines: 3-20
 
    jail = {
            ...
@@ -789,9 +1191,40 @@ dies.
 ns-attr
 *******
 
-.. todo:: 
+Specify an optional list of |namespaces| to make a |jail| a member of.
 
-   Document me
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**ns-attr**> ::= 'namespaces = [' <**ns-list**> ']'
+   <**ns-list**> ::= '"' <**ns**> '"' [|LSEP| '"' <**ns**> '"']...
+   <**ns**>      ::= 'mount'
+               | 'cgroup'
+               | 'uts'
+               | 'ipc'
+               | 'net'
+
+For each type of namespace specified in the <**ns-list**> statement, Enbox
+creates a new namespace of the given type and makes the |jail| a member of it.
+
+|Namespaces| are given as an array of |STRING|. `ns-attr`_ is *optional* and
+defaults to the |STRING| array ``[ "mount", "cgroup", "uts", "ipc", "net" ]``
+when unspecified.
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 4,5
+
+   # Define a jail
+   jail = {
+           ...
+           # Namespaces the jail is a member of
+           namespaces = [ "mount", "uts", "ipc", "net" ]
+           ...
+   }
 
 top-host
 ********
@@ -826,16 +1259,16 @@ to system administration tasks.
 
    # Populate the host filesystem
    host = (
-       {   # Create a /tmp/mydir directory entry.
-           path = "/tmp/mydir"
-           type = "dir"
-           mode = 0755
-       },
-       {   # Create a /tmp/mydir/fifo named pipe entry
-           path = "/tmp/mydir/fifo"
-           type = "fifo"
-           mode = 0644
-       }
+           { # Create a /tmp/mydir directory entry.
+                   path = "/tmp/mydir"
+                   type = "dir"
+                   mode = 0755
+           },
+           { # Create a /tmp/mydir/fifo named pipe entry
+                   path = "/tmp/mydir/fifo"
+                   type = "fifo"
+                   mode = 0644
+           }
    )
 
 top-ids
@@ -908,9 +1341,9 @@ content.
 
    jail = {
            # Namespaces the jail is a member of
-           namespaces = [ "mount", "cgroup", "uts", "ipc", "net" ],
+           namespaces = [ "mount", "cgroup", "uts", "ipc", "net" ]
            # Pathname to jail's filesystem root directory
-           path       = "/tmp/jail",
+           path       = "/tmp/jail"
            # Populate the jail filesystem
            fsset      = (
                    ...
@@ -984,13 +1417,95 @@ This attribute is optional and *defaults* to ``0077`` when unspecified.
 user-attr
 *********
 
+Assign specified user to the related parent object.
+
 .. rubric:: Syntax
 
 .. parsed-literal::
    :class: highlight
 
-   <**user-attr**> ::= 'group =' <**user**>
+   <**user-attr**> ::= 'user =' <**user**>
    <**user**>      ::= <|uid|> | '"' <|username|> '"'
+
+Within the context of a parent filesystem object, the `user-attr`_ statement
+sets up owner permission bits of the related object.  See sections `jail-fsset`_
+and `top-host`_ for more informations about concerned filesystem object types.
+
+Within the context of a `top-ids`_ statement, `user-attr`_ specifies the user to
+load |credentials| for.
+
+.. rubric:: Example
+
+.. code-block::
+   :emphasize-lines: 7,8
+
+   # Define a loopback block device file
+   {
+           type  = "blkdev"
+           # Pathname to block device file
+           path  = "/dev/loop0"
+           ...
+           # Owner
+           user = "root"
+           ...
+   }
+
+Mount flags
+***********
+
+Mount flags for use with `fs-file-flags`_ and `fs-tree-flags`_ statements are
+shown in the table below. See |mount(2)| for further
+informations.
+
+.. list-table::
+   :header-rows: 1
+   :stub-columns: 1
+
+   * - Flag
+     - |mount(2)| flag
+     - Description
+   * - dirsync
+     - ``MS_DIRSYNC``
+     - enable synchronous directory updates
+   * - mand
+     - ``MS_MANDLOCK``
+     - enable mandatory locking
+   * - nodev
+     - ``MS_NODEV``
+     - disable access to device special files
+   * - noexec
+     - ``MS_NOEXEC``
+     - disallow program execution
+   * - nosuid
+     - ``MS_NOSUID``
+     - do not honor SUID / SGID bits or file capabilites when executing programs
+   * - ro
+     - ``MS_RDONLY``
+     - read-only
+   * - silent
+     - ``MS_SILENT``
+     - suppress kernel warning messages for this mount
+   * - sync
+     - ``MS_SYNCHRONOUS``
+     - writes synchronously
+   * - nosymfollow
+     - ``MS_NOSYMFOLLOW``
+     - do not follow symbolic links
+   * - lazy
+     - ``MS_LAZYTIME``
+     - reduce on-disk updates of inode timestamps
+   * - noatime
+     - ``MS_NOATIME``
+     - do not update access times
+   * - relatime
+     - ``MS_RELATIME``
+     - reduce updates of inode last access time
+   * - strictatime
+     - ``MS_STRICTATIME``
+     - always update the last access time
+   * - nodiratime
+     - ``MS_NODIRATIME``
+     - disable directory inode access time updates
 
 Use cases
 ---------

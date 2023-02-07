@@ -35,7 +35,7 @@ Glossary
       expressed as positive integer (see |makedev(3)|)
 
    fs-minor
-      filesystem device file minor number identifying a specific instanace of a
+      filesystem device file minor number identifying a specific instance of a
       device and expressed as positive integer (see |makedev(3)|)
 
    fs-mode
