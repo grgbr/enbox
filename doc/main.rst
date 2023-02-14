@@ -1517,20 +1517,260 @@ Use cases
 Install
 =======
 
+Prerequisites
+-------------
+
+The following packages are required to build Enbox:
+
+* a C compiler such as gcc_
+* ebuild_
+* pkg-config_
+* kconfig-frontends_
+* elog_
+* utils_
+
+At runtime, the following packages must be installed:
+
+* elog_
+* utils_
+
+Optionally, you may need the following packages to build the documentation:
+
+* doxygen_
+* sphinx_
+* sphinx_rtd_theme_
+* breathe_
+
 .. todo::
 
-   Document me
+   Document sphinx extensions needed to build documentation
 
-Requirements
+Getting help
 ------------
 
-Building
+From Enbox source tree root, enter:
+
+.. code-block:: console
+
+   $ make help
+
+... which should output something like:
+
+.. code-block:: console
+
+   ## enbox build usage ##
+
+   ==Synopsis==
+
+   make <TARGET> [<VARIABLE>[=<VALUE>]]...
+
+   ::Where::
+     <TARGET>      -- one of the targets described in `Targets' section below
+     <VARIABLE>    -- one of the variables described in the `Variables' section
+                      below
+     <VALUE>       -- a value to assign to the given <VARIABLE>
+
+   ==Targets==
+
+   ::Configuration::
+     menuconfig    -- configure build using a menu-driven interface
+     xconfig       -- configure build using a QT menu-driven interface
+     gconfig       -- configure build using a GTK menu-driven interface
+     defconfig     -- configure build using default settings
+     saveconfig    -- save current build configuration as default settings
+
+   ::Documentation::
+     doc           -- build documentation
+     clean-doc     -- remove built documentation
+     install-doc   -- install built documentation
+     uninstall-doc -- remove installed documentation
+
+   ::Construction::
+     build         -- compile and link objects
+     clean         -- remove built objects and documentation
+     install       -- install built objects and documentation
+     install-strip -- run `install' target and strip installed objects
+     uninstall     -- remove installed objects and documentation
+     distclean     -- run `clean' target then remove build configuration
+
+   ::Help::
+     help          -- this help message
+     help-full     -- a full reference help message
+
+   ==Variables==
+
+   EBUILDDIR       -- directory where ebuild logic is located
+                      [/usr/local/share/ebuild]
+   DEFCONFIG       -- optional file containing default build configuration settings
+                      []
+   PREFIX          -- prefix prepended to install location variables default value
+                      [/usr/local]
+   DESTDIR         -- root install hierarchy top-level directory
+                      []
+   BUILDDIR        -- directory where intermediate built objects are generated
+                      [/home/worker/build/enbox]
+   CROSS_COMPILE   -- prefix prepended to executables used at compile / link time
+                      [/usr/bin/arm-linux-gnueabihf-gcc-]
+   EXTRA_CFLAGS    -- additional flags passed to $(CC) at compile time
+                      [-mcpu=cortex-a9 -O2 -flto=auto -I/home/worker/staging/usr/include]
+   EXTRA_LDFLAGS   -- additional flags passed to $(LD) at link time
+                      [-mcpu=cortex-a9 -O2 -flto=auto -L/home/worker/staging/lib -Wl,-rpath-link,/home/worker/staging/lib]
+
+   Use `help-full' target for further details.
+
+Also note that a more detailed help message is available:
+
+.. code-block:: console
+
+   $ make help-full
+
+Workflow
 --------
 
-Testing
--------
+As mentioned earlier, Enbox's build logic is based on ebuild_, a *GNU make*
+based build system. To build and install Enbox, the typical workflow is:
 
-Deploy
-------
+#. Configure_ the construction logic
+#. Build_ programs, libraries, documentation, etc.
+#. Install_ components, copying files previously built to system-wide
+   directories
+
+Basically, generated objects are store according to the following rules:
+
+* at build configuration time, intermediate objects are stored under $(BUILDDIR) 
+* intermediate built objects are stored under $(BUILDDIR)
+
+The 3 phases mentioned above are subject to multiple customizations. 
+
+.. todo::
+
+   Finish me
+
+Configure
+*********
+
+To apply Enbox's **default build configuration**, run the following command from
+the top-level Enbox's source tree:
+
+.. code-block:: console
+
+   $ make defconfig
+
+You may specify an alternate default build configuration file by giving *make*
+a ``DEFCONFIG`` variable which value points to an arbitrary pathname:
+
+.. code-block:: console
+
+   $ make defconfig DEFCONFIG=/home/worker/config/enbox.defconfig
+
+This alternate default build configuration file may be generated from current
+configuration into the :file:`$BUILDDIR/defconfig` file:
+
+.. code-block:: console
+
+   $ make saveconfig
+     KSAVE   /home/worker/build/enbox/defconfig
+
+Optionally, you may **tweak build options** interactively:
+
+.. code-block:: console
+
+   $ make menuconfig
+
+The ``menuconfig`` target runs a menu-driven user interface allowing you to
+configure build options. You may run alternate user interfaces using the
+following *make* targets :
+
+* ``xconfig`` for a QT menu-driven interface,
+* and ``gconfig`` for GTK menu-driven interface.
+
+Finally, you may overwrite the default build directory location by giving *make*
+a ``BUILDDIR`` variable which value points to an arbitrary pathname.
+Intermediate objects are built under the passed directory to prevent from
+polluting Enbox's source tree:
+
+.. code-block:: console
+
+   $ make defconfig BUILDDIR=/home/worker/build/enbox
+
+All *make* targets...
+.. todo::
+
+   Finish me
+
+You can now proceed to the build phase.
+
+Build
+*****
+
+To build programs, libraries, etc., run:
+
+.. code-block:: console
+
+   $ make build BUILDDIR=/home/worker/build/enbox
+
+If not completed, the ``build`` target performs the configuration phase
+implicitly using default configuration settings.
+
+
+You may overwrite default 
+   $ make build PREFIX="" BUILDDIR="" DEFCONFIG=/home/worker/config/enbox.defconfig
+
+.. todo::
+
+   Finish me
+   
+Install
+*******
+
+Reference
+---------
+
+Variables
+*********
+
+BUILDDIR
+~~~~~~~~
+
+Build directory
+
+:Default: ``$TOPDIR``
+:Mutable: yes
+
+Pathname to directory under which intermediate objects are generated. Applies to
+all construction phases.
+
+TOPDIR
+~~~~~~
+
+Source tree top-level directory
+
+:Default: none
+:Mutable: no
+
+Pathname to source tree top-level directory.
+
+Troubleshooting
+---------------
+
+In case an error happens such as the one below:
+
+.. code-block:: console
+
+   $ make help
+   Makefile:10: *** '/usr/share/ebuild': no valid Ebuild install found !.  Stop.
+   
+This means Enbox is not able to find the location where ebuild_ is installed. 
+This may happen when working with an Enbox source tree that has been retrieved
+from version control system, i.e., not extracted from a source distribution
+tarball.
+
+Give *make* an ``EBUILDDIR`` variable pointing to the top-level ebuild_
+read-only data directory like so:
+
+.. code-block:: console
+   
+   $ make help EBUILDDIR=/usr/local/share/ebuild
+
 
 .. include:: _cdefs.rst

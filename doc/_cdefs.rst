@@ -86,3 +86,13 @@
 .. _libconfig manual:    http://www.hyperrealm.com/libconfig/libconfig_manual.html
 .. _utility conventions: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html
 .. _IEEE Std 1003.1:     https://pubs.opengroup.org/onlinepubs/9699919799/mindex.html
+.. _ebuild:              https://github.com/grgbr/ebuild/
+.. _pkg-config:          https://www.freedesktop.org/wiki/Software/pkg-config/
+.. _elog:                https://github.com/grgbr/elog/
+.. _utils:               https://github.com/grgbr/utils/
+.. _kconfig-frontends:   https://salsa.debian.org/philou/kconfig-frontends/
+.. _doxygen:             https://www.doxygen.nl/
+.. _sphinx:              http://sphinx.org/
+.. _sphinx_rtd_theme:    https://sphinx-rtd-theme.readthedocs.io/
+.. _breathe:             https://github.com/michaeljones/breathe/
+.. _gcc:                 https://gcc.gnu.org/
