@@ -96,3 +96,16 @@
 .. _sphinx_rtd_theme:    https://sphinx-rtd-theme.readthedocs.io/
 .. _breathe:             https://github.com/michaeljones/breathe/
 .. _gcc:                 https://gcc.gnu.org/
+
+
+..
+   External hyperlinks definitions for ebuild related documentation
+   
+.. |ar(1)|   replace:: :manpage:`ar(1)`
+.. |gcc(1)|  replace:: :manpage:`gcc(1)`
+.. |echo(1)| replace:: :manpage:`echo(1)`
+
+.. _gnu_vars_for_install_dirs: https://www.gnu.org/prep/standards/html_node/Directory-Variables.html
+.. |gnu_vars_for_install_dirs| replace:: `GNU variables for installation Directories <gnu_vars_for_install_dirs_>`_
+.. _gnu_install_destdir:       https://www.gnu.org/prep/standards/html_node/DESTDIR.html#DESTDIR
+.. |gnu_install_destdir|       replace:: `DESTDIR: support for staged installs`

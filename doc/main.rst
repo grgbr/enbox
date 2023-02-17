@@ -1729,23 +1729,206 @@ Reference
 Variables
 *********
 
+AR
+~~
+
+Object archiver
+
+:Default: ${CROSS_COMPILE_}ar
+:Mutable: yes
+
+Tool used to create static libraries, i.e. built objects archives.
+
+See |ar(1)|.
+
+BINDIR
+~~~~~~
+
+Executable programs install directory
+
+:Default: ${PREFIX_}/bin
+:Mutable: yes
+
+Pathname to directory where to install executable programs. Note that final
+install location is also affected by the DESTDIR_ variable.
+
+See |gnu_vars_for_install_dirs|.
+
 BUILDDIR
 ~~~~~~~~
 
 Build directory
 
-:Default: ``$TOPDIR``
+:Default: ${TOPDIR_}/build
 :Mutable: yes
 
 Pathname to directory under which intermediate objects are generated. Applies to
 all construction phases.
+
+CC
+~~
+
+C compiler
+
+:Default: ${CROSS_COMPILE_}gcc
+:Mutable: yes
+
+Tool used to build C objects.
+
+See |gcc(1)|.
+
+CROSS_COMPILE
+~~~~~~~~~~~~~
+
+Cross compile tool prefix
+
+:Default: empty
+:Mutable: yes
+
+Optional prefix prepended to build tools used during construction. The following
+variables are affected: AR_, CC_, LD_, STRIP_.
+
+DEFCONFIG
+~~~~~~~~~
+
+Defaut build configuration file
+
+:Default: empty
+:Mutable: yes
+
+Pathname to optional file containing default build configuration settings. This
+file may be generated from current configuration as explained into section
+configure_.
+
+DATADIR
+~~~~~~~
+
+Read-only architecture-independent data install directory
+
+:Default: ${PREFIX_}/share
+:Mutable: yes
+
+Pathname to directory where to install read-only architecture-independent data
+files.
+
+See |gnu_vars_for_install_dirs|.
+
+DESTDIR
+~~~~~~~
+
+Top-level root install directory
+
+:Default: empty
+:Mutable: yes
+
+.. todo::
+
+   Describe me
+
+See |gnu_install_destdir|.
+
+DOCDIR
+~~~~~~
+
+Documentation install directory
+
+:Default: ${DATADIR_}/doc
+:Mutable: yes
+
+Pathname to directory where to install documentation files other than man pages
+and info files.
+
+See |gnu_vars_for_install_dirs|.
+
+EBUILDDIR
+~~~~~~~~~
+
+`Ebuild <ebuild_>`_ directory
+
+:Default: empty
+:Mutable: yes
+
+Pathname to directory where ebuild_ logic is located.
+
+ECHOE
+~~~~~
+
+Shell escaped string echo'ing tool
+
+:Default: ``/bin/echo -e``
+:Mutable: yes
+
+Tool used to print strings with shell backslash escapes interpretation enabled.
+See |echo(1)|.
+
+.. EXTRA_CFLAGS  -- additional flags passed to $(CC) at compile time
+..                  [-mabi=aapcs-linux -mno-thumb-interwork -marm -march=armv7-a+mp+sec+simd -mtune=cortex-a9 -mcpu=cortex-a9 -mfpu=neon-vfpv3 -mhard-float -mfloat-abi=hard -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fstack-clash-protection -fpie -O2 -flto -ggdb3 -frecord-gcc-switches -I/home/grb/dev/proto/icsw/out/va38x_bare/devel/staging/usr/include]
+.. EXTRA_LDFLAGS -- additional flags passed to $(LD) at link time
+..                  [-pie -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -O2 -flto -fuse-linker-plugin -rdynamic -L/home/grb/dev/proto/icsw/out/va38x_bare/devel/staging/lib -Wl,-rpath-link,/home/grb/dev/proto/icsw/out/va38x_bare/devel/staging/lib]
+.. INFODIR       -- install variable holding pathname to directory where to
+..                  install info files
+..                  [/usr/share/info]
+.. INCLUDEDIR    -- install variable holding pathname to directory where to
+..                  install development header files
+..                  [/usr/include]
+.. INSTALL       -- `install' tool used to copy / create filesystem entries
+..                  [install]
+.. KCONF         -- Kconfig `conf' line-oriented tool
+..                  [kconfig-conf]
+.. KGCONF        -- Kconfig `gconf' GTK menu based tool
+..                  [kconfig-gconf]
+.. KMCONF        -- Kconfig `mconf' menu based tool
+..                  [kconfig-mconf]
+.. KNCONF        -- Kconfig `nconf' Ncurses menu based tool
+..                  [kconfig-nconf]
+.. KXCONF        -- Kconfig `qconf' QT menu based tool
+..                  [kconfig-qconf]
+.. LD            -- linker `ld' tool
+..                  [/opt/xtchain-1/a38x/armv7_a38x-xtchain-linux-gnueabihf/bin/armv7_a38x-xtchain-linux-gnueabihf-gcc]
+.. LIBDIR        -- install variable holding pathname to directory where to
+..                  install libraries
+..                  [/lib]
+.. LIBEXECDIR    -- install variable holding pathname to directory where to
+..                  install executables to be run by other programs
+..                  [/libexec]
+.. LN            -- `ln' tool used to create symbolic links
+..                  [ln -f]
+.. LOCALSTATEDIR -- install variable holding pathname to directory where to
+..                  install machine specific persistent data files which programs
+..                  modify while they run
+..                  [/var]
+.. MANDIR        -- install variable holding pathname to directory where to
+..                  install manual pages
+..                  [/usr/share/man]
+.. PREFIX        -- pathname prefix prepended to install variable values listed
+..                  here
+..                  [/]
+.. PKG_CONFIG    -- `pkg-config' tool used retrieve informations about installed
+..                  libraries
+..                  [/opt/xtchain-1/a38x/bin/pkg-config]
+.. PKGCONFIGDIR  -- install variable holding pathname to directory where to
+..                  install $(PKG_CONFIG) metadata files
+..                  [/lib/pkgconfig]
+.. RM            -- `rm' tool used to delete filesystem entries
+..                  [rm -f]
+.. RUNSTATEDIR   -- install variable holding pathname to directory where to
+..                  install machine specific temporary data files which programs
+..                  modify while they run
+..                  [/run]
+.. SBINDIR       -- install variable holding pathname to directory where to
+..                  install system administration executables
+..                  [/sbin]
+.. STRIP         -- `strip' tool used to discard symbols from object files
+..                  [/opt/xtchain-1/a38x/armv7_a38x-xtchain-linux-gnueabihf/bin/armv7_a38x-xtchain-linux-gnueabihf-strip]
+.. SYSCONFDIR    -- install variable holding pathname to directory where to
+                   install machine specific read-only system configuration files
 
 TOPDIR
 ~~~~~~
 
 Source tree top-level directory
 
-:Default: none
+:Default: not applicable
 :Mutable: no
 
 Pathname to source tree top-level directory.
