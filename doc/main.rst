@@ -1858,19 +1858,51 @@ Shell escaped string echo'ing tool
 :Default: ``/bin/echo -e``
 :Mutable: yes
 
-Tool used to print strings with shell backslash escapes interpretation enabled.
-See |echo(1)|.
+Tool used to print strings to console with shell backslash escapes
+interpretation enabled. See |echo(1)|.
 
-.. EXTRA_CFLAGS  -- additional flags passed to $(CC) at compile time
-..                  [-mabi=aapcs-linux -mno-thumb-interwork -marm -march=armv7-a+mp+sec+simd -mtune=cortex-a9 -mcpu=cortex-a9 -mfpu=neon-vfpv3 -mhard-float -mfloat-abi=hard -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fstack-clash-protection -fpie -O2 -flto -ggdb3 -frecord-gcc-switches -I/home/grb/dev/proto/icsw/out/va38x_bare/devel/staging/usr/include]
-.. EXTRA_LDFLAGS -- additional flags passed to $(LD) at link time
-..                  [-pie -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -O2 -flto -fuse-linker-plugin -rdynamic -L/home/grb/dev/proto/icsw/out/va38x_bare/devel/staging/lib -Wl,-rpath-link,/home/grb/dev/proto/icsw/out/va38x_bare/devel/staging/lib]
-.. INFODIR       -- install variable holding pathname to directory where to
-..                  install info files
-..                  [/usr/share/info]
-.. INCLUDEDIR    -- install variable holding pathname to directory where to
-..                  install development header files
-..                  [/usr/include]
+EXTRA_CFLAGS
+~~~~~~~~~~~~
+
+Flags passed to C compiler
+
+:Default: ``-O2 -NDEBUG``
+:Mutable: yes
+
+Flags given to $(CC_) at compile time.
+
+EXTRA_LDFLAGS
+~~~~~~~~~~~~~
+
+Flags passed to LD linker
+
+:Default: ``-O2``
+:Mutable: yes
+
+Flags given to $(LD_) at link time.
+
+INFODIR
+~~~~~~~
+
+|info_files| install directory
+
+:Default: ${DATADIR_}/info
+:Mutable: yes
+
+Pathname to directory where to install |info_files|.
+See |gnu_vars_for_install_dirs|.
+
+INCLUDEDIR
+~~~~~~~~~~
+
+Header files install directory
+
+:Default: ${PREFIX_}/include
+:Mutable: yes
+
+Pathname to directory where to install development header files to be included
+by the C ``#include`` preprocessor directive. See |gnu_vars_for_install_dirs|.
+
 .. INSTALL       -- `install' tool used to copy / create filesystem entries
 ..                  [install]
 .. KCONF         -- Kconfig `conf' line-oriented tool

@@ -108,4 +108,6 @@
 .. _gnu_vars_for_install_dirs: https://www.gnu.org/prep/standards/html_node/Directory-Variables.html
 .. |gnu_vars_for_install_dirs| replace:: `GNU variables for installation Directories <gnu_vars_for_install_dirs_>`_
 .. _gnu_install_destdir:       https://www.gnu.org/prep/standards/html_node/DESTDIR.html#DESTDIR
-.. |gnu_install_destdir|       replace:: `DESTDIR: support for staged installs`
+.. |gnu_install_destdir|       replace:: `DESTDIR: support for staged installs <gnu_install_destdir_>`_
+.. _texinfo:                   https://www.gnu.org/software/texinfo/
+.. |info_files|                replace:: `Info files <texinfo_>`_
