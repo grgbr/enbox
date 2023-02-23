@@ -1901,59 +1901,249 @@ Header files install directory
 :Mutable: yes
 
 Pathname to directory where to install development header files to be included
-by the C ``#include`` preprocessor directive. See |gnu_vars_for_install_dirs|.
+by the C ``#include`` preprocessor directive.
+See |gnu_vars_for_install_dirs|.
 
-.. INSTALL       -- `install' tool used to copy / create filesystem entries
-..                  [install]
-.. KCONF         -- Kconfig `conf' line-oriented tool
-..                  [kconfig-conf]
-.. KGCONF        -- Kconfig `gconf' GTK menu based tool
-..                  [kconfig-gconf]
-.. KMCONF        -- Kconfig `mconf' menu based tool
-..                  [kconfig-mconf]
-.. KNCONF        -- Kconfig `nconf' Ncurses menu based tool
-..                  [kconfig-nconf]
-.. KXCONF        -- Kconfig `qconf' QT menu based tool
-..                  [kconfig-qconf]
-.. LD            -- linker `ld' tool
-..                  [/opt/xtchain-1/a38x/armv7_a38x-xtchain-linux-gnueabihf/bin/armv7_a38x-xtchain-linux-gnueabihf-gcc]
-.. LIBDIR        -- install variable holding pathname to directory where to
-..                  install libraries
-..                  [/lib]
-.. LIBEXECDIR    -- install variable holding pathname to directory where to
-..                  install executables to be run by other programs
-..                  [/libexec]
-.. LN            -- `ln' tool used to create symbolic links
-..                  [ln -f]
-.. LOCALSTATEDIR -- install variable holding pathname to directory where to
-..                  install machine specific persistent data files which programs
-..                  modify while they run
-..                  [/var]
-.. MANDIR        -- install variable holding pathname to directory where to
-..                  install manual pages
-..                  [/usr/share/man]
-.. PREFIX        -- pathname prefix prepended to install variable values listed
-..                  here
-..                  [/]
-.. PKG_CONFIG    -- `pkg-config' tool used retrieve informations about installed
-..                  libraries
-..                  [/opt/xtchain-1/a38x/bin/pkg-config]
-.. PKGCONFIGDIR  -- install variable holding pathname to directory where to
-..                  install $(PKG_CONFIG) metadata files
-..                  [/lib/pkgconfig]
-.. RM            -- `rm' tool used to delete filesystem entries
-..                  [rm -f]
-.. RUNSTATEDIR   -- install variable holding pathname to directory where to
-..                  install machine specific temporary data files which programs
-..                  modify while they run
-..                  [/run]
-.. SBINDIR       -- install variable holding pathname to directory where to
-..                  install system administration executables
-..                  [/sbin]
-.. STRIP         -- `strip' tool used to discard symbols from object files
-..                  [/opt/xtchain-1/a38x/armv7_a38x-xtchain-linux-gnueabihf/bin/armv7_a38x-xtchain-linux-gnueabihf-strip]
-.. SYSCONFDIR    -- install variable holding pathname to directory where to
-                   install machine specific read-only system configuration files
+INSTALL
+~~~~~~~
+
+Install tool
+
+:Default: ``install``
+:Mutable: yes
+
+Tool used to copy filesytem entries and set their attributes.
+See |install(1)|.
+
+KCONF
+~~~~~
+
+KConfig line-oriented tool
+
+:Default: ``kconfig-conf``
+:Mutable: yes
+
+Tool used to configure the build logic thanks to a line-oriented user interface
+(questions - answers).
+See |kconfig|.
+
+KGCONF
+~~~~~~
+
+KConfig |GTK| based tool
+
+:Default: ``kconfig-gconf``
+:Mutable: yes
+
+Tool used to configure the build logic thanks to a |GTK| menu driven user
+interface.
+See |kconfig|.
+
+KMCONF
+~~~~~~
+
+KConfig text menu based tool
+
+:Default: ``kconfig-mconf``
+:Mutable: yes
+
+Tool used to configure the build logic thanks to a text menu driven user
+interface.
+See |kconfig|.
+
+KNCONF
+~~~~~~
+
+KConfig |NCurses| menu based tool
+
+:Default: ``kconfig-nconf``
+:Mutable: yes
+
+Tool used to configure the build logic thanks to a |NCurses| menu driven user
+interface.
+See |kconfig|.
+
+KXCONF
+~~~~~~
+
+KConfig |QT| menu based tool
+
+:Default: ``kconfig-qconf``
+:Mutable: yes
+
+Tool used to configure the build logic thanks to a |QT| menu driven user
+interface.
+See |kconfig|.
+
+LD
+~~
+
+Program linker
+
+:Default: ${CROSS_COMPILE_}gcc
+:Mutable: yes
+
+Tool used to link objects.
+
+See |gcc(1)| and |ld(1)|.
+
+LIBDIR
+~~~~~~
+
+Libraries install directory
+
+:Default: ${PREFIX_}/lib
+:Mutable: yes
+
+Pathname to directory where to install object files and libraries of object
+code.
+Note that final install location is also affected by the DESTDIR_ variable.
+See |gnu_vars_for_install_dirs|.
+
+LIBEXECDIR
+~~~~~~~~~~
+
+Executable programs install directory
+
+:Default: ${PREFIX_}/libexec
+:Mutable: yes
+
+Pathname to directory where to install executable programs to be run by other
+programs rather than by users.
+Note that final install location is also affected by the DESTDIR_ variable.
+See |gnu_vars_for_install_dirs|.
+
+LN
+~~
+
+Link maker tool
+
+:Default: ``ln -f``
+:Mutable: yes
+
+Tool used to make links between filesystem entries.
+See |ln(1)|.
+
+LOCALSTATEDIR
+~~~~~~~~~~~~~
+
+Machine specific persistent data files install directory
+
+:Default: ${PREFIX_}/var
+:Mutable: yes
+
+Pathname to directory where to install data files which the programs modify
+while they run, and that pertain to one specific machine.
+Note that final install location is also affected by the DESTDIR_ variable.
+See |gnu_vars_for_install_dirs|.
+
+MANDIR
+~~~~~~
+
+Man pages install directory
+
+:Default: ${DATADIR_}/man
+:Mutable: yes
+
+Pathname to top-level directory where to install man pages.
+See |gnu_vars_for_install_dirs| and |man-pages(7)|.
+
+PREFIX
+~~~~~~
+
+Prefix prepended to install variable default values.
+
+:Default: :file:`/usr/local`
+:Mutable: yes
+
+A prefix used in constructing the default values of some of the variables listed
+in the Variables_ section.
+Note that final install location is also affected by the DESTDIR_ variable.
+See |gnu_vars_for_install_dirs|.
+
+PKG_CONFIG
+~~~~~~~~~~
+
+pkg-config_ compile and link helper tool
+
+:Default: ``pkg-config``
+:Mutable: yes
+
+Helper tool used to retrieve flags when compiling applications and libraries.
+See pkg-config_ and |pkg-config(1)|.
+
+PKGCONFIGDIR
+~~~~~~~~~~~~
+
+pkg-config_ metadata files install directory
+
+:Default: ${LIBDIR_}/pkgconfig
+:Mutable: yes
+
+Pathname to directory where to install |pkg-config(1)| metadata files.
+See |gnu_vars_for_install_dirs|.
+
+RM
+~~
+
+Filesystem entry removal tool
+
+:Default: ``rm -f``
+:Mutable: yes
+
+Tool used to delete filesystem entries.
+See |rm(1)|.
+
+RUNSTATEDIR
+~~~~~~~~~~~
+
+Machine specific temporary data files install directory
+
+:Default: ${PREFIX_}/run
+:Mutable: yes
+
+Pathname to directory where to install data files which the programs modify
+while they run, and that pertain to one specific machine, and which need not
+persist longer than the execution of the program.
+Note that final install location is also affected by the DESTDIR_ variable.
+See |gnu_vars_for_install_dirs|.
+
+SBINDIR
+~~~~~~~
+
+System administration executable programs install directory
+
+:Default: ${PREFIX_}/sbin
+:Mutable: yes
+
+Pathname to directory where to install executable programs that are only
+generally useful to system administrators. Note that final install location is
+also affected by the DESTDIR_ variable.
+See |gnu_vars_for_install_dirs|.
+
+STRIP
+~~~~~
+
+Object symbols discarding tool.
+
+:Default: ${CROSS_COMPILE_}strip
+:Mutable: yes
+
+Tool used to discard symbols from compiled and linked object files.
+See |strip(1)|.
+
+SYSCONFDIR
+~~~~~~~~~~
+
+Machine specific read-only configuration install directory
+
+:Default: ${PREFIX_}/etc
+:Mutable: yes
+
+Pathname to directory where to install read-only data files that pertain to a
+single machine, i.e., files for configuring a host.
+Note that final install location is also affected by the DESTDIR_ variable.
+See |gnu_vars_for_install_dirs|.
 
 TOPDIR
 ~~~~~~

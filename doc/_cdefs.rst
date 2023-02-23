@@ -87,10 +87,8 @@
 .. _utility conventions: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html
 .. _IEEE Std 1003.1:     https://pubs.opengroup.org/onlinepubs/9699919799/mindex.html
 .. _ebuild:              https://github.com/grgbr/ebuild/
-.. _pkg-config:          https://www.freedesktop.org/wiki/Software/pkg-config/
 .. _elog:                https://github.com/grgbr/elog/
 .. _utils:               https://github.com/grgbr/utils/
-.. _kconfig-frontends:   https://salsa.debian.org/philou/kconfig-frontends/
 .. _doxygen:             https://www.doxygen.nl/
 .. _sphinx:              http://sphinx.org/
 .. _sphinx_rtd_theme:    https://sphinx-rtd-theme.readthedocs.io/
@@ -101,9 +99,16 @@
 ..
    External hyperlinks definitions for ebuild related documentation
    
-.. |ar(1)|   replace:: :manpage:`ar(1)`
-.. |gcc(1)|  replace:: :manpage:`gcc(1)`
-.. |echo(1)| replace:: :manpage:`echo(1)`
+.. |ar(1)|         replace:: :manpage:`ar(1)`
+.. |gcc(1)|        replace:: :manpage:`gcc(1)`
+.. |echo(1)|       replace:: :manpage:`echo(1)`
+.. |install(1)|    replace:: :manpage:`install(1)`
+.. |ld(1)|         replace:: :manpage:`ld(1)`
+.. |ln(1)|         replace:: :manpage:`ln(1)`
+.. |man-pages(7)|  replace:: :manpage:`man-pages(7)`
+.. |pkg-config(1)| replace:: :manpage:`pkg-config(1)`
+.. |rm(1)|         replace:: :manpage:`rm(1)`
+.. |strip(1)|      replace:: :manpage:`strip(1)`
 
 .. _gnu_vars_for_install_dirs: https://www.gnu.org/prep/standards/html_node/Directory-Variables.html
 .. |gnu_vars_for_install_dirs| replace:: `GNU variables for installation Directories <gnu_vars_for_install_dirs_>`_
@@ -111,3 +116,13 @@
 .. |gnu_install_destdir|       replace:: `DESTDIR: support for staged installs <gnu_install_destdir_>`_
 .. _texinfo:                   https://www.gnu.org/software/texinfo/
 .. |info_files|                replace:: `Info files <texinfo_>`_
+.. _kconfig-frontends:         https://salsa.debian.org/philou/kconfig-frontends/
+.. |kconfig|                   replace:: `KConfig <kconfig-frontends_>`_
+.. _gtk:                       https://www.gtk.org/
+.. |GTK|                       replace:: `GTK <gtk_>`_
+.. _ncurses:                   https://invisible-island.net/ncurses/
+.. |NCurses|                   replace:: `NCurses <ncurses_>`_
+.. _qt:                        http://qt-project.org/
+.. |QT|                        replace:: `QT <qt_>`_
+.. _pkg-config:                https://www.freedesktop.org/wiki/Software/pkg-config/
+
