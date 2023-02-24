@@ -8,6 +8,12 @@ Welcome to Enbox documentation
    main
    
 .. toctree::
+   :numbered:
+   :caption: Integration manual
+
+   install
+
+.. toctree::
    :maxdepth: 2
    :numbered:
    :caption: API

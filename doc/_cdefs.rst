@@ -110,6 +110,8 @@
 .. |rm(1)|         replace:: :manpage:`rm(1)`
 .. |strip(1)|      replace:: :manpage:`strip(1)`
 
+.. _gnu_make:                  https://www.gnu.org/software/make/
+.. |GNU Make|                  replace:: `GNU Make <gnu_make_>`_
 .. _gnu_vars_for_install_dirs: https://www.gnu.org/prep/standards/html_node/Directory-Variables.html
 .. |gnu_vars_for_install_dirs| replace:: `GNU variables for installation Directories <gnu_vars_for_install_dirs_>`_
 .. _gnu_install_destdir:       https://www.gnu.org/prep/standards/html_node/DESTDIR.html#DESTDIR
