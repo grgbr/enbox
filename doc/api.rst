@@ -229,7 +229,7 @@ Use cases
 
 .. todo::
 
-   COMPLETE ME !!!
+   Document typical use cases
 
 Reference
 =========
@@ -290,7 +290,7 @@ Structures
 
 .. todo::
 
-   document struct elog (intersphinx ??)
+   document struct elog (intersphinx)
 
 enbox_bind_entry
 ~~~~~~~~~~~~~~~~
@@ -309,7 +309,7 @@ enbox_conf
 
 .. todo::
 
-   hide internal fields !
+   Hide internal fields
 
 enbox_dev_entry
 ~~~~~~~~~~~~~~~
@@ -343,7 +343,7 @@ enbox_ids
 
 .. todo::
 
-   hide internal fields !
+   Hide internal fields
 
 enbox_jail
 ~~~~~~~~~~

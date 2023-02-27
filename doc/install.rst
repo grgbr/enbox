@@ -123,16 +123,18 @@ based build system. To build and install Enbox, the typical workflow is:
 #. :ref:`Install <sect-install>` components, copying files previously built to
    system-wide directories
 
-Basically, generated objects are store according to the following rules:
+The 3 phases mentioned above are subject to customization thanks to multiple
+:command:`make` variable settings that may be passed on the command line.  You
+are encouraged to adjust values according to your specific needs. Most of the
+time, setting BUILDDIR_, PREFIX_ and CROSS_COMPILE_ is sufficient. Refer to the
+following sections for further informations.
 
-* at build configuration time, intermediate objects are stored under $(BUILDDIR) 
-* intermediate built objects are stored under $(BUILDDIR)
+After a successful :ref:`Install <sect-install>` phase, final constructed
+objects are located under the directory pointed to by ``$(DESTDIR)$(PREFIX)``
+where DESTDIR_ and PREFIX_ are 2 :command:`make` variables the user may specify
+on the command line to customize the final install location.
 
-The 3 phases mentioned above are subject to multiple customizations. 
-
-.. todo::
-
-   Finish me
+To begin with, configure_ the build process according to the following section.
 
 Configure
 ---------
@@ -144,48 +146,58 @@ the top-level Enbox's source tree:
 
    $ make defconfig
 
-You may specify an alternate default build configuration file by giving *make*
-a ``DEFCONFIG`` variable which value points to an arbitrary pathname:
+You may specify an alternate default build configuration file by giving
+:command:`make` a DEFCONFIG_ variable which value points to an arbitrary file
+path:
 
 .. code-block:: console
 
-   $ make defconfig DEFCONFIG=/home/worker/config/enbox.defconfig
+   $ make defconfig DEFCONFIG=$HOME/build/config/enbox.defconfig
 
 This alternate default build configuration file may be generated from current
 configuration into the :file:`defconfig` file located under directory pointed to
-by the ``BUILDDIR`` variable:
+by the BUILDDIR_ variable:
 
 .. code-block:: console
 
-   $ make saveconfig
+   $ make saveconfig BUILDDIR=$HOME/build/enbox
      KSAVE   /home/worker/build/enbox/defconfig
 
 Optionally, you may **tweak build options** interactively:
 
 .. code-block:: console
 
-   $ make menuconfig
+   $ make menuconfig BUILDDIR=$HOME/build/enbox
 
 The ``menuconfig`` target runs a menu-driven user interface allowing you to
 configure build options. You may run alternate user interfaces using the
-following *make* targets :
+following :command:`make` targets :
 
 * ``xconfig`` for a QT menu-driven interface,
 * and ``gconfig`` for GTK menu-driven interface.
 
-Finally, you may overwrite the default build directory location by giving *make*
-a ``BUILDDIR`` variable which value points to an arbitrary pathname.
-Intermediate objects are built under the passed directory to prevent from
-polluting Enbox's source tree:
+The default build directory location is overwritten by giving :command:`make`
+the BUILDDIR_ variable which value points to an arbitrary pathname. Intermediate
+objects are built under the passed directory to prevent from polluting Enbox's
+source tree as in the following example:
 
 .. code-block:: console
 
-   $ make defconfig BUILDDIR=/home/worker/build/enbox
+   $ make defconfig BUILDDIR=$HOME/build/enbox
+   
+You may refine the configuration logic by giving :command:`make` additional
+variables.  *You are encouraged to adjust values according to your specific
+needs*. Section Reference_ describes the following variables which are available
+for configuration customization purpose:
 
-All *make* targets...
-.. todo::
+* EBUILDDIR_,
+* DEFCONFIG_,
+* BUILDDIR_,
+* KCONF_, KGCONF_, KMCONF_, KNCONF_, KXCONF_,
+* in addition to variables listed in the Tools_ section.
 
-   Finish me
+You may also customize tools used at configuration time. Refer to section Tools_
+for more informations.
 
 You can now proceed to the Build_ phase.
 
@@ -199,25 +211,40 @@ command like so:
 
    $ make build
 
-
-To build programs, libraries, etc., run:
+To store intermediate objects under an alternate location, give :command:`make`
+the BUILDDIR_ variable like so:
 
 .. code-block:: console
 
-   $ make build BUILDDIR=/home/worker/build/enbox
+   $ make build BUILDDIR=$HOME/build/enbox
 
 If not completed, the ``build`` target performs the configuration phase
 implicitly using default configuration settings.
 
+In addition, you may specify the PREFIX_ variable to change the default final
+install location:
 
-You may overwrite default 
-   $ make build PREFIX="" BUILDDIR="" DEFCONFIG=/home/worker/config/enbox.defconfig
+.. code-block:: console
 
-.. todo::
+   $ make build BUILDDIR=$HOME/build/enbox PREFIX=/
+   
+You may refine the build logic by giving :command:`make` additional variables.
+*You are encouraged to adjust values according to your specific needs*. Section
+Reference_ describes the following variables which are available for build
+customization purpose:
 
-   Finish me
+* EBUILDDIR_, DEFCONFIG_, KCONF_,
+* BUILDDIR_,
+* PREFIX_, SYSCONFDIR_, BINDIR_, SBINDIR_, LIBDIR_, LIBEXECDIR_, LOCALSTATEDIR_,
+  RUNSTATEDIR_, INCLUDEDIR_, PKGCONFIGDIR_, DATADIR_, DOCDIR_, INFODIR_,
+  MANDIR_,
+* CROSS_COMPILE_, AR_, CC_, LD_, PKG_CONFIG_, EXTRA_CFLAGS_, EXTRA_LDFLAGS_,
+* in addition to variables listed in the Tools_ section.
 
-You can now proceed to the :ref:`Install <sect-install>`_ phase.
+You may also customize tools used at build time. Refer to section Tools_ for
+more informations.
+
+You can now proceed to the :ref:`Install <sect-install>` phase.
 
 .. _sect-install:
 
@@ -229,36 +256,37 @@ To install programs, libraries, etc., run the :command:`make` command like so:
 .. code-block:: console
 
    $ make install
+   
+To store intermediate objects under an alternate location, give :command:`make`
+the BUILDDIR_ variable like so:
+
+.. code-block:: console
+
+   $ make install BUILDDIR=$HOME/build/enbox
 
 If not completed, the ``install`` target performs the Build_ phase implicitly.
 Files are installed under directory pointed to by the PREFIX_ :command:`make`
 variable which defaults to :file:`/usr/local`.
 
-You may refine the install logic by giving :command:`make` additional variables.
-You are encouraged to adjust values according to your specific needs. Most of
-the time, setting BUILDDIR_, PREFIX_ and CROSS_COMPILE_ is sufficient:
+You may specify the PREFIX_ variable to change the default final install
+location:
 
 .. code-block:: console
 
-   $ make install PREFIX= DATADIR=/usr/share
+   $ make install BUILDDIR=$HOME/build/enbox PREFIX=/
 
-Section Reference_ describes the following variables which are available for
-install customization purpose:
+You may refine the install logic by giving :command:`make` additional variables.
+You are encouraged to adjust values according to your specific needs. Section
+Reference_ describes the following variables which are available for install
+customization purpose:
 
-* PREFIX_,
-* SYSCONFDIR_,
-* BINDIR_,
-* SBINDIR_,
-* LIBDIR_,
-* LIBEXECDIR_,
-* DATADIR_,
-* LOCALSTATEDIR_,
-* RUNSTATEDIR_,
-* INCLUDEDIR_,
-* PKGCONFIGDIR_,
-* DOCDIR_,
-* INFODIR_,
-* MANDIR_.
+* EBUILDDIR_, DEFCONFIG_, KCONF_,
+* BUILDDIR_,
+* PREFIX_, SYSCONFDIR_, BINDIR_, SBINDIR_, LIBDIR_, LIBEXECDIR_, LOCALSTATEDIR_,
+  RUNSTATEDIR_, INCLUDEDIR_, PKGCONFIGDIR_, DATADIR_, DOCDIR_, INFODIR_,
+  MANDIR_,
+* CROSS_COMPILE_, STRIP_,
+* in addition to variables listed in the Tools_ section.
 
 You may also customize tools used at install time. Refer to section Tools_ for
 more informations.
@@ -346,8 +374,118 @@ tool customization purpose:
 Reference
 =========
 
+Targets
+-------
+
+This section describes all :command:`make` targets that may be given on the
+command line to run a particular construction phase.
+
+For each of the following targets, 2 properties are shown:
+
+* the **Phase** property identifies the related construction step as described
+  into section Workflow_ ;
+* whereas the Variables_ property lists the :command:`make` variables that
+  affects the target behavior.
+
+build
+*****
+
+Compile and link objects
+
+Refer to section Build_ for a list of variables affecting this target
+behavior.
+
+clean
+*****
+
+Remove built objects and documentation from the BUILDDIR_ directory
+
+clean-doc
+*********
+
+remove built documentation
+
+defconfig
+*********
+
+configure build using default settings
+
+distclean
+*********
+
+run clean target then remove build configuration
+
+doc
+***
+
+build documentation
+
+gconfig
+*******
+
+configure build using a GTK menu-driven interface
+
+help
+****
+
+this help message
+
+help-full
+*********
+
+a full reference help message
+
+install
+*******
+
+install built objects and documentation
+
+install-doc
+***********
+
+install built documentation
+
+install-strip
+*************
+
+run install target and strip installed objects
+
+menuconfig
+**********
+
+Run a menu-driven user interface allowing you to configure build options.
+
+An arbitrary file containing options may be specified using DEFCONFIG_ variable.
+These options are applied when no previous configuration target has been run.
+
+Refer to section Configure_ for a list of variables affecting this target
+behavior.
+
+saveconfig
+**********
+
+save current build configuration as default settings
+
+uninstall
+*********
+
+remove installed objects and documentation
+
+uninstall-doc
+*************
+
+remove installed documentation
+
+xconfig
+*******
+
+configure build using a QT menu-driven interface
+
 Variables
 ---------
+
+This section describes all :command:`make` variables that may be given on the
+command line to customize the construction logic.
 
 AR
 **
@@ -794,7 +932,7 @@ This may happen when working with an Enbox source tree that has been retrieved
 from version control system, i.e., not extracted from a source distribution
 tarball.
 
-Give *make* an ``EBUILDDIR`` variable pointing to the top-level ebuild_
+Give :command:`make` an EBUILDDIR_ variable pointing to the top-level ebuild_
 read-only data directory like so:
 
 .. code-block:: console

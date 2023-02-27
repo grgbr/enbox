@@ -1512,7 +1512,7 @@ Use cases
 
 .. todo::
 
-   Document me
+   Document typical use cases
 
 
 .. include:: _cdefs.rst
