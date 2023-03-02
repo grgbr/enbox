@@ -191,7 +191,7 @@ for configuration customization purpose:
 * EBUILDDIR_,
 * |DEFCONFIG|,
 * BUILDDIR_,
-* KCONF_, KGCONF_, KMCONF_, KNCONF_, KXCONF_,
+* KCONF_, KGCONF_, KMCONF_, KXCONF_,
 * in addition to variables listed in the Tools_ section.
 
 You may also customize tools used at configuration time. Refer to section Tools_
@@ -398,8 +398,7 @@ tool customization purpose:
 * KCONF_,
 * KMCONF_,
 * KXCONF_,
-* KGCONF_,
-* KNCONF_.
+* KGCONF_.
 
 Reference
 =========
@@ -738,7 +737,7 @@ Flags passed to C compiler
 :Default: ``-O2 -NDEBUG``
 :Mutable: yes
 
-Flags given to $(CC_) at compile time.
+Additional flags given to $(CC_) at compile time.
 
 EXTRA_LDFLAGS
 *************
@@ -748,7 +747,7 @@ Flags passed to LD linker
 :Default: ``-O2``
 :Mutable: yes
 
-Flags given to $(LD_) at link time.
+Additional flags given to $(LD_) at link time.
 
 INFODIR
 *******
@@ -799,7 +798,7 @@ See |kconfig|.
 KGCONF
 ******
 
-KConfig |GTK| based tool
+KConfig |GTK| menu based tool
 
 :Default: ``kconfig-gconf``
 :Mutable: yes
@@ -811,24 +810,12 @@ See |kconfig|.
 KMCONF
 ******
 
-KConfig text menu based tool
+KConfig |NCurses| menu based tool
 
 :Default: ``kconfig-mconf``
 :Mutable: yes
 
 Tool used to configure the build logic thanks to a text menu driven user
-interface.
-See |kconfig|.
-
-KNCONF
-******
-
-KConfig |NCurses| menu based tool
-
-:Default: ``kconfig-nconf``
-:Mutable: yes
-
-Tool used to configure the build logic thanks to a |NCurses| menu driven user
 interface.
 See |kconfig|.
 
