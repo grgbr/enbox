@@ -88,7 +88,7 @@ configuration that may be required by functions mentioned above.
 
 .. todo:: 
 
-   Add sample code
+   Add configuration API sample code
 
 Instantiation
 =============
@@ -104,6 +104,10 @@ Support for the following tasks is implemented :
 * :ref:`sect-run_cmd`.
 
 These tasks may be combined to implement multiple `Use cases`_ described below.
+
+.. todo:: 
+
+   Add Instantiation API sample code
 
 .. _sect-populate_host_fs:
 
@@ -185,10 +189,6 @@ Although not mandatory, the command may optionally be executed from within a
 :ref:`jail <sect-spawn_jail>`, in which case system priviledges are dropped at
 |execve(2)| time.
 
-.. todo:: 
-
-   Add sample code
-
 Utilities
 =========
 
@@ -229,7 +229,7 @@ Use cases
 
 .. todo::
 
-   Document typical use cases
+   Document typical API use cases
 
 Reference
 =========
@@ -290,7 +290,7 @@ Structures
 
 .. todo::
 
-   document struct elog (intersphinx)
+   Document struct elog (intersphinx)
 
 enbox_bind_entry
 ~~~~~~~~~~~~~~~~
@@ -309,7 +309,7 @@ enbox_conf
 
 .. todo::
 
-   Hide internal fields
+   Hide struct enbox_conf internal fields
 
 enbox_dev_entry
 ~~~~~~~~~~~~~~~
@@ -343,7 +343,7 @@ enbox_ids
 
 .. todo::
 
-   Hide internal fields
+   Hide struct enbox_ids internal fields
 
 enbox_jail
 ~~~~~~~~~~

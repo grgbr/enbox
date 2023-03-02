@@ -1,3 +1,7 @@
+.. |Build|     replace:: :ref:`Build <sect-build>`
+.. |Install|   replace:: :ref:`Install <sect-install>`
+.. |DEFCONFIG| replace:: :ref:`DEFCONFIG <var-defconfig>`
+
 Overview
 ========
 
@@ -52,16 +56,10 @@ From Enbox source tree root, enter:
 
    make <TARGET> [<VARIABLE>[=<VALUE>]]...
 
-   ::Where::
-     <TARGET>      -- one of the targets described in `Targets' section below
-     <VARIABLE>    -- one of the variables described in the `Variables' section
-                      below
-     <VALUE>       -- a value to assign to the given <VARIABLE>
-
    ==Targets==
 
    ::Configuration::
-     menuconfig    -- configure build using a menu-driven interface
+     menuconfig    -- configure build using a NCurses menu-driven interface
      xconfig       -- configure build using a QT menu-driven interface
      gconfig       -- configure build using a GTK menu-driven interface
      defconfig     -- configure build using default settings
@@ -87,22 +85,22 @@ From Enbox source tree root, enter:
 
    ==Variables==
 
-   EBUILDDIR       -- directory where ebuild logic is located
+   EBUILDDIR       -- ebuild directory
                       [/usr/local/share/ebuild]
-   DEFCONFIG       -- optional file containing default build configuration settings
+   DEFCONFIG       -- default build configuration file
                       []
-   PREFIX          -- prefix prepended to install location variables default value
-                      [/usr/local]
-   DESTDIR         -- root install hierarchy top-level directory
+   PREFIX          -- prefix prepended to install variable default values
+                      [/usr]
+   DESTDIR         -- top-level staged / root install directory
                       []
-   BUILDDIR        -- directory where intermediate built objects are generated
+   BUILDDIR        -- build directory
                       [/home/worker/build/enbox]
-   CROSS_COMPILE   -- prefix prepended to executables used at compile / link time
-                      [/usr/bin/arm-linux-gnueabihf-gcc-]
+   CROSS_COMPILE   -- cross complile tool prefix
+                      [arm-linux-gnueabihf-]
    EXTRA_CFLAGS    -- additional flags passed to $(CC) at compile time
-                      [-mcpu=cortex-a9 -O2 -flto=auto -I/home/worker/staging/usr/include]
+                      [-mcpu=cortex-a9 -O2 -flto=auto -I/home/staging/usr/include]
    EXTRA_LDFLAGS   -- additional flags passed to $(LD) at link time
-                      [-mcpu=cortex-a9 -O2 -flto=auto -L/home/worker/staging/lib -Wl,-rpath-link,/home/worker/staging/lib]
+                      [-mcpu=cortex-a9 -O2 -flto=auto -L/home/staging/usr/lib -Wl,-rpath-link,/home/staging/usr/lib]
 
    Use `help-full' target for further details.
 
@@ -119,8 +117,8 @@ As mentioned earlier, Enbox's build logic is based on ebuild_, a |GNU make|
 based build system. To build and install Enbox, the typical workflow is:
 
 #. Configure_ the construction logic
-#. Build_ programs, libraries, documentation, etc.
-#. :ref:`Install <sect-install>` components, copying files previously built to
+#. |Build| programs, libraries, documentation, etc.
+#. |Install| components, copying files previously built to
    system-wide directories
 
 The 3 phases mentioned above are subject to customization thanks to multiple
@@ -129,10 +127,10 @@ are encouraged to adjust values according to your specific needs. Most of the
 time, setting BUILDDIR_, PREFIX_ and CROSS_COMPILE_ is sufficient. Refer to the
 following sections for further informations.
 
-After a successful :ref:`Install <sect-install>` phase, final constructed
-objects are located under the directory pointed to by ``$(DESTDIR)$(PREFIX)``
-where DESTDIR_ and PREFIX_ are 2 :command:`make` variables the user may specify
-on the command line to customize the final install location.
+After a successful |Install| phase, final constructed objects are located under
+the directory pointed to by ``$(DESTDIR)$(PREFIX)`` where DESTDIR_ and PREFIX_
+are 2 :command:`make` variables the user may specify on the command line to
+customize the final install location.
 
 To begin with, configure_ the build process according to the following section.
 
@@ -147,7 +145,7 @@ the top-level Enbox's source tree:
    $ make defconfig
 
 You may specify an alternate default build configuration file by giving
-:command:`make` a DEFCONFIG_ variable which value points to an arbitrary file
+:command:`make` a |DEFCONFIG| variable which value points to an arbitrary file
 path:
 
 .. code-block:: console
@@ -169,12 +167,12 @@ Optionally, you may **tweak build options** interactively:
 
    $ make menuconfig BUILDDIR=$HOME/build/enbox
 
-The ``menuconfig`` target runs a menu-driven user interface allowing you to
-configure build options. You may run alternate user interfaces using the
-following :command:`make` targets :
+The :ref:`menuconfig target <menuconfig>` runs a menu-driven user interface
+allowing you to configure build options. You may run alternate user interfaces
+using the following :command:`make` targets :
 
-* ``xconfig`` for a QT menu-driven interface,
-* and ``gconfig`` for GTK menu-driven interface.
+* xconfig_ for a QT menu-driven interface,
+* and gconfig_ for GTK menu-driven interface.
 
 The default build directory location is overwritten by giving :command:`make`
 the BUILDDIR_ variable which value points to an arbitrary pathname. Intermediate
@@ -187,11 +185,11 @@ source tree as in the following example:
    
 You may refine the configuration logic by giving :command:`make` additional
 variables.  *You are encouraged to adjust values according to your specific
-needs*. Section Reference_ describes the following variables which are available
+needs*. Section Variables_ describes the following variables which are available
 for configuration customization purpose:
 
 * EBUILDDIR_,
-* DEFCONFIG_,
+* |DEFCONFIG|,
 * BUILDDIR_,
 * KCONF_, KGCONF_, KMCONF_, KNCONF_, KXCONF_,
 * in addition to variables listed in the Tools_ section.
@@ -199,7 +197,9 @@ for configuration customization purpose:
 You may also customize tools used at configuration time. Refer to section Tools_
 for more informations.
 
-You can now proceed to the Build_ phase.
+You can now proceed to the |Build| phase.
+
+.. _sect-build:
 
 Build
 -----
@@ -233,7 +233,7 @@ You may refine the build logic by giving :command:`make` additional variables.
 Reference_ describes the following variables which are available for build
 customization purpose:
 
-* EBUILDDIR_, DEFCONFIG_, KCONF_,
+* EBUILDDIR_, |DEFCONFIG|, KCONF_,
 * BUILDDIR_,
 * PREFIX_, SYSCONFDIR_, BINDIR_, SBINDIR_, LIBDIR_, LIBEXECDIR_, LOCALSTATEDIR_,
   RUNSTATEDIR_, INCLUDEDIR_, PKGCONFIGDIR_, DATADIR_, DOCDIR_, INFODIR_,
@@ -244,7 +244,7 @@ customization purpose:
 You may also customize tools used at build time. Refer to section Tools_ for
 more informations.
 
-You can now proceed to the :ref:`Install <sect-install>` phase.
+You can now proceed to the |Install| phase.
 
 .. _sect-install:
 
@@ -264,7 +264,7 @@ the BUILDDIR_ variable like so:
 
    $ make install BUILDDIR=$HOME/build/enbox
 
-If not completed, the ``install`` target performs the Build_ phase implicitly.
+If not completed, the ``install`` target performs the |Build| phase implicitly.
 Files are installed under directory pointed to by the PREFIX_ :command:`make`
 variable which defaults to :file:`/usr/local`.
 
@@ -280,7 +280,7 @@ You are encouraged to adjust values according to your specific needs. Section
 Reference_ describes the following variables which are available for install
 customization purpose:
 
-* EBUILDDIR_, DEFCONFIG_, KCONF_,
+* EBUILDDIR_, |DEFCONFIG|, KCONF_,
 * BUILDDIR_,
 * PREFIX_, SYSCONFDIR_, BINDIR_, SBINDIR_, LIBDIR_, LIBEXECDIR_, LOCALSTATEDIR_,
   RUNSTATEDIR_, INCLUDEDIR_, PKGCONFIGDIR_, DATADIR_, DOCDIR_, INFODIR_,
@@ -312,12 +312,12 @@ as an absolute file name. For example:
 
 .. code-block:: console
 
-   $ make install DESTDIR=/home/worker/root
+   $ make install DESTDIR=$HOME/staging
 
 If usual installation step would normally install :file:`$(BINDIR)/foo` and
 :file:`$(LIBDIR)/libfoo.a`, then an installation invoked as in the example above
-would install :file:`/home/worker/root/$(BINDIR)/foo` and
-:file:`/home/worker/root/$(LIBDIR)/libfoo.a` instead.
+would install :file:`$(HOME)/staging/$(BINDIR)/foo` and
+:file:`$(HOME)/staging/$(LIBDIR)/libfoo.a` instead.
 
 Prepending the variable DESTDIR_ to each target in this way provides for staged
 installs, where the installed files are not placed directly into their expected
@@ -342,6 +342,36 @@ this document.
 
 Refer to |gnu_install_destdir| for more informations.
 
+Cleanup
+-------
+
+3 additional :command:`make` targets are available to cleanup generated objects.
+
+The :ref:`clean target <clean>` remove built objects from the BUILDDIR_
+directory without cleaning up installed objects.
+In other words, this performs the inverse operation of |Build| target:
+
+.. code-block:: console
+
+   $ make clean BUILDDIR=$HOME/build/enbox
+
+The :ref:`distclean target <distclean>` runs :ref:`clean target <clean>` then
+removes build configuration objects from the BUILDDIR_ directory.
+In other words, this removes every intermediate objects, i.e., all generated
+objects that have not been installed:
+
+.. code-block:: console
+
+   $ make distclean BUILDDIR=$HOME/build/enbox
+
+Finally, the :ref:`uninstall target <uninstall>` removes installed objects from
+the $(DESTDIR_)$(PREFIX_) directory.
+In other words, this performs the inverse operation of |Install| target:
+
+.. code-block:: console
+
+   $ make uninstall PREFIX= DESTDIR=$HOME/staging
+
 Tools
 -----
 
@@ -350,9 +380,9 @@ You may customize tools used during construction phases by giving
 
 .. code-block:: console
 
-   $ make build CROSS_COMPILE='armv-linaro-linux-gnueabihf-'
+   $ make build CROSS_COMPILE='armv7-linaro-linux-gnueabihf-'
 
-Section Reference_ describes the following variables which are available for
+Section Variables_ describes the following variables which are available for
 tool customization purpose:
 
 * CROSS_COMPILE_,
@@ -380,83 +410,131 @@ Targets
 This section describes all :command:`make` targets that may be given on the
 command line to run a particular construction phase.
 
-For each of the following targets, 2 properties are shown:
-
-* the **Phase** property identifies the related construction step as described
-  into section Workflow_ ;
-* whereas the Variables_ property lists the :command:`make` variables that
-  affects the target behavior.
-
 build
 *****
 
-Compile and link objects
+Compile / link objects and optionally, build documentation objects. Built
+objects are stored under BUILDDIR_ directory.
 
-Refer to section Build_ for a list of variables affecting this target
+If not completed, the build target performs the configuration phase implicitly
+using default configuration settings.
+
+Refer to section |Build| for a list of variables affecting this target
 behavior.
 
 clean
 *****
 
-Remove built objects and documentation from the BUILDDIR_ directory
+Remove built objects and documentation from the BUILDDIR_ directory.
+
+Refer to section |Build| for a list of variables affecting this target
+behavior.
 
 clean-doc
 *********
 
-remove built documentation
+Remove built documentation from the BUILDDIR_ directory.
+
+Refer to section |Build| for a list of variables affecting this target
+behavior.
+
+.. _target-defconfig:
 
 defconfig
 *********
 
-configure build using default settings
+Configure build using default settings. Created configuration objects are stored
+under the BUILDDIR_ directory.
+
+Refer to section Configure_ for a list of variables affecting this target
+behavior.
 
 distclean
 *********
 
-run clean target then remove build configuration
+Run :ref:`clean target <clean>` then remove build configuration objects created
+by the build configuration targets from the BUILDDIR_ directory.
+
+Refer to section Configure_ for a list of configuration targets variables
+affecting this target behavior.
 
 doc
 ***
 
-build documentation
+Build documentation under BUILDDIR_ directory.
+
+Refer to section |Build| for a list of variables affecting this target
+behavior.
 
 gconfig
 *******
 
-configure build using a GTK menu-driven interface
+Edit build configuration using an interactive |GTK| menu-driven interface. 
+
+An arbitrary file containing default options may be specified using |DEFCONFIG|
+variable.
+These default options are applied when no previous configuration target has been
+run.
+
+Refer to section Configure_ for a list of variables affecting this target
+behavior.
 
 help
 ****
 
-this help message
+Show a brief help message.
 
 help-full
 *********
 
-a full reference help message
+Show a detailed help message.
+
+.. _target-install:
 
 install
 *******
 
-install built objects and documentation
+Install objects and optionally documentation constructed at :ref:`building
+<sect-build>` time. Objects are basically installed under PREFIX_ directory.
+
+If not completed, the install target performs the build phase implicitly using
+default configuration settings.
+
+Refer to section |Install| for a list of variables affecting this target
+behavior.
+
+In addition, when following a `Staged install`_ workflow, you may alter final
+installation directory thanks to the DESTDIR_ variable so that final objects are
+deployed under :file:`$(DESTDIR)$(PREFIX)` instead.
 
 install-doc
 ***********
 
-install built documentation
+Install documentation built thanks to :ref:`build target <target-build>` or
+:ref:`doc target <doc>` under PREFIX_ directory.
+
+Refer to section |Install| for a list of variables affecting this target
+behavior.
+
+In addition, when following a `Staged install`_ workflow, you may alter final
+installation directory thanks to the DESTDIR_ variable so that final objects are
+deployed under :file:`$(DESTDIR)$(PREFIX)` instead.
 
 install-strip
 *************
 
-run install target and strip installed objects
+Run :ref:`install target <target-install>` and discard symbols from installed
+objects.
 
 menuconfig
 **********
 
-Run a menu-driven user interface allowing you to configure build options.
+Edit build configuration using an interactive |NCurses| menu-driven interface. 
 
-An arbitrary file containing options may be specified using DEFCONFIG_ variable.
-These options are applied when no previous configuration target has been run.
+An arbitrary file containing default options may be specified using |DEFCONFIG|
+variable.
+These default options are applied when no previous configuration target has been
+run.
 
 Refer to section Configure_ for a list of variables affecting this target
 behavior.
@@ -464,22 +542,49 @@ behavior.
 saveconfig
 **********
 
-save current build configuration as default settings
+Save current build configuration into :file:`$(BUILDDIR)/defconfig` default
+settings file that can be loaded using a subsequent :ref:`defconfig target
+<target-defconfig>` run.
+
+Refer to section Configure_ for a list of variables affecting this target
+behavior.
 
 uninstall
 *********
 
-remove installed objects and documentation
+Remove installed objects and documentation from the PREFIX_ directory.
+
+In addition, when following a `Staged install`_ workflow, you may alter final
+installation directory thanks to the DESTDIR_ variable so that final objects are
+removed from the :file:`$(DESTDIR)$(PREFIX)` directory instead.
+
+Refer to sections |Install| and Cleanup_ for a list of variables affecting this
+target behavior.
 
 uninstall-doc
 *************
 
-remove installed documentation
+Remove installed documentation from the PREFIX_ directory.
+
+In addition, when following a `Staged install`_ workflow, you may alter final
+installation directory thanks to the DESTDIR_ variable so that final objects are
+removed from the :file:`$(DESTDIR)$(PREFIX)` directory instead.
+
+Refer to sections |Install| and Cleanup_ for a list of variables affecting this
+target behavior.
 
 xconfig
 *******
 
-configure build using a QT menu-driven interface
+Edit build configuration using an interactive |QT| menu-driven interface. 
+
+An arbitrary file containing default options may be specified using |DEFCONFIG|
+variable.
+These default options are applied when no previous configuration target has been
+run.
+
+Refer to section Configure_ for a list of variables affecting this target
+behavior.
 
 Variables
 ---------
@@ -546,6 +651,8 @@ Cross compile tool prefix
 Optional prefix prepended to build tools used during construction. The following
 variables are affected: AR_, CC_, LD_, STRIP_.
 
+.. _var-defconfig:
+
 DEFCONFIG
 *********
 
@@ -574,7 +681,7 @@ See |gnu_vars_for_install_dirs|.
 DESTDIR
 *******
 
-Top-level root install directory
+Top-level staged / root install directory
 
 :Default: empty
 :Mutable: yes

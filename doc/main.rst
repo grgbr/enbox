@@ -153,8 +153,9 @@ Features
 Usage
 =====
 
-enbox tool
-----------
+.. todo::
+
+   Document enbox tool usage
 
 .. _sect-usage_conf:
 
@@ -1512,7 +1513,7 @@ Use cases
 
 .. todo::
 
-   Document typical use cases
+   Document typical configuration use cases
 
 
 .. include:: _cdefs.rst
