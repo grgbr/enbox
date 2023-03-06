@@ -83,48 +83,9 @@ libenbox.pc-tmpl    := libenbox_pkgconf_tmpl
 # Documentation generation
 ################################################################################
 
-.PHONY: doxy
-doxy: | $(BUILDDIR)/doc/doxy
-	@echo "  DOXY    $(|)"
-	$(Q)env OUTDIR="$(|)" \
-	        INCDIR="$(patsubst -I%,%,$(filter -I%,$(common-cflags)))" \
-	        VERSION="$(VERSION)" \
-	        $(if $(Q),QUIET="YES",QUIET="NO") \
-	    doxygen $(SRCDIR)/doc/Doxyfile
+doxyconf  := $(CURDIR)/doc/Doxyfile
+doxyenv   := INCDIR="$(patsubst -I%,%,$(filter -I%,$(common-cflags)))" \
+             VERSION="$(VERSION)"
 
-$(BUILDDIR)/doc/doxy:
-	@mkdir -p $(@)
-
-clean: clean-doxy
-
-.PHONY: clean-doxy
-clean-doxy:
-	$(call rmr_recipe,$(BUILDDIR)/doc/doxy)
-
-SPHINXBUILD := sphinx-build
-
-define html_recipe
-@echo "  HTML    $(strip $(2))"
-$(Q)$(if $(3),env $(3)) \
-    $(SPHINXBUILD) -M html \
-                   "$(strip $(1))" \
-                   "$(strip $(2))" \
-                   $(if $(Q),-Q,-q) \
-                   -a \
-                   -E \
-                   -j 1
-endef
-
-sphinx_env  := VERSION="$(VERSION)" \
-               DOXY_XML_PATH="$(BUILDDIR)/doc/doxy/xml"
-
-.PHONY: html
-html: doxy
-	$(call html_recipe,$(SRCDIR)/doc,$(BUILDDIR)/doc,$(sphinx_env))
-
-clean: clean-html
-
-.PHONY: clean-html
-clean-html:
-	$(call rmr_recipe,$(BUILDDIR)/doc/html)
-	$(call rmr_recipe,$(BUILDDIR)/doc/doctrees)
+sphinxsrc := $(CURDIR)/doc
+sphinxenv := VERSION="$(VERSION)"

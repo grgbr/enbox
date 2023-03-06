@@ -91,14 +91,14 @@ todo_include_todos = True
 manpages_url = "https://man7.org/linux/man-pages/man{section}/{page}.{section}.html"
 
 # -- Options for breathe output -------------------------------------------
-doxy_xml_path = os.getenv('DOXY_XML_PATH')
-if not os.path.isdir(doxy_xml_path):
+doxyxmldir = os.getenv('DOXYXMLDIR')
+if not os.path.isdir(doxyxmldir):
     print('{}: Invalid Doxygen XML directory'.format(os.path.basename(sys.argv[0])),
           file=sys.stderr)
     sys.exit(1)
 
 breathe_default_project        = project
-breathe_projects               = { breathe_default_project: doxy_xml_path }
+breathe_projects               = { breathe_default_project: doxyxmldir }
 breathe_domain_by_extension    = { "h" : "c", "c": "c" }
 breathe_show_include           = False
 breathe_order_parameters_first = True
@@ -138,186 +138,26 @@ html_sidebars = {
     ]
 }
 
-
-# -- Options for HTMLHelp output ------------------------------------------
-
-# Output file base name for HTML help builder.
-htmlhelp_basename = 'ICSWdoc'
-
-
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
-    #
     'papersize': 'a4paper',
-
-    # The font size ('10pt', '11pt' or '12pt').
-    #
-    # 'pointsize': '10pt',
-    'passoptionstopackages': r'\PassOptionsToPackage{svgnames}{xcolor}',
-    'sphinxsetup': r'''%
-         TitleColor={named}{Black},
-         ''',
-    #      verbatimwithframe=false,
-    #      VerbatimColor={named}{OldLace},
-    #      TitleColor={named}{Dark},
-    #      hintBorderColor={named}{LightCoral},
-    #      attentionborder=3pt,
-    #      attentionBorderColor={named}{Crimson},
-    #      attentionBgColor={named}{FloralWhite},
-    #      noteborder=2pt,
-    #      noteBorderColor={named}{Olive},
-    #      cautionborder=3pt,
-    #      cautionBorderColor={named}{Cyan},
-    #      cautionBgColor={named}{LightCyan}
-
-    # Additional stuff for the LaTeX preamble.
-    #
-    'preamble': r"""
-\usepackage[cm]{fullpage}
-\usepackage{lastpage}
-\usepackage{datetime2}
- \usepackage{calc}
-
-\hypersetup{
-    colorlinks = false,
-    linkbordercolor = {white},
-}
-
-\geometry{hscale=1, vscale=1,
-    top=4cm, head=1.75cm, headsep=1cm,
-    bottom=3cm, foot=1.5cm,
-    left=1in, right=1in,
-}
-
-\usepackage{setspace}
-\usepackage{array}
-\usepackage{tabularx}
-\makeatletter
-\fancypagestyle{normal}{
-  \fancyhf{}
-  \fancyhead[c]{
-    \begin{tabularx}{\textwidth}{|c|X|m{2.5cm}|m{2cm}|}
-    \hline
-    \begin{minipage}{4.5cm}
-      \vspace{1mm}
-      \sphinxlogo
-    \end{minipage} &
-    \begin{tabular}{@{}l@{}}\@title \\ Version \version \end{tabular} & 
-    \begin{tabular}{@{}l@{}}$\checkmark$ confidential \\$\square$ internal \\$\square$ free\end{tabular} & 
-    MD0502A \\ 
-    \hline
-    \end{tabularx}
-   }
-  \renewcommand{\footrulewidth}{1pt}
-  \fancyfoot[l]{\setstretch{0.6}
-    \jobname.tex \\ 
-    {\scriptsize
-    This document is the property of Interface Concept and cannot be reproduced
-    without prior consent of Interface Concept. 
-    }}
-  \fancyfoot[r]{Page: \thepage/\pageref*{LastPage}}
-}
-\fancypagestyle{ictitle}
-{
-   \fancyhf{}
-   \renewcommand{\footrulewidth}{1pt}
-   \fancyfoot[c]{
-      {\footnotesize
-        3 rue Félix Le Dantec - 29000 Quimper - France - 
-        Tel. +33 (0)2 98 57 30 30 - Fax +33 (0)2 98 57 30 00\\
-        SAS capital de 283 256 € – RCS Quimper B 341 722 197 – 
-        NAF 2620 Z – N° TVA FR 84 341 722 197\\
-        www.interfaceconcept.com
-      }
-    }
-}
-\makeatother
-\setcounter{secnumdepth}{3}
-\setcounter{tocdepth}{3}
-\DTMsetstyle{yyyymd}
-\DTMsetup{datesep=/}
-\newcolumntype{Y}{>{\centering\arraybackslash}X}
-    """,
-
-    # Latex figure (float) alignment
-    #
-    # 'figure_align': 'htbp',
-    'tableofcontents': r'''
-\pagestyle{normal}
-\renewcommand\contentsname{
-    \begin{center}
-        TABLE OF CONTENTS
-    \end{center}
-}
-\tableofcontents
-\clearpage
-    ''',
-    # 'atendofbody': ""
-    'maketitle': r'''
-\makeatletter
-\begin{titlepage}%
-    \newgeometry{nohead, top=2.5cm, bottom=4.15cm, left=1in, right=2cm,}
-    \thispagestyle{ictitle}
-    \let\footnotesize\small
-    \let\footnoterule\relax
-    \begingroup % for PDF information dictionary
-        \def\endgraf{ }\def\and{\& }%
-        \pdfstringdefDisableCommands{\def\\{, }}% overwrite hyperref setup
-        \hypersetup{pdfauthor={\@author}, pdftitle={\@title}}%
-    \endgroup
-    \begin{center}%
-        \sphinxlogo
-        \vfill
-        \vspace{15mm}
-        {\setlength{\fboxsep}{0pt}%
-        \setlength{\fboxrule}{2pt}%
-        \fbox{
-        \parbox[][8.6cm][c]{10.16cm}{\center
-        \py@HeaderFamily
-        {\LARGE \@title \par}
-        }}}
-        \vfill
-    \end{center}%\par
-    \restoregeometry
-\end{titlepage}%
-\pagestyle{normal}
-\newgeometry{top=4cm, bottom=3cm, left=1in, right=1in,}
-{\setlength{\fboxsep}{2pt}%
-    \setlength{\fboxrule}{2pt}%
-    \fbox{
-        \parbox[][2cm][l]{\textwidth-6\fboxsep}{\Large\hspace*{1em} Recipients:}
-    }
-}
-\section*{
-        \begin{center}
-        EVOLUTION OF VERSION
-    \end{center}
-}
-\begin{tabularx}{\textwidth}{|c|c|c|c|X|}
-\hline
-\textbf{Version} & \textbf{Date} & \textbf{Created by} & 
-\textbf{Checked by} & 
-{\begin{tabularx}{\linewidth}{@{}Y@{}}\textbf{Comments}\end{tabularx}} \\
-\hline
-\version & \today & \@author & & Auto gen version \\
-\hline
-\end{tabularx}
-\clearpage
-\restoregeometry
-\makeatother
-    '''
+    # Font size
+    'pointsize': '12pt',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, '399_IC_SwitchWare_Documentation.tex', u'IC-SwitchWare Documentation',
-     author, 'howto'),
+    ('main',    'enbox_user.tex',   u'Enbox User Guide',        author, 'howto'),
+    ('install', 'enbox_api.tex',    u'Enbox API Guide',         author, 'howto'),
+    ('api',     'enbox_integ.tex',  u'Enbox Integration Guide', author, 'howto'),
 ]
-latex_logo = "IC-Int-Adv_HD.jpg"
+
+latex_appendices = [ 'glossary', 'todo' ]
+#latex_logo = "IC-Int-Adv_HD.jpg"
 latex_show_urls = 'footnote'
 latex_show_pagerefs = True
 
