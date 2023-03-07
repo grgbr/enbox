@@ -151,13 +151,16 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    ('main',    'enbox_user.tex',   u'Enbox User Guide',        author, 'howto'),
-    ('install', 'enbox_api.tex',    u'Enbox API Guide',         author, 'howto'),
-    ('api',     'enbox_integ.tex',  u'Enbox Integration Guide', author, 'howto'),
+    (master_doc, 'enbox.tex', u'Enbox Documentation', author, 'manual')
 ]
 
+# Request latex backend to generate the following appendix entries to benefit
+# from its appendix section numbering scheme. This requires some special
+# handling / dirty hack into index.rst to prevent from duplicating toctree
+# entries into generated document.
+# See comments into index.rst for more informations.
 latex_appendices = [ 'glossary', 'todo' ]
-#latex_logo = "IC-Int-Adv_HD.jpg"
+
 latex_show_urls = 'footnote'
 latex_show_pagerefs = True
 
