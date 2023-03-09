@@ -91,7 +91,7 @@ manpages_url = "https://man7.org/linux/man-pages/man{section}/{page}.{section}.h
 
 # -- Options for breathe output -------------------------------------------
 doxyxmldir = os.getenv('DOXYXMLDIR')
-if not os.path.isdir(doxyxmldir):
+if doxyxmldir and not os.path.isdir(doxyxmldir):
     print('{}: Invalid Doxygen XML directory'.format(os.path.basename(sys.argv[0])),
           file=sys.stderr)
     sys.exit(1)
