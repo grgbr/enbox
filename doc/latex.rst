@@ -10,11 +10,6 @@ Welcome to Enbox documentation
 
    \part{User Guide}
 
-.. raw:: texinfo
-
-   User Guide
-   ^^^^^^^^^^
-
 .. toctree::
    :numbered:
    :caption: User manual
@@ -26,11 +21,6 @@ Welcome to Enbox documentation
 
    \part{Integration Guide}
    
-.. raw:: texinfo
-
-   Integration Guide
-   ^^^^^^^^^^^^^^^^^
-
 .. toctree::
    :numbered:
    :caption: Integration manual
@@ -42,11 +32,6 @@ Welcome to Enbox documentation
 
    \part{API guide}
    
-.. raw:: texinfo
-
-   API Guide
-   ^^^^^^^^^
-
 .. toctree::
    :maxdepth: 2
    :numbered:
@@ -62,14 +47,4 @@ Welcome to Enbox documentation
 .. We use the latex_appendices setting into conf.py to benefit from native latex
 .. appendices section numbering scheme. As a consequence, there is no need to
 .. generate appendix entries for latex since already requested through the
-.. latex_appendices setting. Hence, the `only' restructuredtext directive
-.. below...
-
-.. only:: html
-
-   .. toctree::
-      :caption: Appendix
-
-      glossary
-      genindex
-      todo
+.. latex_appendices setting.

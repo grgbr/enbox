@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# IC-SwitchWare documentation build configuration file, created by
-# sphinx-quickstart on Mon Mar 15 15:22:44 2021.
+# Enbox documentation build configuration file, created by sphinx-quickstart
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -37,7 +36,6 @@ extensions = ['sphinx.ext.intersphinx',
               'sphinx_rtd_theme',
               'sphinx.ext.autosectionlabel',
               'breathe']
-              # 'docxbuilder']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -49,7 +47,8 @@ templates_path = ['_templates']
 source_suffix = '.rst'
 
 # The master toctree document.
-master_doc = 'index'
+root_doc = 'html'
+master_title = u'Enbox Documentation'
 
 # General information about the project.
 project = u'Enbox'
@@ -109,22 +108,15 @@ breathe_default_members        = ('members', 'undoc-members')
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-#
 html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#
 html_theme_options = {
         'collapse_navigation': False,
         'sticky_navigation': True,
 }
-
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ['_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -137,6 +129,12 @@ html_sidebars = {
         'searchbox.html',
     ]
 }
+
+# Show Copyright in HTML footer
+html_show_copyright = True
+
+# Do not show "Created using Sphinx" in HTML footer.
+html_show_sphinx = False
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -151,16 +149,16 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'enbox.tex', u'Enbox Documentation', author, 'manual')
+    ('latex', 'enbox.tex', master_title, author, 'manual')
 ]
 
 # Request latex backend to generate the following appendix entries to benefit
 # from its appendix section numbering scheme. This requires some special
 # handling / dirty hack into index.rst to prevent from duplicating toctree
 # entries into generated document.
-# See comments into index.rst for more informations.
+# See comments into latex.rst for more informations.
+latex_toplevel_sectioning = 'chapter'
 latex_appendices = [ 'glossary', 'todo' ]
-
 latex_show_urls = 'footnote'
 latex_show_pagerefs = True
 
@@ -168,32 +166,34 @@ latex_show_pagerefs = True
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'icsw', u'IC-SwitchWare Documentation',
-     author, 1)
-]
-
+#man_pages = [
+#    (root_doc, 'enbox', master_title, author, 1)
+#]
 
 # -- Options for Texinfo output -------------------------------------------
 
 # Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
-#  dir menu entry, description, category)
+# (source start file, target name, title, author, dir menu entry, description,
+# category)
 texinfo_documents = [
-    (master_doc, 'IC-SwitchWare', u'IC-SwitchWare Documentation',
-     author, 'icsw', '',
-     'Miscellaneous'),
+    ('info',
+     'enbox',
+     master_title,
+     author,
+     'enbox',
+     'Enbox sandboxing system',
+     'System-administration'),
 ]
 
-# docx_documents = [
-#     ('index', 'icsw.docx', {
-#          'title': 'IC-SwitchWare',
-#          'creator': author,
-#          'subject': 'IC-SwitchWare Documentation',
-#      }, True),
-# ]
-# docx_style = 'MD0502_Document_uk.dotx'
-# docx_pagebreak_before_section = 1
+# Request texinfo backend to generate the following appendix entries to benefit
+# from its appendix section numbering scheme.
+texinfo_appendices = [ 'glossary', 'todo' ]
+texinfo_domain_indices = True
+texinfo_show_urls = 'footnote'
+texinfo_no_detailmenu = True
+texinfo_cross_references = True
+
+# -- Options for InterSphinx output -------------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
