@@ -89,9 +89,6 @@
 .. _ebuild:              https://github.com/grgbr/ebuild/
 .. _elog:                https://github.com/grgbr/elog/
 .. _utils:               https://github.com/grgbr/utils/
-.. _doxygen:             https://www.doxygen.nl/
-.. _sphinx:              http://sphinx.org/
-.. _sphinx_rtd_theme:    https://sphinx-rtd-theme.readthedocs.io/
 .. _breathe:             https://github.com/michaeljones/breathe/
 .. _gcc:                 https://gcc.gnu.org/
 
@@ -99,16 +96,25 @@
 ..
    External hyperlinks definitions for ebuild related documentation
    
-.. |ar(1)|         replace:: :manpage:`ar(1)`
-.. |gcc(1)|        replace:: :manpage:`gcc(1)`
-.. |echo(1)|       replace:: :manpage:`echo(1)`
-.. |install(1)|    replace:: :manpage:`install(1)`
-.. |ld(1)|         replace:: :manpage:`ld(1)`
-.. |ln(1)|         replace:: :manpage:`ln(1)`
-.. |man-pages(7)|  replace:: :manpage:`man-pages(7)`
-.. |pkg-config(1)| replace:: :manpage:`pkg-config(1)`
-.. |rm(1)|         replace:: :manpage:`rm(1)`
-.. |strip(1)|      replace:: :manpage:`strip(1)`
+.. |ar(1)|           replace:: :manpage:`ar(1)`
+.. |gcc(1)|          replace:: :manpage:`gcc(1)`
+.. |echo(1)|         replace:: :manpage:`echo(1)`
+.. |install(1)|      replace:: :manpage:`install(1)`
+.. |ld(1)|           replace:: :manpage:`ld(1)`
+.. |ln(1)|           replace:: :manpage:`ln(1)`
+.. |man-pages(7)|    replace:: :manpage:`man-pages(7)`
+.. |pkg-config(1)|   replace:: :manpage:`pkg-config(1)`
+.. |rm(1)|           replace:: :manpage:`rm(1)`
+.. |strip(1)|        replace:: :manpage:`strip(1)`
+.. |doxygen(1)|      replace:: :manpage:`doxygen(1)`
+.. |texinfo(5)|      replace:: :manpage:`texinfo(5)`
+.. |info(5)|         replace:: :manpage:`info(5)`
+.. |makeinfo(1)|     replace:: :manpage:`makeinfo(1)`
+.. |install-info(1)| replace:: :manpage:`install-info(1)`
+.. |latexmk(1)|      replace:: :manpage:`latexmk(1)`
+.. |python3(1)|      replace:: :manpage:`python3(1)`
+.. |rsync(1)|        replace:: :manpage:`rsync(1)`
+.. |sphinx-build(1)| replace:: :manpage:`sphinx-build(1)`
 
 .. _gnu_make:                  https://www.gnu.org/software/make/
 .. |GNU Make|                  replace:: `GNU Make <gnu_make_>`_
@@ -127,4 +133,14 @@
 .. _qt:                        http://qt-project.org/
 .. |QT|                        replace:: `QT <qt_>`_
 .. _pkg-config:                https://www.freedesktop.org/wiki/Software/pkg-config/
-
+.. _doxygen:                   https://www.doxygen.nl/
+.. |doxygen|                   replace:: `Doxygen <doxygen_>`_
+.. _latex:                     https://www.latex-project.org/
+.. |latex|                     replace:: `LaTeX <latex_>`_
+.. _python:                    https://www.python.org/
+.. |python|                    replace:: `Python <python_>`_
+.. _sphinx:                    http://sphinx-doc.org/
+.. |sphinx|                    replace:: `Sphinx <sphinx_>`_
+.. _sphinx_rtd_theme:          https://sphinx-rtd-theme.readthedocs.io/
+.. _rsync:                     https://rsync.samba.org/ 
+.. |rsync|                     replace:: `Rsync <rsync_>`_

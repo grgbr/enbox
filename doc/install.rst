@@ -1,6 +1,7 @@
 .. |Build|     replace:: :ref:`Build <sect-build>`
 .. |Install|   replace:: :ref:`Install <sect-install>`
 .. |DEFCONFIG| replace:: :ref:`DEFCONFIG <var-defconfig>`
+.. |INSTALL|   replace:: :ref:`INSTALL <var-install>`
 
 Overview
 ========
@@ -29,7 +30,7 @@ At runtime, the following packages must be installed:
 Optionally, you may need the following packages to build the documentation:
 
 * doxygen_
-* sphinx_
+* |sphinx|
 * sphinx_rtd_theme_
 * breathe_
 
@@ -385,20 +386,27 @@ You may customize tools used during construction phases by giving
 Section Variables_ describes the following variables which are available for
 tool customization purpose:
 
+* AR_,
 * CROSS_COMPILE_,
 * CC_,
-* AR_,
-* LD_,
-* STRIP_,
+* DOXY_,
 * ECHOE_,
-* RM_,
-* LN_,
-* PKG_CONFIG_,
-* INSTALL_,
+* |INSTALL|,
+* INSTALL_INFO_,
 * KCONF_,
 * KMCONF_,
 * KXCONF_,
-* KGCONF_.
+* KGCONF_,
+* LATEXMK_,
+* MAKEINFO_,
+* LD_,
+* LN_,
+* PKG_CONFIG_,
+* PYTHON_,
+* RM_,
+* RSYNC_,
+* SPHINXBUILD_,
+* STRIP_.
 
 Reference
 =========
@@ -708,6 +716,17 @@ and info files.
 
 See |gnu_vars_for_install_dirs|.
 
+DOXY
+****
+
+|doxygen| documentation generation tool
+
+:Default: ``doxygen``
+:Mutable: yes
+
+Tool used to generate source code documentation.
+See |doxygen(1)|.
+ 
 EBUILDDIR
 *********
 
@@ -772,6 +791,8 @@ Pathname to directory where to install development header files to be included
 by the C ``#include`` preprocessor directive.
 See |gnu_vars_for_install_dirs|.
 
+.. _var-install:
+
 INSTALL
 *******
 
@@ -782,6 +803,19 @@ Install tool
 
 Tool used to copy filesytem entries and set their attributes.
 See |install(1)|.
+
+ 
+INSTALL_INFO
+************
+
+|info_files| page installer tool
+
+:Default: ``install-info``
+:Mutable: yes
+
+Tool used to install |texinfo(5)| documentation system |info(5)| pages generated
+using |makeinfo(1)| tool.
+See also |install-info(1)|.
 
 KCONF
 *****
@@ -830,6 +864,17 @@ KConfig |QT| menu based tool
 Tool used to configure the build logic thanks to a |QT| menu driven user
 interface.
 See |kconfig|.
+
+LATEXMK
+*******
+
+|latex| documentation builder tool
+
+:Default: ``latexmk``
+:Mutable: yes
+
+Tool used to automate the process of building |latex| documents.
+See also |latexmk(1)|.
 
 LD
 **
@@ -893,6 +938,17 @@ while they run, and that pertain to one specific machine.
 Note that final install location is also affected by the DESTDIR_ variable.
 See |gnu_vars_for_install_dirs|.
 
+MAKEINFO
+********
+
+|info_files| documentation conversion tool
+
+:Default: ``makeinfo``
+:Mutable: yes
+
+Tool used to generate |info(5)| pages for the |texinfo(5)| documentation system.
+See also |install-info(1)|.
+ 
 MANDIR
 ******
 
@@ -939,6 +995,17 @@ pkg-config_ metadata files install directory
 Pathname to directory where to install |pkg-config(1)| metadata files.
 See |gnu_vars_for_install_dirs|.
 
+PYTHON
+******
+
+The |python| interpreter version 3.x
+
+:Default: ``python3``
+:Mutable: yes
+
+|python| interpreter required by the |sphinx| documentation system.
+See |python3(1)| and SPHINXBUILD_.
+
 RM
 **
 
@@ -949,6 +1016,17 @@ Filesystem entry removal tool
 
 Tool used to delete filesystem entries.
 See |rm(1)|.
+
+RSYNC
+*****
+
+|rsync| filesystem synchronization tool
+
+:Default: ``rsync``
+:Mutable: yes
+
+Tool used to copy / synchronize filesystem hierarchies.
+See |rsync(1)|.
 
 RUNSTATEDIR
 ***********
@@ -976,6 +1054,19 @@ Pathname to directory where to install executable programs that are only
 generally useful to system administrators. Note that final install location is
 also affected by the DESTDIR_ variable.
 See |gnu_vars_for_install_dirs|.
+
+SPHINXBUILD
+***********
+
+|sphinx| documentation generation tool
+
+:Default: ``sphinx-build``
+:Mutable: yes
+
+Tool used to generate documentation from a |rest| file hierarchy.
+|sphinx-build(1)| may output documentation to multiple format, i.e.
+|info_files|, |latex|, *PDF* and *HTML*.
+See also PYTHON_, MAKEINFO_, LATEXMK_ and DOXY_.
 
 STRIP
 *****
