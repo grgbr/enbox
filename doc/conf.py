@@ -34,7 +34,6 @@ extensions = ['sphinx.ext.intersphinx',
               'sphinx.ext.graphviz',
               'sphinxcontrib.plantuml',
               'sphinx_rtd_theme',
-              'sphinx.ext.autosectionlabel',
               'breathe']
 
 # Add any paths that contain templates here, relative to this directory.
@@ -77,7 +76,7 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = []
+exclude_patterns = [ './_cdefs.rst' ]
 
 # The name of the Pygments (syntax highlighting) style to use.
 #pygments_style = 'sphinx'
@@ -196,4 +195,4 @@ texinfo_cross_references = True
 # -- Options for InterSphinx output -------------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+#intersphinx_mapping = {'https://docs.python.org/': None}

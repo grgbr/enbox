@@ -1,3 +1,5 @@
+.. include:: _cdefs.rst
+
 .. _sect-api_overview:
 
 Overview
@@ -238,42 +240,42 @@ Macros
 ------
 
 ENBOX_DISABLE_DUMP
-~~~~~~~~~~~~~~~~~~
+******************
 
 .. doxygendefine:: ENBOX_DISABLE_DUMP
 
 ENBOX_DROP_SUPP_GROUPS
-~~~~~~~~~~~~~~~~~~~~~~
+**********************
 
 .. doxygendefine:: ENBOX_DROP_SUPP_GROUPS
 
 ENBOX_ENABLE_DUMP
-~~~~~~~~~~~~~~~~~
+*****************
 
 .. doxygendefine:: ENBOX_ENABLE_DUMP
 
 ENBOX_KEEP_GID
-~~~~~~~~~~~~~~
+**************
 
 .. doxygendefine:: ENBOX_KEEP_GID
 
 ENBOX_KEEP_MODE
-~~~~~~~~~~~~~~~
+***************
 
 .. doxygendefine:: ENBOX_KEEP_MODE
 
 ENBOX_KEEP_UID
-~~~~~~~~~~~~~~
+**************
 
 .. doxygendefine:: ENBOX_KEEP_UID
 
 ENBOX_NAMESPACE_FLAGS
-~~~~~~~~~~~~~~~~~~~~~
+*********************
 
 .. doxygendefine:: ENBOX_NAMESPACE_FLAGS
 
 ENBOX_RAISE_SUPP_GROUPS
-~~~~~~~~~~~~~~~~~~~~~~~
+***********************
 
 .. doxygendefine:: ENBOX_RAISE_SUPP_GROUPS
 
@@ -281,7 +283,7 @@ Enumerations
 ------------
 
 enbox_entry_type
-~~~~~~~~~~~~~~~~
+****************
 
 .. doxygenenum:: enbox_entry_type
 
@@ -293,17 +295,17 @@ Structures
    Document struct elog (intersphinx)
 
 enbox_bind_entry
-~~~~~~~~~~~~~~~~
+****************
 
 .. doxygenstruct:: enbox_bind_entry
 
 enbox_cmd
-~~~~~~~~~
+*********
 
 .. doxygenstruct:: enbox_cmd
 
 enbox_conf
-~~~~~~~~~~
+**********
 
 .. doxygenstruct:: enbox_conf
 
@@ -312,32 +314,32 @@ enbox_conf
    Hide struct enbox_conf internal fields
 
 enbox_dev_entry
-~~~~~~~~~~~~~~~
+***************
 
 .. doxygenstruct:: enbox_dev_entry
 
 enbox_dir_entry
-~~~~~~~~~~~~~~~
+***************
 
 .. doxygenstruct:: enbox_dir_entry
 
 enbox_entry
-~~~~~~~~~~~~~~~
+***************
 
 .. doxygenstruct:: enbox_entry
 
 enbox_fifo_entry
-~~~~~~~~~~~~~~~~
+****************
 
 .. doxygenstruct:: enbox_fifo_entry
 
 enbox_fsset
-~~~~~~~~~~~
+***********
 
 .. doxygenstruct:: enbox_fsset
 
 enbox_ids
-~~~~~~~~~
+*********
 
 .. doxygenstruct:: enbox_ids
 
@@ -346,17 +348,17 @@ enbox_ids
    Hide struct enbox_ids internal fields
 
 enbox_jail
-~~~~~~~~~~
+**********
 
 .. doxygenstruct:: enbox_jail
 
 enbox_mount_entry
-~~~~~~~~~~~~~~~~~
+*****************
 
 .. doxygenstruct:: enbox_mount_entry
 
 enbox_slink_entry
-~~~~~~~~~~~~~~~~~
+*****************
 
 .. doxygenstruct:: enbox_slink_entry
 
@@ -364,124 +366,121 @@ Functions
 ---------
 
 enbox_change_ids()
-~~~~~~~~~~~~~~~~~~
+******************
 
 .. doxygenfunction:: enbox_change_ids
 
 enbox_change_perms()
-~~~~~~~~~~~~~~~~~~~~
+********************
 
 .. doxygenfunction:: enbox_change_perms
 
 enbox_clear_ambient_caps()
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+**************************
 
 .. doxygenfunction:: enbox_clear_ambient_caps
 
 enbox_clear_bounding_caps()
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+***************************
 
 .. doxygenfunction:: enbox_clear_bounding_caps
 
 enbox_create_conf_from_file()
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*****************************
 
 .. doxygenfunction:: enbox_create_conf_from_file
 
 enbox_destroy_conf()
-~~~~~~~~~~~~~~~~~~~~
+********************
 
 .. doxygenfunction:: enbox_destroy_conf
 
 enbox_enter_jail()
-~~~~~~~~~~~~~~~~~~
+******************
 
 .. doxygenfunction:: enbox_enter_jail
 
 enbox_get_gid()
-~~~~~~~~~~~~~~~
+***************
 
 .. doxygenfunction:: enbox_get_gid
 
 enbox_get_umask()
-~~~~~~~~~~~~~~~~~
+*****************
 
 .. doxygenfunction:: enbox_get_umask
 
 enbox_get_uid()
-~~~~~~~~~~~~~~~
+***************
 
 .. doxygenfunction:: enbox_get_uid
 
 enbox_load_ids_byid()
-~~~~~~~~~~~~~~~~~~~~~
+*********************
 
 .. doxygenfunction:: enbox_load_ids_byid
 
 enbox_load_ids_byname()
-~~~~~~~~~~~~~~~~~~~~~~~
+***********************
 
 .. doxygenfunction:: enbox_load_ids_byname
 
 enbox_lock_caps()
-~~~~~~~~~~~~~~~~~
+*****************
 
 .. doxygenfunction:: enbox_lock_caps
 
 enbox_make_blkdev()
-~~~~~~~~~~~~~~~~~~~
+*******************
 
 .. doxygenfunction:: enbox_make_blkdev
 
 enbox_make_chrdev()
-~~~~~~~~~~~~~~~~~~~
+*******************
 
 .. doxygenfunction:: enbox_make_chrdev
 
 enbox_make_dir()
-~~~~~~~~~~~~~~~~
+****************
 
 .. doxygenfunction:: enbox_make_dir
 
 enbox_make_fifo()
-~~~~~~~~~~~~~~~~~
+*****************
 
 .. doxygenfunction:: enbox_make_fifo
 
 enbox_make_slink()
-~~~~~~~~~~~~~~~~~~
+******************
 
 .. doxygenfunction:: enbox_make_slink
 
 enbox_populate_host()
-~~~~~~~~~~~~~~~~~~~~~
+*********************
 
 .. doxygenfunction:: enbox_populate_host
 
 enbox_run_cmd()
-~~~~~~~~~~~~~~~
+***************
 
 .. doxygenfunction:: enbox_run_cmd
 
 enbox_run_conf()
-~~~~~~~~~~~~~~~~
+****************
 
 .. doxygenfunction:: enbox_run_conf
 
 enbox_set_umask()
-~~~~~~~~~~~~~~~~~
+*****************
 
 .. doxygenfunction:: enbox_set_umask
 
 enbox_setup()
-~~~~~~~~~~~~~
+*************
 
 .. doxygenfunction:: enbox_setup
 
 enbox_setup_dump()
-~~~~~~~~~~~~~~~~~~
+******************
 
 .. doxygenfunction:: enbox_setup_dump
-
-
-.. include:: _cdefs.rst

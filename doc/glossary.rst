@@ -1,3 +1,5 @@
+.. include:: _cdefs.rst
+
 Glossary
 ========
 
@@ -95,5 +97,3 @@ Glossary
    username
       a system user name expressed as a |string| (see |passwd(5)| and
       |login.defs(5)|)
-
-.. include:: _cdefs.rst

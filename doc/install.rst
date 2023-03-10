@@ -1,3 +1,5 @@
+.. include:: _cdefs.rst
+
 .. |Build|     replace:: :ref:`Build <sect-build>`
 .. |Install|   replace:: :ref:`Install <sect-install>`
 .. |DEFCONFIG| replace:: :ref:`DEFCONFIG <var-defconfig>`
@@ -416,6 +418,8 @@ Targets
 
 This section describes all :command:`make` targets that may be given on the
 command line to run a particular construction phase.
+
+.. _target-build:
 
 build
 *****
@@ -1123,5 +1127,3 @@ read-only data directory like so:
 .. code-block:: console
    
    $ make help EBUILDDIR=/usr/local/share/ebuild
-
-.. include:: _cdefs.rst

@@ -1,10 +1,10 @@
+Welcome to Enbox documentation
+##############################
+
 .. Caption of toctrees are not translated into texinfo, hence the dirty trick
 .. below.
 .. Basically, we ask the texinfo backend to generate an additional top-level
 .. section for each manual and include the corresponding manual file...
-
-Welcome to Enbox documentation
-##############################
 
 User Guide
 ^^^^^^^^^^

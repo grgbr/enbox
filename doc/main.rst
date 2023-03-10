@@ -1,3 +1,5 @@
+.. include:: _cdefs.rst
+
 .. _sect-top-overview:
 
 Overview
@@ -1514,6 +1516,3 @@ Use cases
 .. todo::
 
    Document typical configuration use cases
-
-
-.. include:: _cdefs.rst

@@ -1,20 +1,20 @@
 ..
    Replacement macros to reference libconfig types.
    
-.. |BOOL|   replace:: <:ref:`BOOL<libconfig-types>`>
-.. |STRING| replace:: <:ref:`STRING<libconfig-types>`>
-.. |LSEP|   replace:: <:ref:`LSEP<syntax-sep>`>
-.. |SSEP|   replace:: <:ref:`SSEP<syntax-sep>`>
+.. |BOOL|   replace:: <:ref:`BOOL <libconfig-types>`>
+.. |STRING| replace:: <:ref:`STRING <libconfig-types>`>
+.. |LSEP|   replace:: <:ref:`LSEP <syntax-sep>`>
+.. |SSEP|   replace:: <:ref:`SSEP <syntax-sep>`>
 
 
 ..
    Replacement macros to reference terminology and definitions
 
-.. |credentials|  replace:: :ref:`credentials<Credentials>`
-.. |host|         replace:: :ref:`host<Host>`
-.. |jail|         replace:: :ref:`jail<Jail>`
-.. |namespaces|   replace:: :ref:`namespaces<Namespaces>`
-.. |capabilities| replace:: :ref:`capabilities<Capabilities>`
+.. |credentials|  replace:: :ref:`credentials <Credentials>`
+.. |host|         replace:: :ref:`host <Host>`
+.. |jail|         replace:: :ref:`jail <Jail>`
+.. |namespaces|   replace:: :ref:`namespaces <Namespaces>`
+.. |capabilities| replace:: :ref:`capabilities <Capabilities>`
 
 
 ..
@@ -144,3 +144,5 @@
 .. _sphinx_rtd_theme:          https://sphinx-rtd-theme.readthedocs.io/
 .. _rsync:                     https://rsync.samba.org/ 
 .. |rsync|                     replace:: `Rsync <rsync_>`_
+.. _rest:                      https://docutils.sourceforge.io/rst.html
+.. |rest|                      replace:: `reStructuredText <rest_>`_
