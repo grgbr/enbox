@@ -6,32 +6,38 @@ Welcome to Enbox documentation
 .. Basically, we ask the latex backend to generate a \part{} section for each
 .. toctree caption using the `raw' restructuredtext directive.
 
-.. raw:: latex
+.. only:: latex
 
-   \part{User Guide}
+   .. raw:: latex
+
+      \part{User Guide}
 
 .. toctree::
    :numbered:
-   :caption: User manual
+   :caption: User Guide
 
    main
 
 
-.. raw:: latex
+.. only:: latex
 
-   \part{Integration Guide}
-   
+   .. raw:: latex
+
+      \part{Integration Guide}
+
 .. toctree::
    :numbered:
-   :caption: Integration manual
+   :caption: Integration Guide
 
    install
 
 
-.. raw:: latex
+.. only:: latex
 
-   \part{API guide}
-   
+   .. raw:: latex
+
+      \part{API Guide}
+
 .. toctree::
    :maxdepth: 2
    :numbered:
@@ -40,11 +46,22 @@ Welcome to Enbox documentation
    api
 
 
-.. raw:: latex
-
-   \part{Appendix}
-
 .. We use the latex_appendices setting into conf.py to benefit from native latex
 .. appendices section numbering scheme. As a consequence, there is no need to
 .. generate appendix entries for latex since already requested through the
 .. latex_appendices setting.
+
+.. only:: latex
+
+   .. raw:: latex
+
+      \part{Appendix}
+
+.. only:: html
+
+   .. toctree::
+      :caption: Appendix
+
+      glossary
+      todo
+      genindex

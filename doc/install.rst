@@ -1,7 +1,7 @@
 .. include:: _cdefs.rst
 
-.. |Build|     replace:: :ref:`Build <sect-build>`
-.. |Install|   replace:: :ref:`Install <sect-install>`
+.. |Build|     replace:: :ref:`Build <sect-install-build>`
+.. |Install|   replace:: :ref:`Install <sect-install-install>`
 .. |DEFCONFIG| replace:: :ref:`DEFCONFIG <var-defconfig>`
 .. |INSTALL|   replace:: :ref:`INSTALL <var-install>`
 
@@ -170,9 +170,9 @@ Optionally, you may **tweak build options** interactively:
 
    $ make menuconfig BUILDDIR=$HOME/build/enbox
 
-The :ref:`menuconfig target <menuconfig>` runs a menu-driven user interface
-allowing you to configure build options. You may run alternate user interfaces
-using the following :command:`make` targets :
+The :ref:`menuconfig target <target-menuconfig>` runs a menu-driven
+user interface allowing you to configure build options. You may run alternate
+user interfaces using the following :command:`make` targets :
 
 * xconfig_ for a QT menu-driven interface,
 * and gconfig_ for GTK menu-driven interface.
@@ -202,7 +202,7 @@ for more informations.
 
 You can now proceed to the |Build| phase.
 
-.. _sect-build:
+.. _sect-install-build:
 
 Build
 -----
@@ -249,7 +249,7 @@ more informations.
 
 You can now proceed to the |Install| phase.
 
-.. _sect-install:
+.. _sect-install-install:
 
 Install
 -------
@@ -350,7 +350,7 @@ Cleanup
 
 3 additional :command:`make` targets are available to cleanup generated objects.
 
-The :ref:`clean target <clean>` remove built objects from the BUILDDIR_
+The :ref:`clean target <target-clean>` remove built objects from the BUILDDIR_
 directory without cleaning up installed objects.
 In other words, this performs the inverse operation of |Build| target:
 
@@ -358,8 +358,9 @@ In other words, this performs the inverse operation of |Build| target:
 
    $ make clean BUILDDIR=$HOME/build/enbox
 
-The :ref:`distclean target <distclean>` runs :ref:`clean target <clean>` then
-removes build configuration objects from the BUILDDIR_ directory.
+The :ref:`distclean target <target-distclean>` runs
+:ref:`clean target <target-clean>` then removes build configuration objects from
+the BUILDDIR_ directory.
 In other words, this removes every intermediate objects, i.e., all generated
 objects that have not been installed:
 
@@ -367,8 +368,8 @@ objects that have not been installed:
 
    $ make distclean BUILDDIR=$HOME/build/enbox
 
-Finally, the :ref:`uninstall target <uninstall>` removes installed objects from
-the $(DESTDIR_)$(PREFIX_) directory.
+Finally, the :ref:`uninstall target <target-uninstall>` removes
+installed objects from the $(DESTDIR_)$(PREFIX_) directory.
 In other words, this performs the inverse operation of |Install| target:
 
 .. code-block:: console
@@ -433,6 +434,8 @@ using default configuration settings.
 Refer to section |Build| for a list of variables affecting this target
 behavior.
 
+.. _target-clean:
+
 clean
 *****
 
@@ -460,14 +463,18 @@ under the BUILDDIR_ directory.
 Refer to section Configure_ for a list of variables affecting this target
 behavior.
 
+.. _target-distclean:
+
 distclean
 *********
 
-Run :ref:`clean target <clean>` then remove build configuration objects created
-by the build configuration targets from the BUILDDIR_ directory.
+Run :ref:`clean target <target-clean>` then remove build configuration objects
+created by the build configuration targets from the BUILDDIR_ directory.
 
 Refer to section Configure_ for a list of configuration targets variables
 affecting this target behavior.
+
+.. _target-doc:
 
 doc
 ***
@@ -505,8 +512,9 @@ Show a detailed help message.
 install
 *******
 
-Install objects and optionally documentation constructed at :ref:`building
-<sect-build>` time. Objects are basically installed under PREFIX_ directory.
+Install objects and optionally documentation constructed at
+:ref:`building <sect-install-build>` time. Objects are basically installed under
+PREFIX_ directory.
 
 If not completed, the install target performs the build phase implicitly using
 default configuration settings.
@@ -522,7 +530,7 @@ install-doc
 ***********
 
 Install documentation built thanks to :ref:`build target <target-build>` or
-:ref:`doc target <doc>` under PREFIX_ directory.
+:ref:`doc target <target-doc>` under PREFIX_ directory.
 
 Refer to section |Install| for a list of variables affecting this target
 behavior.
@@ -536,6 +544,8 @@ install-strip
 
 Run :ref:`install target <target-install>` and discard symbols from installed
 objects.
+
+.. _target-menuconfig:
 
 menuconfig
 **********
@@ -559,6 +569,8 @@ settings file that can be loaded using a subsequent :ref:`defconfig target
 
 Refer to section Configure_ for a list of variables affecting this target
 behavior.
+
+.. _target-uninstall:
 
 uninstall
 *********

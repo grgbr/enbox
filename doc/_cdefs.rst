@@ -10,11 +10,11 @@
 ..
    Replacement macros to reference terminology and definitions
 
-.. |credentials|  replace:: :ref:`credentials <Credentials>`
-.. |host|         replace:: :ref:`host <Host>`
-.. |jail|         replace:: :ref:`jail <Jail>`
-.. |namespaces|   replace:: :ref:`namespaces <Namespaces>`
-.. |capabilities| replace:: :ref:`capabilities <Capabilities>`
+.. |credentials|  replace:: :ref:`credentials <sect-main-credentials>`
+.. |host|         replace:: :ref:`host <sect-main-host>`
+.. |jail|         replace:: :ref:`jail <sect-main-jail>`
+.. |namespaces|   replace:: :ref:`namespaces <sect-main-namespaces>`
+.. |capabilities| replace:: :ref:`capabilities <sect-main-capabilities>`
 
 
 ..

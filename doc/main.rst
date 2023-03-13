@@ -1,6 +1,6 @@
 .. include:: _cdefs.rst
 
-.. _sect-top-overview:
+.. _sect-main-overview:
 
 Overview
 ========
@@ -17,21 +17,24 @@ other processes on the |host| machine. In addition, the whole system is
 hardened against software vulnerabilities since processes may be run with
 restricted privileges.
 
-Enbox ships with a :ref:`binary tool<enbox tool>` and a
-:ref:`library<sect-api_overview>`.
-The `enbox tool`_ allows system administrators to setup and instantiate
-processes according to settings stored into dedicated `configuration`_ files.
-The :ref:`library<sect-api_overview>`, which the `enbox tool`_ is based
-upon, provides developpers with a way to carry out Enbox related tasks directly
-from their own code.
+Enbox ships with a :ref:`binary tool <usage>` and a
+:ref:`library <sect-api-overview>`.
+The :ref:`enbox tool <usage>` allows system administrators to setup and
+instantiate processes according to settings stored into dedicated configuration_
+files.
+The :ref:`library <sect-api-overview>`, which the :ref:`enbox tool <usage>` is
+based upon, provides developpers with a way to carry out Enbox related tasks
+directly from their own code.
 
-.. _sect-top-terminology:
+.. _sect-main-terminology:
 
 Terminology
 ===========
 
 Using Enbox involves setting up multiple kind of objects. These are described in
 the following sections.
+
+.. _sect-main-jail:
 
 Jail
 ----
@@ -63,6 +66,8 @@ mount| machinery. These mounts are performed from within the jail's own mount
 namespace (see |mount_namespaces(7)|) and are implitcly released once the jail
 dies.
 
+.. _sect-main-host:
+
 Host
 ----
 
@@ -76,6 +81,8 @@ mechanisms used to share filesystem content between the host and a |jail|.
 
 These filesystem entries are persistent from the |jail|'s point of view, i.e
 removal of entries is delegated to system administration tasks.
+
+.. _sect-main-credentials:
 
 Credentials
 -----------
@@ -93,6 +100,8 @@ privileges of current process.
 When combined with |capabilities| management, this mechanism allows Enbox to
 enforce permanent strong privilege restrictions.
 
+.. _sect-main-capabilities:
+
 Capabilities
 ------------
 
@@ -105,6 +114,8 @@ into |capabilities(7)|:
 
 Enbox ensures that all capabilities are dropped when switching to a
 non-privileged user (using |setresuid(2)|) and at |execve(2)| time.
+
+.. _sect-main-namespaces:
 
 Namespaces
 ----------
@@ -152,6 +163,8 @@ Features
 * lightweight
 * Linux OS only
 
+.. _usage:
+
 Usage
 =====
 
@@ -159,7 +172,7 @@ Usage
 
    Document enbox tool usage
 
-.. _sect-usage_conf:
+.. _sect-main-configuration:
 
 Configuration
 =============

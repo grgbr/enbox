@@ -46,7 +46,7 @@ templates_path = ['_templates']
 source_suffix = '.rst'
 
 # The master toctree document.
-root_doc = 'html'
+root_doc = 'index'
 master_title = u'Enbox Documentation'
 
 # General information about the project.
@@ -76,7 +76,7 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = [ './_cdefs.rst' ]
+exclude_patterns = [ ]
 
 # The name of the Pygments (syntax highlighting) style to use.
 #pygments_style = 'sphinx'
@@ -148,7 +148,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    ('latex', 'enbox.tex', master_title, author, 'manual')
+    ('index', 'enbox.tex', master_title, author, 'manual')
 ]
 
 # Request latex backend to generate the following appendix entries to benefit
@@ -159,7 +159,7 @@ latex_documents = [
 latex_toplevel_sectioning = 'chapter'
 latex_appendices = [ 'glossary', 'todo' ]
 latex_show_urls = 'footnote'
-latex_show_pagerefs = True
+latex_show_pagerefs = False
 
 # -- Options for manual page output ---------------------------------------
 
@@ -175,13 +175,27 @@ latex_show_pagerefs = True
 # (source start file, target name, title, author, dir menu entry, description,
 # category)
 texinfo_documents = [
-    ('info',
-     'enbox',
-     master_title,
+    ('main',
+     'enbox_user',
+     'Enbox User Guide',
      author,
-     'enbox',
-     'Enbox sandboxing system',
-     'System-administration'),
+     'Enbox',
+     'Enbox sandboxing system user manual',
+     'System administration'),
+    ('install',
+     'enbox_install',
+     'Enbox Integration Guide',
+     author,
+     'Enbox Install',
+     'Enbox sandboxing system integration manual',
+     'Libraries'),
+    ('api',
+     'enbox_api',
+     'Enbox API Guide',
+     author,
+     'Enbox API',
+     'Enbox sandboxing system API manual',
+     'Libraries')
 ]
 
 # Request texinfo backend to generate the following appendix entries to benefit

@@ -1,13 +1,13 @@
 .. include:: _cdefs.rst
 
-.. _sect-api_overview:
+.. _sect-api-overview:
 
 Overview
 ========
 
 What follows here provides a thorough description of how to use Enbox's library.
-Please, head to sections :ref:`sect-top-overview` and
-:ref:`sect-top-terminology` for an introduction to Enbox concepts.
+Please, head to sections :ref:`sect-main-overview` and
+:ref:`sect-main-terminology` for an introduction to Enbox concepts.
 
 Basically, Enbox library is the C framework that lies underneath Enbox. It is
 provided to carry out Enbox related tasks directly from C/C++ applications.
@@ -39,7 +39,7 @@ Run a configuration from filesystem
 
 This mode of operation is meant to apply and execute an Enbox configuration
 stored into a file. This file must be formatted according to the
-configuration syntax detailed into the :ref:`sect-usage_conf` section.
+configuration syntax detailed into the :ref:`sect-main-configuration` section.
 
 Additional usage details may be found into section Configuration_. This
 is the most straightforward way to use the Enbox library.
@@ -65,7 +65,7 @@ Configuration
 =============
 
 Configuration directives may be used to setup Enbox library runtime behavior.
-Refer to the :ref:`usage configuration <sect-usage_conf>` section for
+Refer to the :ref:`usage configuration <sect-main-configuration>` section for
 additional informations.
 
 Configuration workflow involves the following typical sequence of operations :
