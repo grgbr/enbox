@@ -194,7 +194,7 @@ texinfo_documents = [
      'Enbox API Guide',
      author,
      'Enbox API',
-     'Enbox sandboxing system API manual',
+     'Enbox sandboxing library API manual',
      'Libraries')
 ]
 
