@@ -32,7 +32,6 @@ extensions = ['sphinx.ext.intersphinx',
               'sphinx.ext.mathjax',
               'sphinx.ext.ifconfig',
               'sphinx.ext.graphviz',
-              'sphinxcontrib.plantuml',
               'sphinx_rtd_theme',
               'breathe']
 
@@ -76,7 +75,7 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = [ ]
+exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
 #pygments_style = 'sphinx'
@@ -96,8 +95,8 @@ if doxyxmldir and not os.path.isdir(doxyxmldir):
     sys.exit(1)
 
 breathe_default_project        = project
-breathe_projects               = { breathe_default_project: doxyxmldir }
-breathe_domain_by_extension    = { "h" : "c", "c": "c" }
+breathe_projects               = {breathe_default_project: doxyxmldir}
+breathe_domain_by_extension    = {"h" : "c", "c": "c"}
 breathe_show_include           = False
 breathe_order_parameters_first = True
 breathe_separate_member_pages  = False
@@ -157,7 +156,7 @@ latex_documents = [
 # entries into generated document.
 # See comments into latex.rst for more informations.
 latex_toplevel_sectioning = 'chapter'
-latex_appendices = [ 'glossary', 'todo' ]
+latex_appendices = ['glossary', 'todo']
 latex_show_urls = 'footnote'
 latex_show_pagerefs = False
 
@@ -200,7 +199,7 @@ texinfo_documents = [
 
 # Request texinfo backend to generate the following appendix entries to benefit
 # from its appendix section numbering scheme.
-texinfo_appendices = [ 'glossary', 'todo' ]
+texinfo_appendices = ['glossary', 'todo' ]
 texinfo_domain_indices = True
 texinfo_show_urls = 'footnote'
 texinfo_no_detailmenu = True
@@ -208,5 +207,20 @@ texinfo_cross_references = True
 
 # -- Options for InterSphinx output -------------------------------------------
 
+ebuilddoc_target_path = os.getenv('EBUILDDOC_TARGET_PATH')
+if not ebuilddoc_target_path:
+    ebuilddoc_target_path = '../../ebuild/html'
+
+ebuilddoc_inventory_path = os.getenv('EBUILDDOC_INVENTORY_PATH')
+if not ebuilddoc_inventory_path:
+    docdir = os.getenv('DOCDIR')
+    if docdir:
+        ebuilddoc_inventory_path = os.path.join(docdir,
+                                                '../ebuild/html/objects.inv')
+
 # Example configuration for intersphinx: refer to the Python standard library.
-#intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {
+        'ebuild': (ebuilddoc_target_path, ebuilddoc_inventory_path)
+}
+
+intersphinx_disabled_reftypes = ['*']

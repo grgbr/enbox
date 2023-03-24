@@ -83,9 +83,14 @@ libenbox.pc-tmpl    := libenbox_pkgconf_tmpl
 # Documentation generation
 ################################################################################
 
-doxyconf  := $(CURDIR)/doc/Doxyfile
+doxyconf  := $(CURDIR)/sphinx/Doxyfile
 doxyenv   := INCDIR="$(patsubst -I%,%,$(filter -I%,$(common-cflags)))" \
              VERSION="$(VERSION)"
 
-sphinxsrc := $(CURDIR)/doc
-sphinxenv := VERSION="$(VERSION)"
+sphinxsrc := $(CURDIR)/sphinx
+sphinxenv := \
+	VERSION="$(VERSION)" \
+	$(if $(strip $(EBUILDDOC_TARGET_PATH)), \
+	     EBUILDDOC_TARGET_PATH="$(strip $(EBUILDDOC_TARGET_PATH))") \
+	$(if $(strip $(EBUILDDOC_INVENTORY_PATH)), \
+	     EBUILDDOC_INVENTORY_PATH="$(strip $(EBUILDDOC_INVENTORY_PATH))")

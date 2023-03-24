@@ -86,7 +86,6 @@
 .. _libconfig manual:    http://www.hyperrealm.com/libconfig/libconfig_manual.html
 .. _utility conventions: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html
 .. _IEEE Std 1003.1:     https://pubs.opengroup.org/onlinepubs/9699919799/mindex.html
-.. _ebuild:              https://github.com/grgbr/ebuild/
 .. _elog:                https://github.com/grgbr/elog/
 .. _utils:               https://github.com/grgbr/utils/
 .. _breathe:             https://github.com/michaeljones/breathe/
