@@ -8,6 +8,8 @@
  * Display logic
  ******************************************************************************/
 
+#if defined(CONFIG_ENBOX_TOOL_SHOW)
+
 #define ENBOX_MODE_STRING_SZ (10U)
 
 static const char * __returns_nonull __nothrow
@@ -594,6 +596,8 @@ enbox_show_conf(const struct enbox_conf * conf)
 		enbox_show_cmd_conf(conf->cmd);
 }
 
+#endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
+
 /******************************************************************************
  * Main logic
  ******************************************************************************/
@@ -614,10 +618,10 @@ show_usage(void)
 	fprintf(stderr, USAGE, program_invocation_short_name);
 }
 
-static struct elog_stdio      skel_stdlog;
-static struct elog_stdio_conf skel_stdlog_conf = {
-	.super.severity = CONFIG_ENBOX_SKEL_STDLOG_SEVERITY,
-	.format         = CONFIG_ENBOX_SKEL_STDLOG_FORMAT
+static struct elog_stdio      stdlog;
+static struct elog_stdio_conf stdlog_conf = {
+	.super.severity = CONFIG_ENBOX_TOOL_STDLOG_SEVERITY,
+	.format         = CONFIG_ENBOX_TOOL_STDLOG_FORMAT
 };
 
 int
@@ -628,9 +632,10 @@ main(int argc, char * const argv[])
 	enum {
 		INVALID,
 		RUN,
+#if defined(CONFIG_ENBOX_TOOL_SHOW)
 		SHOW
+#endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
 	}                   cmd = INVALID;
-
 
 	while (true) {
 		int                        opt;
@@ -682,15 +687,17 @@ main(int argc, char * const argv[])
 
 	if (!strcmp(argv[optind + 1], "run"))
 		cmd = RUN;
+#if defined(CONFIG_ENBOX_TOOL_SHOW)
 	else if (!strcmp(argv[optind + 1], "show"))
 		cmd = SHOW;
+#endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
 	else {
 		show_error("'%s': unknown command.\n", argv[optind + 1]);
 		goto usage;
 	}
 
-	elog_init_stdio(&skel_stdlog, &skel_stdlog_conf);
-	if (enbox_setup((struct elog *)&skel_stdlog))
+	elog_init_stdio(&stdlog, &stdlog_conf);
+	if (enbox_setup((struct elog *)&stdlog))
 		goto out;
 
 	conf = enbox_create_conf_from_file(argv[optind]);
@@ -702,21 +709,26 @@ main(int argc, char * const argv[])
 		ret = !enbox_run_conf(conf) ? EXIT_SUCCESS : EXIT_FAILURE;
 		break;
 
+#if defined(CONFIG_ENBOX_TOOL_SHOW)
 	case SHOW:
 		enbox_show_conf(conf);
 		ret = EXIT_SUCCESS;
 		break;
+#endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
 
 	default:
 		enbox_assert(0);
 	}
 
-#warning Fixme: disable if debug off
+#if defined(CONFIG_ENBOX_DEBUG)
 	enbox_destroy_conf(conf);
 
 out:
-#warning Fixme: disable if debug off
-	elog_fini_stdio(&skel_stdlog);
+	elog_fini_stdio(&stdlog);
+#else  /* !defined(CONFIG_ENBOX_DEBUG) */
+out:
+	fflush(NULL);
+#endif /* defined(CONFIG_ENBOX_DEBUG) */
 	return ret;
 
 usage:

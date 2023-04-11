@@ -1351,7 +1351,7 @@ enbox_setup_jail(const char * __restrict  path,
 	enbox_assert(nr);
 
 	int          err;
-	const char * msg;
+	const char * msg __enbox_terse_unused;
 	char         opts[ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1];
 
 	/* Mount future root filesystem. */
@@ -1538,7 +1538,7 @@ enbox_enter_jail_bypwd(int                              namespaces,
 	enbox_assert(nr);
 
 	int          err;
-	const char * msg;
+	const char * msg __enbox_terse_unused;
 
 	err = clearenv();
 	if (err) {

@@ -10,6 +10,23 @@
 #include <libconfig.h>
 #include <linux/sched.h>
 
+/*
+ * Declare a symbol as unused when Enbox is built with verbose support disabled.
+ * This prevents GCC from emitting a warning when a variable is only used for
+ * outputting messages which are not compiled-in when CONFIG_ENBOX_VERBOSE is
+ * off.
+ */
+#if defined(CONFIG_ENBOX_VERBOSE)
+
+#define __enbox_terse_unused
+
+#else  /* !defined(CONFIG_ENBOX_VERBOSE) */
+
+#define __enbox_terse_unused \
+	__unused
+
+#endif /* defined(CONFIG_ENBOX_VERBOSE) */
+
 #define enbox_assert_entry(_ent) \
 	enbox_assert(upath_validate_path_name((_ent)->path) > 0); \
 	enbox_assert((_ent)->type >= 0); \
@@ -56,10 +73,10 @@ struct enbox_flag_desc {
 		.value = _value \
 	}
 
-#if defined(CONFIG_ENBOX_SKEL)
+#if defined(CONFIG_ENBOX_TOOL)
 extern const struct enbox_flag_desc enbox_mount_flag_descs[];
 extern const struct enbox_flag_desc enbox_namespace_descs[];
-#endif /* defined(CONFIG_ENBOX_SKEL) */
+#endif /* defined(CONFIG_ENBOX_TOOL) */
 
 /* Include generated mounting flags definitions. */
 #include "mount_flags.h"
@@ -132,11 +149,11 @@ enbox_get_group_name(gid_t gid)
 
 extern int
 enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
-#if defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_SKEL)
+#if defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL)
 	__enbox_nonull(1) __pure __nothrow __leaf;
-#else  /* !(defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_SKEL)) */
+#else  /* !(defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL)) */
 	__enbox_nonull(1) __pure __nothrow __leaf __priv_visi;
-#endif /* defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_SKEL) */
+#endif /* defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL) */
 
 #define ENBOX_EXEC_ARGS_MAX (1024U)
 
@@ -148,11 +165,11 @@ enbox_validate_exec_arg(const char * __restrict arg)
 
 extern int
 enbox_validate_exec(const char * const exec[__restrict_arr])
-#if !defined(CONFIG_ENBOX_SKEL)
+#if !defined(CONFIG_ENBOX_TOOL)
 	__enbox_nonull(1) __pure __nothrow __leaf __priv_visi;
-#else  /* defined(CONFIG_ENBOX_SKEL) */
+#else  /* defined(CONFIG_ENBOX_TOOL) */
 	__enbox_nonull(1) __pure __nothrow __leaf;
-#endif /* !defined(CONFIG_ENBOX_SKEL) */
+#endif /* !defined(CONFIG_ENBOX_TOOL) */
 
 #else  /* !defined(CONFIG_ENBOX_ASSERT) */
 

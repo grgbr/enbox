@@ -7,7 +7,6 @@ Rationalize:
 * generalize struct user usage (for host / jail entries)
 * error vs info logging review
 * ensure path is absolute for host entry definitions ?
-* disable memory free() logic if debug off
 
 Features:
 * fix signal disposition ?

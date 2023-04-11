@@ -8,7 +8,17 @@ config ENBOX_VERBOSE
 	bool "Enable verbose logging"
 	default n
 	help
-	  Build enbox library with internal verbose logging support.
+	  Build enbox library with internal verbose logging support. Will also
+	  be usefull to prevent from false-positives when running under
+	  Valgrind.
+
+config ENBOX_DEBUG
+	bool "Enable debug support"
+	default n
+	select ENBOX_ASSERT
+	select ENBOX_VERBOSE
+	help
+	  Build enbox library with internal debugging instrumentation.
 
 config ENBOX_INCLUDE_DIR
 	string "Configuration include directory"
@@ -25,31 +35,38 @@ config ENBOX_DISABLE_DUMP
 	  See sections about `/proc/sys/fs/suid_dumpable' and PR_SET_DUMPABLE
 	  operation of proc(5) and prctl(2) man pages respectively.
 
-config ENBOX_SKEL
-	bool "Enable skeleton utility"
+config ENBOX_TOOL
+	bool "Enable utility"
 	default y
 	help
-	  Build enbox library skeleton tool.
+	  Build enbox library tool.
 
-config ENBOX_SKEL_STDLOG_SEVERITY
+config ENBOX_TOOL_STDLOG_SEVERITY
 	int "STDIO logger severity"
 	range 0 7
 	default 4
-	depends on ENBOX_SKEL
+	depends on ENBOX_TOOL
 	help
-	  Internal skeleton tool messages with severity greater than this won't
-	  be sent to standard I/O logger.
+	  Internal tool messages with severity greater than this won't be sent
+	  to standard I/O logger.
 	  See syslog(3) levels for more informations about available severities.
 
-config ENBOX_SKEL_STDLOG_FORMAT
+config ENBOX_TOOL_STDLOG_FORMAT
 	hex "STDIO logger format"
 	range 0 0x1f
 	default 0x10
-	depends on ENBOX_SKEL
+	depends on ENBOX_TOOL
 	help
-	  Internal skeleton tool messages sent to standard I/O logger will be
-	  logged according to this format.
+	  Internal tool messages sent to standard I/O logger will be logged
+	  according to this format.
 	  See eLog library's header elog_format enum for more informations about
 	  available format flags.
+
+config ENBOX_TOOL_SHOW
+	bool "Enable utility display"
+	default n
+	depends on ENBOX_TOOL
+	help
+	  Build enbox library tool with ability to display settings.
 
 # ex: filetype=kconfig

@@ -2,11 +2,11 @@
 #include <utils/path.h>
 #include <stdlib.h>
 
-#if defined(CONFIG_ENBOX_SKEL)
+#if defined(CONFIG_ENBOX_TOOL)
 #define __enbox_intern
-#else  /* !defined(CONFIG_ENBOX_SKEL) */
+#else  /* !defined(CONFIG_ENBOX_TOOL) */
 #define __enbox_intern static
-#endif /* defined(CONFIG_ENBOX_SKEL) */
+#endif /* defined(CONFIG_ENBOX_TOOL) */
 
 #define enbox_conf_log(_setting, _severity, _format, ...) \
 	({ \

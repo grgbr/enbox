@@ -10,12 +10,12 @@ libenbox.so-ldflags  = $(EXTRA_LDFLAGS) \
                        -shared -Bsymbolic -fpic -Wl,-soname,libenbox.so
 libenbox.so-pkgconf := libelog libutils libconfig
 
-bins                 = enbox-skel
-enbox-skel-objs      = skel.o
-enbox-skel-cflags    = $(common-cflags)
-enbox-skel-ldflags   = $(EXTRA_LDFLAGS) -lenbox
-enbox-skel-pkgconf  := libelog libutils
-enbox-skel-path     := $(SBINDIR)/enbox-skel
+bins                 = enbox
+enbox-objs           = enbox.o
+enbox-cflags         = $(common-cflags)
+enbox-ldflags        = $(EXTRA_LDFLAGS) -lenbox
+enbox-pkgconf       := libelog libutils
+enbox-path          := $(SBINDIR)/enbox
 
 HEADERDIR           := $(CURDIR)/include
 headers              = enbox/enbox.h
