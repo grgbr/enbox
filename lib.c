@@ -1176,7 +1176,10 @@ enbox_bind_file(const char * __restrict path,
 	err = upath_lstat(orig, &stat);
 	if (err < 0)
 		goto err;
-	if (!S_ISREG(stat.st_mode)) {
+	if (!(S_ISREG(stat.st_mode)  ||
+	      S_ISSOCK(stat.st_mode) ||
+	      S_ISCHR(stat.st_mode)  ||
+	      S_ISBLK(stat.st_mode))) {
 		err = -EPERM;
 		goto err;
 	}
