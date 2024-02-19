@@ -71,7 +71,7 @@ includedir=$${prefix}/include
 Name: libenbox
 Description: Embedded sandboxing library
 Version: $(VERSION)
-Requires:
+Requires.private: libelog libutils libconfig
 Cflags: -I$${includedir}
 Libs: -L$${libdir} -lenbox
 endef
