@@ -1,4 +1,5 @@
 #include "common.h"
+#include <stroll/cdefs.h>
 #include <utils/path.h>
 #include <stdlib.h>
 
@@ -644,7 +645,10 @@ enbox_load_dir_entry(const config_setting_t * __restrict setting,
 
 	entry->dir.mode = (mode_t)-1;
 
-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
+	err = enbox_load_setting(setting,
+	                         entry,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err)
 		goto err;
 
@@ -710,7 +714,10 @@ enbox_load_slink_entry(const config_setting_t * __restrict setting,
 
 	entry->slink.target = NULL;
 
-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
+	err = enbox_load_setting(setting,
+	                         entry,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err)
 		goto err;
 
@@ -806,7 +813,10 @@ enbox_load_dev_entry(const config_setting_t * __restrict setting,
 	entry->dev.major = UINT_MAX;
 	entry->dev.minor = UINT_MAX;
 
-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
+	err = enbox_load_setting(setting,
+	                         entry,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err)
 		return err;
 
@@ -909,7 +919,10 @@ enbox_load_fifo_entry(const config_setting_t * __restrict setting,
 
 	entry->fifo.mode = (mode_t)-1;
 
-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
+	err = enbox_load_setting(setting,
+	                         entry,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err)
 		goto err;
 
@@ -1193,7 +1206,10 @@ enbox_load_file_entry(const config_setting_t * __restrict setting,
 	entry->bind.flags = ENBOX_BIND_FILE_FLAGS;
 	entry->bind.opts = NULL;
 
-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
+	err = enbox_load_setting(setting,
+	                         entry,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err)
 		goto err;
 
@@ -1263,7 +1279,10 @@ enbox_load_tree_entry(const config_setting_t * __restrict setting,
 	entry->bind.flags = ENBOX_BIND_TREE_FLAGS;
 	entry->bind.opts = NULL;
 
-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
+	err = enbox_load_setting(setting,
+	                         entry,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err)
 		goto err;
 
@@ -1350,7 +1369,10 @@ enbox_load_proc_entry(const config_setting_t * __restrict setting,
 	entry->mount.flags = ENBOX_MOUNT_PROC_FLAGS;
 	entry->mount.opts = ENBOX_MOUNT_PROC_OPTS;
 
-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
+	err = enbox_load_setting(setting,
+	                         entry,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err)
 		goto err;
 
@@ -1723,7 +1745,10 @@ enbox_do_load_jail(const config_setting_t * __restrict setting,
 	jail->fsset.nr = 0;
 	jail->fsset.entries = NULL;
 
-	err = enbox_load_setting(setting, jail, loaders, array_nr(loaders));
+	err = enbox_load_setting(setting,
+	                         jail,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err)
 		return err;
 
@@ -1828,7 +1853,10 @@ enbox_do_load_ids(const config_setting_t * __restrict setting,
 	ids->pwd = NULL;
 	ids->drop_supp = false;
 
-	err = enbox_load_setting(setting, ids, loaders, array_nr(loaders));
+	err = enbox_load_setting(setting,
+	                         ids,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err)
 		goto err;
 
@@ -2030,7 +2058,10 @@ enbox_do_load_cmd(const config_setting_t * __restrict setting,
 
 	cmd->umask = (mode_t)-1;
 
-	err = enbox_load_setting(setting, cmd, loaders, array_nr(loaders));
+	err = enbox_load_setting(setting,
+	                         cmd,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err)
 		return err;
 
@@ -2121,7 +2152,7 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 	root = config_root_setting(&conf->lib);
 	enbox_assert(root);
 
-	err = enbox_load_setting(root, conf, loaders, array_nr(loaders));
+	err = enbox_load_setting(root, conf, loaders, stroll_array_nr(loaders));
 	if (err)
 		goto err;
 

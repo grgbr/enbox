@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 #endif /* _GNU_SOURCE */
 
+#include <stroll/cdefs.h>
 #include <utils/pwd.h>
 #include <utils/file.h>
 #include <unistd.h>
@@ -1122,7 +1123,7 @@ main(void)
 	                            false,
 	                            "/tmp/jail",
 	                            sample_entries,
-	                            array_nr(sample_entries));
+	                            stroll_array_nr(sample_entries));
 
 	//execl("/bin/sh", "/bin/sh", "-c", CMD, NULL);
 	//execl("/bin/ls", "/bin/ls", "-al", "/", NULL);

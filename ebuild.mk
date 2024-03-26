@@ -8,7 +8,7 @@ libenbox.so-objs     = lib.o conf.o
 libenbox.so-cflags   = $(common-cflags) -DPIC -fpic
 libenbox.so-ldflags  = $(EXTRA_LDFLAGS) \
                        -shared -Bsymbolic -fpic -Wl,-soname,libenbox.so
-libenbox.so-pkgconf := libelog libutils libconfig
+libenbox.so-pkgconf := libelog libstroll libutils libconfig
 
 bins                 = enbox
 enbox-objs           = enbox.o
@@ -71,9 +71,9 @@ includedir=$${prefix}/include
 Name: libenbox
 Description: Embedded sandboxing library
 Version: $(VERSION)
-Requires.private: libelog libutils libconfig
+Requires.private: libelog libstroll libutils libconfig
 Cflags: -I$${includedir}
-Libs: -L$${libdir} -lenbox
+Libs: -L$${libdir} -Wl,--push-state,--as-needed -lenbox -Wl,--pop-state
 endef
 
 pkgconfigs          := libenbox.pc
