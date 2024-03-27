@@ -6,6 +6,7 @@
 #endif /* _GNU_SOURCE */
 
 #include "enbox/enbox.h"
+#include <stroll/cdefs.h>
 #include <elog/elog.h>
 #include <libconfig.h>
 #include <linux/sched.h>
@@ -83,7 +84,7 @@ extern const struct enbox_flag_desc enbox_namespace_descs[];
 
 extern int
 enbox_validate_mount_time_flags(unsigned long flags)
-	__const __nothrow __leaf __priv_visi;
+	__const __nothrow __leaf __export_intern;
 
 #define enbox_assert_jail(_jail) \
 	enbox_assert(_jail); \
@@ -152,21 +153,21 @@ enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
 #if defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL)
 	__enbox_nonull(1) __pure __nothrow __leaf;
 #else  /* !(defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL)) */
-	__enbox_nonull(1) __pure __nothrow __leaf __priv_visi;
+	__enbox_nonull(1) __pure __nothrow __leaf __export_intern;
 #endif /* defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL) */
 
 #define ENBOX_EXEC_ARGS_MAX (1024U)
 
 extern int
 enbox_validate_exec_arg(const char * __restrict arg)
-	__pure __nothrow __leaf __priv_visi;
+	__pure __nothrow __leaf __export_intern;
 
 #if defined(CONFIG_ENBOX_ASSERT)
 
 extern int
 enbox_validate_exec(const char * const exec[__restrict_arr])
 #if !defined(CONFIG_ENBOX_TOOL)
-	__enbox_nonull(1) __pure __nothrow __leaf __priv_visi;
+	__enbox_nonull(1) __pure __nothrow __leaf __export_intern;
 #else  /* defined(CONFIG_ENBOX_TOOL) */
 	__enbox_nonull(1) __pure __nothrow __leaf;
 #endif /* !defined(CONFIG_ENBOX_TOOL) */
