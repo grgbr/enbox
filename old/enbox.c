@@ -24,7 +24,7 @@
 #if defined(CONFIG_ENBOX_ASSERT)
 
 #define enbox_assert(_expr) \
-	uassert("enbox", _expr)
+	stroll_assert("enbox", _expr)
 
 #else /* !defined(CONFIG_ENBOX_ASSERT) */
 

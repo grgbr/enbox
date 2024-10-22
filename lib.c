@@ -262,7 +262,7 @@ enbox_make_node(const char * path, mode_t mode, dev_t dev, uid_t uid, gid_t gid)
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(!(mode & ~(S_IFCHR | S_IFBLK | DEFFILEMODE)));
 	enbox_assert(S_ISCHR(mode) ^ S_ISBLK(mode));
-	upath_assert((major(dev) > 0) || !(mode & (S_IFCHR | S_IFBLK)));
+	enbox_assert((major(dev) > 0) || !(mode & (S_IFCHR | S_IFBLK)));
 	enbox_assert(uid != ENBOX_KEEP_UID);
 	enbox_assert(gid != ENBOX_KEEP_GID);
 

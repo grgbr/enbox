@@ -116,12 +116,12 @@
  */
 #if defined(CONFIG_ENBOX_ASSERT)
 
-#include <utils/assert.h>
+#include <stroll/assert.h>
 
 #define __enbox_nonull(_arg_index, ...)
 
 #define enbox_assert(_expr) \
-	uassert("enbox", _expr)
+	stroll_assert("enbox", _expr)
 
 #define enbox_assert_setup() \
 	enbox_assert(enbox_uid != (uid_t)-1); \
