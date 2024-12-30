@@ -1025,7 +1025,7 @@ enbox_normalize_path(const char * __restrict path,
 
 	norm = malloc(len + 1);
 	if (!norm)
-		return -errno;
+		return -ENOMEM;
 
 	len = upath_normalize(path, len + 1, norm, len + 1);
 	if (len < 0) {
