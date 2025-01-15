@@ -126,7 +126,7 @@
 #define enbox_assert_setup() \
 	enbox_assert(enbox_uid != (uid_t)-1); \
 	enbox_assert(enbox_gid != (gid_t)-1); \
-	enbox_assert(!(enbox_umask & ~ALLPERMS))
+	enbox_assert(!(enbox_umask & ~((mode_t)ALLPERMS)))
 
 #else  /* !defined(CONFIG_ENBOX_ASSERT) */
 
