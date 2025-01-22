@@ -1817,8 +1817,6 @@ enbox_read_umask(void)
 int
 enbox_setup(struct elog * __restrict logger)
 {
-	enbox_assert(logger);
-
 	enbox_logger = logger;
 
 	enbox_uid = geteuid();

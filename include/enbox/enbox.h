@@ -1771,6 +1771,6 @@ struct elog;
  */
 extern int
 enbox_setup(struct elog * __restrict logger)
-	__enbox_nonull(1) __nothrow;
+	__nothrow;
 
 #endif /* _ENBOX_H */

@@ -107,12 +107,18 @@ enbox_validate_mount_time_flags(unsigned long flags)
 extern struct elog * enbox_logger;
 
 #define enbox_err(_format, ...) \
-	elog_err(enbox_logger, _format ".", ## __VA_ARGS__)
+	do { \
+		if (enbox_logger) \
+			elog_err(enbox_logger, _format ".", ## __VA_ARGS__); \
+	} while (0)
 
 #if defined(CONFIG_ENBOX_VERBOSE)
 
 #define enbox_info(_format, ...) \
-	elog_info(enbox_logger, _format ".", ## __VA_ARGS__)
+	do { \
+		if (enbox_logger) \
+			elog_info(enbox_logger, _format ".", ## __VA_ARGS__); \
+	} while (0)
 
 #else /* !defined(CONFIG_ENBOX_VERBOSE) */
 

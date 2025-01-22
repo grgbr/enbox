@@ -40,15 +40,33 @@
 	 })
 
 #define enbox_conf_err(_setting, _format, ...) \
-	enbox_conf_log(_setting, ELOG_ERR_SEVERITY, _format, ## __VA_ARGS__)
+	do { \
+		if (enbox_logger) \
+			enbox_conf_log(_setting, \
+			               ELOG_ERR_SEVERITY, \
+			               _format, \
+			               ## __VA_ARGS__); \
+	} while (0)
 
 #if defined(CONFIG_ENBOX_VERBOSE)
 
 #define enbox_conf_warn(_setting, _format, ...) \
-	enbox_conf_log(_setting, ELOG_ERR_SEVERITY, _format, ## __VA_ARGS__)
+	do { \
+		if (enbox_logger) \
+			enbox_conf_log(_setting, \
+			               ELOG_WARNING_SEVERITY, \
+			               _format, \
+			               ## __VA_ARGS__); \
+	} while (0)
 
 #define enbox_conf_info(_setting, _format, ...) \
-	enbox_conf_log(_setting, ELOG_INFO_SEVERITY, _format, ## __VA_ARGS__)
+	do { \
+		if (enbox_logger) \
+			enbox_conf_log(_setting, \
+			               ELOG_INFO_SEVERITY, \
+			               _format, \
+			               ## __VA_ARGS__); \
+	} while (0)
 
 #else /* !defined(CONFIG_ENBOX_VERBOSE) */
 
