@@ -1757,11 +1757,15 @@ struct elog;
  *
  * May alter calling process *dumpable* attribute according to
  * #CONFIG_ENBOX_DISABLE_DUMP build option.
+ * 
+ * When @p logger is passed as a `NULL` pointer, Enbox disables the logging of
+ * all diagnostic messages.
+ *
  *
  * @warning
  * MUST be called prior to every other Enbox library function calls.
  *
- * @param[inout] logger an initialized Elog logger instance.
+ * @param[inout] logger an optional initialized Elog logger instance.
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
