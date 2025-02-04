@@ -19,7 +19,7 @@ gid_t         enbox_gid = (gid_t)-1;
  * Raw API
  ******************************************************************************/
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_chown(const char * path, uid_t uid, gid_t gid)
 {
 	enbox_assert_setup();
@@ -40,7 +40,7 @@ enbox_chown(const char * path, uid_t uid, gid_t gid)
 	return err;
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_chmod(const char * path, mode_t mode)
 {
 	enbox_assert_setup();
@@ -255,7 +255,7 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_make_node(const char * path, mode_t mode, dev_t dev, uid_t uid, gid_t gid)
 {
 	enbox_assert_setup();
@@ -524,190 +524,11 @@ err:
 	return -err;
 }
 
-/*
- * Require the CAP_SETUID capability.
- */
-static int __nothrow __warn_result
-enbox_change_uid(uid_t uid)
-{
-	if (!setresuid(uid, uid, uid))
-		return 0;
-
-	return -errno;
-}
-
-/*
- * Require the CAP_SETGID capability.
- */
-static int __nothrow __warn_result
-enbox_change_gid(gid_t gid)
-{
-	if (!setresgid(gid, gid, gid))
-		return 0;
-
-	return -errno;
-}
-
-/*
- * Require the CAP_SETGID capability.
- */
-static int __nothrow
-enbox_drop_supp_groups(void)
-{
-	if (!setgroups(0, NULL))
-		return 0;
-
-	enbox_assert(errno != EFAULT);
-	enbox_assert(errno != EINVAL);
-
-	return -errno;
-}
-
-/*
- * Require the CAP_SETGID capability.
- */
-static int __enbox_nonull(1)
-enbox_raise_supp_groups(const char * user, gid_t gid)
-{
-	enbox_assert(upwd_validate_user_name(user) > 0);
-
-	if (!initgroups(user, gid))
-		return 0;
-
-	return -errno;
-}
-
-int
-enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
-{
-	enbox_assert(pwd);
-
-	int err;
-
-	if ((pwd->pw_uid == (uid_t)-1) || (pwd->pw_gid == (gid_t)-1))
-		return -ERANGE;
-
-	if (!pwd->pw_name)
-		return -EINVAL;
-
-	err = upwd_validate_user_name(pwd->pw_name);
-	if (err < 0)
-		return err;
-
-	if (!allow_root) {
-		if (!strcmp(pwd->pw_name, "root") ||
-		    !pwd->pw_uid ||
-		    !pwd->pw_gid)
-			return -EPERM;
-	}
-
-	return 0;
-}
-
-static int __enbox_nonull(1) __nothrow
-enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
-{
-	enbox_assert(!enbox_validate_pwd(pwd, false));
-
-	int err;
-
-	err = enbox_change_gid(pwd->pw_gid);
-	if (err) {
-		enbox_info("cannot switch to GID %hu(%s): %s (%d)",
-		           pwd->pw_gid,
-		           enbox_get_group_name(pwd->pw_gid),
-		           strerror(-err),
-		           -err);
-		return err;
-	}
-
-	enbox_gid = pwd->pw_gid;
-
-	if (drop_supp)
-		err = enbox_drop_supp_groups();
-	else
-		err = enbox_raise_supp_groups(pwd->pw_name, pwd->pw_gid);
-	if (err) {
-		enbox_info("cannot setup %d(%s) users's supplementary groups: "
-		           "%s (%d)",
-		           pwd->pw_uid,
-		           pwd->pw_name,
-		           strerror(-err),
-		           -err);
-		return err;
-	}
-
-	err = enbox_change_uid(pwd->pw_uid);
-	if (err) {
-		enbox_info("cannot switch to UID %d(%s): %s (%d)",
-		           pwd->pw_uid,
-		           pwd->pw_name,
-		           strerror(-err),
-		           -err);
-		return err;
-	}
-
-	enbox_uid = pwd->pw_uid;
-
-	return 0;
-}
-
-int
-enbox_change_ids(const char * __restrict user, bool drop_supp)
-{
-	enbox_assert_setup();
-	enbox_assert(upwd_validate_user_name(user) > 0);
-
-	const struct passwd * pwd;
-	int                   err;
-
-	pwd = upwd_get_user_byname(user);
-	if (!pwd || enbox_validate_pwd(pwd, false)) {
-		err = -errno;
-		enbox_info("invalid '%s' user name: %s (%d)",
-		           user,
-		           strerror(errno),
-		           errno);
-		goto err;
-	}
-
-	err = enbox_switch_ids(pwd, drop_supp);
-	if (err)
-		goto err;
-
-	return 0;
-
-err:
-	enbox_info("cannot change to '%s' user / groups IDs: %s (%d)",
-	           user,
-	           strerror(-err),
-	           -err);
-
-	return err;
-}
-
-int
-enbox_setup_dump(bool on)
-{
-	enbox_assert_setup();
-
-	if (prctl(PR_SET_DUMPABLE, (int)on, 0, 0, 0)) {
-		int err = errno;
-
-		enbox_info("cannot setup dumpable attribute: %s (%d)",
-		           strerror(err),
-		           err);
-		return -err;
-	}
-
-	return 0;
-}
-
 /******************************************************************************
  * High-level API
  ******************************************************************************/
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_make_dir_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_make_dir(ent->path,
@@ -716,7 +537,7 @@ enbox_make_dir_entry(const struct enbox_entry * __restrict ent)
 	                      ent->dir.mode);
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_make_slink_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_make_slink(ent->path,
@@ -725,7 +546,7 @@ enbox_make_slink_entry(const struct enbox_entry * __restrict ent)
 	                        ent->gid);
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_make_chrdev_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_make_chrdev(ent->path,
@@ -736,7 +557,7 @@ enbox_make_chrdev_entry(const struct enbox_entry * __restrict ent)
 	                         ent->dev.minor);
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_make_blkdev_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_make_blkdev(ent->path,
@@ -747,7 +568,7 @@ enbox_make_blkdev_entry(const struct enbox_entry * __restrict ent)
 	                         ent->dev.minor);
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_make_fifo_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_make_fifo(ent->path,
@@ -759,7 +580,7 @@ enbox_make_fifo_entry(const struct enbox_entry * __restrict ent)
 typedef int  (enbox_make_entry_fn)(const struct enbox_entry * __restrict entry)
 	__enbox_nonull(1);
 
-static int __enbox_nonull(1, 3) __nothrow
+static int __enbox_nonull(1, 3) __enbox_nothrow
 enbox_make_entries(const struct enbox_entry    entries[__restrict_arr],
                    unsigned int                nr,
                    enbox_make_entry_fn * const makers[__restrict_arr])
@@ -811,7 +632,7 @@ enbox_populate_host(const struct enbox_fsset * __restrict fsset)
 	return 0;
 }
 
-static int __nothrow
+static int __enbox_nothrow
 enbox_unshare(int flags)
 {
 	enbox_assert(flags);
@@ -866,7 +687,7 @@ enbox_validate_mount_time_flags(unsigned long flags)
 #define enbox_assert_mount_time_flags(_flags) \
 	enbox_assert(!enbox_validate_mount_time_flags(_flags))
 
-static int __nothrow
+static int __enbox_nothrow
 enbox_mount(const char *  source,
             const char *  target,
             const char *  fstype,
@@ -884,7 +705,7 @@ enbox_mount(const char *  source,
 	return -errno;
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_umount(const char * path, int flags)
 {
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -902,7 +723,7 @@ enbox_umount(const char * path, int flags)
 	return -errno;
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_remount(const char * __restrict path,
               unsigned long           flags,
               const char * __restrict data)
@@ -925,7 +746,7 @@ enbox_remount(const char * __restrict path,
 	return enbox_mount(NULL, path, NULL, MS_REMOUNT | flags, data);
 }
 
-static int __enbox_nonull(1, 2) __nothrow
+static int __enbox_nonull(1, 2) __enbox_nothrow
 enbox_bind_mount(const char * __restrict source, const char * __restrict target)
 {
 	enbox_assert(upath_validate_path_name(source) > 0);
@@ -960,7 +781,7 @@ enbox_bind_mount(const char * __restrict source, const char * __restrict target)
 /*
  * Must be called as root from within an empty jail creation context only.
  */
-static int __nothrow
+static int __enbox_nothrow
 enbox_mount_proc(unsigned long           flags,
                  const char * __restrict opts)
 {
@@ -1004,7 +825,7 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_mount_proc_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_mount_proc(ent->mount.flags, ent->mount.opts);
@@ -1081,7 +902,7 @@ free:
 /*
  * Must be called as root from within an empty jail creation context only.
  */
-static int __enbox_nonull(1, 2) __nothrow
+static int __enbox_nonull(1, 2) __enbox_nothrow
 enbox_bind_tree(const char * __restrict path,
                 const char * __restrict orig,
                 int                     flags,
@@ -1146,7 +967,7 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_bind_tree_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_bind_tree(ent->path,
@@ -1158,7 +979,7 @@ enbox_bind_tree_entry(const struct enbox_entry * __restrict ent)
 /*
  * Must be called as root from within an empty jail creation context only.
  */
-static int __enbox_nonull(1, 2) __nothrow
+static int __enbox_nonull(1, 2) __enbox_nothrow
 enbox_bind_file(const char * __restrict path,
                 const char * __restrict orig,
                 int                     flags,
@@ -1228,7 +1049,7 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_bind_file_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_bind_file(ent->path,
@@ -1237,7 +1058,7 @@ enbox_bind_file_entry(const struct enbox_entry * __restrict ent)
 	                       ent->bind.opts);
 }
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_populate_jail(const struct enbox_entry entries[__restrict_arr],
                     unsigned int             nr)
 {
@@ -1263,7 +1084,7 @@ enbox_populate_jail(const struct enbox_entry entries[__restrict_arr],
 	 1 + sizeof("gid=") - 1 + 5 + \
 	 1 + sizeof("nr_inodes=") - 1 + 10)
 
-static int __enbox_nonull(1) __nothrow
+static int __enbox_nonull(1) __enbox_nothrow
 enbox_init_jail_root(const char * __restrict path,
                      gid_t                   gid,
                      unsigned int            inodes_nr,
@@ -1342,7 +1163,7 @@ enbox_seal_jail_root(const char * __restrict path,
 	return 0;
 }
 
-static int __enbox_nonull(1, 3) __nothrow
+static int __enbox_nonull(1, 3) __enbox_nothrow
 enbox_setup_jail(const char * __restrict  path,
                  gid_t                    gid,
                  const struct enbox_entry entries[__restrict_arr],
@@ -1390,7 +1211,7 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1, 2) __nothrow
+static int __enbox_nonull(1, 2) __enbox_nothrow
 enbox_pivot_root(const char * __restrict new_root,
                  const char * __restrict old_root)
 {
@@ -1526,7 +1347,7 @@ enbox_chroot_jail(void)
 	return 0;
 }
 
-static int __enbox_nonull(3, 4) __nothrow
+static int __enbox_nonull(3, 4) __enbox_nothrow
 enbox_enter_jail_bypwd(int                              namespaces,
                        gid_t                            gid,
                        const char * __restrict          path,
@@ -1814,7 +1635,93 @@ enbox_read_umask(void)
 	return msk;
 }
 
-int
+/**
+ * @internal
+ *
+ * Enable process *dumpable* attribute.
+ *
+ * @see enbox_setup_dump()
+ *
+ * @ingroup utils
+ */
+#define ENBOX_ENABLE_DUMP  (1)
+
+/**
+ * @internal
+ *
+ * Disable process *dumpable* attribute.
+ *
+ * @see enbox_setup_dump()
+ *
+ * @ingroup utils
+ */
+#define ENBOX_DISABLE_DUMP (0)
+
+/**
+ * @internal
+ *
+ * Setup current process *dumpable* attribute.
+ *
+ * Enable or disable generation of coredumps for current process.
+ * In addition, attaching to the process via [ptrace(2)] PTRACE_ATTACH is
+ * restricted according to multiple logics introduced below.
+ *
+ * As stated into section «PR_SET_DUMPABLE» of [prctl(2)], the *dumpable*
+ * attribute is normally set to 1. However, it is reset to the current value
+ * contained in the file `/proc/sys/fs/suid_dumpable` (which defaults to value
+ * 0), in the following circumstances:
+ * - current process EUID or EGID is changed ;
+ * - current process FSUID or FSGID is changed ;
+ * - current process [execve(2)] a SUID / SGID program incurring a EUID / EGID
+ *   change ;
+ * - current process [execve(2)] a program that has file capabilities exceeding
+ *   those already permitted.
+ * The `/proc/sys/fs/suid_dumpable` file is documented into [proc(5)].
+ *
+ *
+ * As stated in [ptrace(2)], Linux kernel performs so-called "ptrace access
+ * mode" checks whose outcome determines whether [ptrace(2)] operations are
+ * permitted in addition to `CAP_SYS_PTRACE` capability and Linux Security
+ * Module ptrace access checks.
+ * See section «Ptrace access mode checking» of [ptrace(2)] for more
+ * informations.
+ *
+ * Finally, the [Yama] Linux Security Module may further restrict [ptrace(2)]
+ * operations thanks to the runtime controllable sysctl `/proc/sys/kernel/yama`.
+ * See «PR_SET_PTRACER» section in [prctl(2)] and [Yama] section in
+ * [The Linux kernel user’s and administrator’s guide].
+ *
+ * @param[in] on Enable coredumps generation if `true`, disable it otherwise.
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - #ENBOX_ENABLE_DUMP
+ * - #ENBOX_DISABLE_DUMP
+ * - enbox_setup()
+ *
+ * @ingroup utils
+ *
+ * [The Linux kernel user’s and administrator’s guide]: https://www.kernel.org/doc/html/latest/admin-guide/index.html
+ * [Yama]:                                              https://www.kernel.org/doc/html/latest/admin-guide/LSM/Yama.html
+ * [execve(2)]:                                         https://man7.org/linux/man-pages/man2/execve.2.html
+ * [prctl(2)]:                                          https://man7.org/linux/man-pages/man2/prctl.2.html
+ * [proc(5)]:                                           https://man7.org/linux/man-pages/man5/proc.5.html
+ * [ptrace(2)]:                                         https://man7.org/linux/man-pages/man2/ptrace.2.html
+ */
+static __enbox_nothrow
+void
+enbox_setup_dump(bool on)
+{
+	enbox_assert_setup();
+
+	int err __unused;
+
+	err = prctl(PR_SET_DUMPABLE, (int)on, 0, 0, 0);
+	enbox_assert(!err);
+}
+
+void
 enbox_setup(struct elog * __restrict logger)
 {
 	enbox_logger = logger;
@@ -1824,8 +1731,6 @@ enbox_setup(struct elog * __restrict logger)
 	enbox_umask = enbox_read_umask();
 
 #if defined(CONFIG_ENBOX_DISABLE_DUMP)
-	return enbox_setup_dump(ENBOX_DISABLE_DUMP);
-#else  /* ! defined(CONFIG_ENBOX_DISABLE_DUMP) */
-	return 0;
+	enbox_setup_dump(ENBOX_DISABLE_DUMP);
 #endif /* defined(CONFIG_ENBOX_DISABLE_DUMP) */
 }

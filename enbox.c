@@ -697,8 +697,7 @@ main(int argc, char * const argv[])
 	}
 
 	elog_init_stdio(&stdlog, &stdlog_conf);
-	if (enbox_setup((struct elog *)&stdlog))
-		goto out;
+	enbox_setup((struct elog *)&stdlog);
 
 	conf = enbox_create_conf_from_file(argv[optind]);
 	if (!conf)

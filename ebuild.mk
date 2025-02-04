@@ -4,7 +4,7 @@ config-h            := enbox/config.h
 common-cflags       := -Wall -Wextra -Wformat=2 $(EXTRA_CFLAGS)
 
 solibs              := libenbox.so
-libenbox.so-objs     = lib.o conf.o
+libenbox.so-objs     = lib.o priv.o conf.o
 libenbox.so-cflags   = $(common-cflags) -DPIC -fpic
 libenbox.so-ldflags  = $(EXTRA_LDFLAGS) \
                        -shared -Bsymbolic -fpic -Wl,-soname,libenbox.so

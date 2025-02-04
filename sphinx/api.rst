@@ -201,7 +201,6 @@ mentioned above. These are :
 
    * Processes :
      
-      * :c:func:`enbox_setup_dump`,
       * :c:func:`enbox_get_umask`,
       * :c:func:`enbox_set_umask`,
 
@@ -210,12 +209,15 @@ mentioned above. These are :
       * :c:func:`enbox_change_ids`,
       * :c:func:`enbox_get_uid`,
       * :c:func:`enbox_get_gid`,
+      * :c:func:`enbox_secure_change_ids`,
+      * :c:func:`enbox_switch_ids`,
         
    * Capabilities :
      
-      * :c:func:`enbox_clear_ambient_caps`
-      * :c:func:`enbox_clear_bounding_caps`
-      * :c:func:`enbox_lock_caps`
+      * :c:func:`enbox_clear_amb_caps`,
+      * :c:func:`enbox_clear_bound_caps`,
+      * :c:func:`enbox_clear_epi_caps`,
+      * :c:func:`enbox_lock_caps`,
         
    * Filesystem :
      
@@ -375,15 +377,20 @@ enbox_change_perms()
 
 .. doxygenfunction:: enbox_change_perms
 
-enbox_clear_ambient_caps()
-**************************
+enbox_clear_amb_caps()
+**********************
 
-.. doxygenfunction:: enbox_clear_ambient_caps
+.. doxygenfunction:: enbox_clear_amb_caps
 
-enbox_clear_bounding_caps()
-***************************
+enbox_clear_bound_caps()
+************************
 
-.. doxygenfunction:: enbox_clear_bounding_caps
+.. doxygenfunction:: enbox_clear_bound_caps
+
+enbox_clear_epi_caps()
+************************
+
+.. doxygenfunction:: enbox_clear_epi_caps
 
 enbox_create_conf_from_file()
 *****************************
@@ -479,8 +486,3 @@ enbox_setup()
 *************
 
 .. doxygenfunction:: enbox_setup
-
-enbox_setup_dump()
-******************
-
-.. doxygenfunction:: enbox_setup_dump

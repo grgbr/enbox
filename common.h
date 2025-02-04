@@ -157,9 +157,13 @@ enbox_get_group_name(gid_t gid)
 extern int
 enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
 #if defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL)
-	__enbox_nonull(1) __pure __nothrow __leaf;
+	__enbox_nonull(1) __enbox_pure __enbox_nothrow __leaf __warn_result;
 #else  /* !(defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL)) */
-	__enbox_nonull(1) __pure __nothrow __leaf __export_intern;
+	__enbox_nonull(1) \
+	__enbox_pure \
+	__enbox_nothrow \
+	__leaf __warn_result \
+	__export_intern;
 #endif /* defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL) */
 
 #define ENBOX_EXEC_ARGS_MAX (1024U)

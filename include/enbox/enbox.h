@@ -118,8 +118,6 @@
 
 #include <stroll/assert.h>
 
-#define __enbox_nonull(_arg_index, ...)
-
 #define enbox_assert(_expr) \
 	stroll_assert("enbox", _expr)
 
@@ -128,10 +126,17 @@
 	enbox_assert(enbox_gid != (gid_t)-1); \
 	enbox_assert(!(enbox_umask & ~((mode_t)ALLPERMS)))
 
+#define __enbox_nonull(_arg_index, ...)
+#define __enbox_const
+#define __enbox_pure
+#define __enbox_nothrow
+
 #else  /* !defined(CONFIG_ENBOX_ASSERT) */
 
-#define __enbox_nonull(_arg_index, ...) \
-	__nonull(_arg_index, ## __VA_ARGS__)
+#define __enbox_nonull(_arg_index, ...) __nonull(_arg_index, ## __VA_ARGS__)
+#define __enbox_const                   __const
+#define __enbox_pure                    __pure
+#define __enbox_nothrow                 __nothrow
 
 #define enbox_assert(_expr)
 
@@ -205,7 +210,7 @@ extern gid_t enbox_gid;
  *
  * @ingroup utils
  */
-static inline mode_t __nothrow __pure
+static inline mode_t __enbox_pure __enbox_nothrow
 enbox_get_umask(void)
 {
 	enbox_assert_setup();
@@ -224,7 +229,7 @@ enbox_get_umask(void)
  *
  * @ingroup utils
  */
-static inline mode_t __nothrow
+static inline mode_t __enbox_nothrow
 enbox_set_umask(mode_t mask)
 {
 	enbox_assert_setup();
@@ -251,7 +256,7 @@ enbox_set_umask(mode_t mask)
  *
  * @ingroup utils
  */
-static inline uid_t __nothrow __pure
+static inline uid_t __enbox_pure __enbox_nothrow
 enbox_get_uid(void)
 {
 	enbox_assert_setup();
@@ -271,7 +276,7 @@ enbox_get_uid(void)
  *
  * @ingroup utils
  */
-static inline gid_t __nothrow __pure
+static inline gid_t __enbox_pure __enbox_nothrow
 enbox_get_gid(void)
 {
 	enbox_assert_setup();
@@ -342,7 +347,7 @@ enbox_get_gid(void)
  */
 extern int
 enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
-	__enbox_nonull(1) __nothrow;
+	__enbox_nonull(1) __enbox_nothrow;
 
 /**
  * Ensure a filesystem directory is properly created.
@@ -382,7 +387,7 @@ enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
  */
 extern int
 enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
-	__enbox_nonull(1) __nothrow;
+	__enbox_nonull(1) __enbox_nothrow;
 
 /**
  * Ensure a filesystem symbolic link is properly created.
@@ -429,7 +434,7 @@ enbox_make_slink(const char * __restrict path,
                  const char * __restrict target,
                  uid_t                   uid,
                  gid_t                   gid)
-	__enbox_nonull(1, 2) __nothrow;
+	__enbox_nonull(1, 2) __enbox_nothrow;
 
 /**
  * Ensure a filesystem character devide node is properly created.
@@ -483,7 +488,7 @@ enbox_make_chrdev(const char * path,
                   mode_t       mode,
                   unsigned int major,
                   unsigned int minor)
-	__enbox_nonull(1) __nothrow;
+	__enbox_nonull(1) __enbox_nothrow;
 
 /**
  * Ensure a filesystem block devide node is properly created.
@@ -537,7 +542,7 @@ enbox_make_blkdev(const char * path,
                   mode_t       mode,
                   unsigned int major,
                   unsigned int minor)
-	__enbox_nonull(1) __nothrow;
+	__enbox_nonull(1) __enbox_nothrow;
 
 /**
  * Ensure a filesystem named pipe is properly created.
@@ -582,7 +587,28 @@ enbox_make_blkdev(const char * path,
  */
 extern int
 enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
-	__enbox_nonull(1) __nothrow;
+	__enbox_nonull(1) __enbox_nothrow;
+
+/**
+ * Clear effective, permitted and inheritable capability sets.
+ *
+ * Remove all capabilities from current thread's effective, permitted and
+ * inheritable sets.
+ *
+ * For more informations about Linux capability sets, refer to section `Thread
+ * capability sets` of [capabilities(7)].
+ *
+ * No particular privileges is required to perform this operation.
+ *
+ * @see
+ * - sections `Thread capability sets` of [capabilities(7)]
+ * - [capget(2)]
+ *
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * [capget(2)]:       https://man7.org/linux/man-pages/man2/capset.2.html
+ */
+extern int
+enbox_clear_epi_caps(void) __enbox_nothrow;
 
 /**
  * Clear ambient capability set.
@@ -592,19 +618,21 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
  * For more informations about Linux capability sets, refer to section `Thread
  * capability sets` of [capabilities(7)].
  *
- * @warning Requires CAP_SETPCAP capability.
- *
- * @return 0 if successful, an errno-like error code otherwise.
+ * No particular privileges is required to perform this operation.
  *
  * @see
- * - sections `Thread capability sets` and `CAP_SETPCAP` of [capabilities(7)]
+ * - sections `Thread capability sets` of [capabilities(7)]
  * - section `PR_CAP_AMBIENT_CLEAR_ALL` of [prctl(2)]
+ * - [PR_CAP_AMBIENT_CLEAR_ALL(2const)]
+ * - [PR_CAP_AMBIENT(2const)]
  *
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [prctl(2)]:        https://man7.org/linux/man-pages/man2/prctl.2.html
+ * [capabilities(7)]:                  https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * [prctl(2)]:                         https://man7.org/linux/man-pages/man2/prctl.2.html
+ * [PR_CAP_AMBIENT_CLEAR_ALL(2const)]: https://man7.org/linux/man-pages/man2/PR_CAP_AMBIENT_CLEAR_ALL.2const.html
+ * [PR_CAP_AMBIENT(2const)]:           https://man7.org/linux/man-pages/man2/PR_CAP_AMBIENT.2const.html
  */
-extern int
-enbox_clear_ambient_caps(void) __nothrow;
+extern void
+enbox_clear_amb_caps(void) __enbox_nothrow;
 
 /**
  * Clear bounding capability set.
@@ -621,14 +649,17 @@ enbox_clear_ambient_caps(void) __nothrow;
  * @see
  * - sections `Thread capability sets` and `CAP_SETPCAP` of [capabilities(7)]
  * - section `PR_CAPBSET_DROP` of [prctl(2)]
+ * - [PR_CAPBSET_DROP(2const)]
  *
  * @ingroup utils
  *
  * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  * [prctl(2)]:        https://man7.org/linux/man-pages/man2/prctl.2.html
+ * [PR_CAPBSET_DROP(2const)]: https://man7.org/linux/man-pages/man2/pr_capbset_drop.2const.html
  */
 extern int
-enbox_clear_bounding_caps(void) __nothrow;
+enbox_clear_bound_caps(void)
+	__enbox_nothrow __warn_result;
 
 /**
  * Lock capability sets.
@@ -663,12 +694,14 @@ enbox_clear_bounding_caps(void) __nothrow;
  * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  */
 extern int
-enbox_lock_caps(void) __nothrow;
+enbox_lock_caps(void) __enbox_nothrow;
 
 /**
  * Request to setup current process's list of supplementary group IDs.
  *
- * @see enbox_change_ids()
+ * @see
+ * - enbox_change_ids()
+ * - enbox_switch_ids()
  *
  * @ingroup utils
  */
@@ -677,7 +710,9 @@ enbox_lock_caps(void) __nothrow;
 /**
  * Request to clear current process's list of supplementary group IDs.
  *
- * @see enbox_change_ids()
+ * @see
+ * - enbox_change_ids()
+ * - enbox_switch_ids()
  *
  * @ingroup utils
  */
@@ -687,22 +722,22 @@ enbox_lock_caps(void) __nothrow;
  * Switch to user / group IDs.
  *
  * Change current process's real, effective and saved user ID to UID matching
- * @p user user name passed in argument.
+ * @p pwd_entry entry passed in argument. This pointer may be retrieved using
+ * one of the system primitives documented into getpwent(2).
  *
  * In addition, change current process's real, effective and saved group ID to
- * primary GID of @p user.
- *
- * Finally, setup current process's list of supplementary group IDs according
- * to the following :
+ * primary GID of @p user and setup current process's list of supplementary
+ * group IDs according to the following :
  * - when @p drop_supp argument equals #ENBOX_RAISE_SUPP_GROUPS, setup
  *   supplementary group IDs from system group database in addition to primary
  *   group ID,
  * - when @p drop_supp argument equals #ENBOX_DROP_SUPP_GROUPS, clear
  *   supplementary group list.
  *
- * @warning Requires CAP_SETUID capability.
+ * @warning
+ * Requires the ability to enable the CAP_SETUID and CAP_SETUID capabilities.
  *
- * @param[in] user      Name of user which UID to change to
+ * @param[in] pwd_entry A password file entry pointer to the user to change to
  * @param[in] drop_supp Load or clear supplementary groups list (see
  *                      #ENBOX_RAISE_SUPP_GROUPS and #ENBOX_DROP_SUPP_GROUPS)
  *
@@ -711,89 +746,146 @@ enbox_lock_caps(void) __nothrow;
  * @see
  * - #ENBOX_RAISE_SUPP_GROUPS
  * - #ENBOX_DROP_SUPP_GROUPS
+ * - enbox_change_ids()
+ * - [getpwent(2)]
  * - [setresuid(2)]
  * - [initgroups(3)]
  * - [setgroups(2)]
+ * - [capabilities(7)]
  *
  * @ingroup utils
  *
- * [setresuid(2)]:  https://man7.org/linux/man-pages/man2/setresuid.2.html
- * [initgroups(3)]: https://man7.org/linux/man-pages/man3/initgroups.3.html
- * [setgroups(2)]:  https://man7.org/linux/man-pages/man2/setgroups.2.html
+ * [getpwent(2)]:     https://man7.org/linux/man-pages/man2/getpwent.2.html
+ * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
+ * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
+ * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
  */
 extern int
-enbox_change_ids(const char * __restrict user, bool drop_supp)
-	__enbox_nonull(1);
+enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
+	__enbox_nonull(1) __enbox_nothrow __leaf __warn_result;
 
 /**
- * Enable process *dumpable* attribute.
+ * Switch to user / group IDs and setup capabilities.
  *
- * @see enbox_setup_dump()
+ * Change current process's real, effective and saved user ID to UID matching
+ * @p pwd_entry entry passed in argument. This pointer may be retrieved using
+ * one of the system primitives documented into getpwent(2).
  *
- * @ingroup utils
- */
-#define ENBOX_ENABLE_DUMP  (1)
-/**
- * Disable process *dumpable* attribute.
+ * In addition, change current process's real, effective and saved group ID to
+ * primary GID of @p user and setup current process's list of supplementary
+ * group IDs according to the following :
+ * - when @p drop_supp argument equals #ENBOX_RAISE_SUPP_GROUPS, setup
+ *   supplementary group IDs from system group database in addition to primary
+ *   group ID,
+ * - when @p drop_supp argument equals #ENBOX_DROP_SUPP_GROUPS, clear
+ *   supplementary group list.
  *
- * @see enbox_setup_dump()
+ * Finally, after return from this function, current thread permitted and
+ * effective capability sets reflect the mask given by @p kept_caps.
+ * Securebits are also modified and locked to the following value:
+ * `SECBIT_NOROOT | SECBIT_NOROOT_LOCKED |
+ *  SECBIT_NO_SETUID_FIXUP_LOCKED |
+ *  SECBIT_KEEP_CAPS_LOCKED |
+ *  SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED`.
  *
- * @ingroup utils
- */
-#define ENBOX_DISABLE_DUMP (0)
-
-/**
- * Setup current process *dumpable* attribute.
+ * @warning
+ * Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
+ * capabilities.
  *
- * Enable or disable generation of coredumps for current process.
- * In addition, attaching to the process via [ptrace(2)] PTRACE_ATTACH is
- * restricted according to multiple logics introduced below.
- *
- * As stated into section «PR_SET_DUMPABLE» of [prctl(2)], the *dumpable*
- * attribute is normally set to 1. However, it is reset to the current value
- * contained in the file `/proc/sys/fs/suid_dumpable` (which defaults to value
- * 0), in the following circumstances:
- * - current process EUID or EGID is changed ;
- * - current process FSUID or FSGID is changed ;
- * - current process [execve(2)] a SUID / SGID program incurring a EUID / EGID
- *   change ;
- * - current process [execve(2)] a program that has file capabilities exceeding
- *   those already permitted.
- * The `/proc/sys/fs/suid_dumpable` file is documented into [proc(5)].
- *
- *
- * As stated in [ptrace(2)], Linux kernel performs so-called "ptrace access
- * mode" checks whose outcome determines whether [ptrace(2)] operations are
- * permitted in addition to `CAP_SYS_PTRACE` capability and Linux Security
- * Module ptrace access checks.
- * See section «Ptrace access mode checking» of [ptrace(2)] for more
- * informations.
- *
- * Finally, the [Yama] Linux Security Module may further restrict [ptrace(2)]
- * operations thanks to the runtime controllable sysctl `/proc/sys/kernel/yama`.
- * See «PR_SET_PTRACER» section in [prctl(2)] and [Yama] section in
- * [The Linux kernel user’s and administrator’s guide].
- *
- * @param[in] on Enable coredumps generation if `true`, disable it otherwise.
+ * @param[in] pwd_entry A password file entry pointer to the user to change to
+ * @param[in] kept_caps Mask of capabilities to keep in the permitted and
+ *                      effective sets after the change operation
+ * @param[in] drop_supp Load or clear supplementary groups list (see
+ *                      #ENBOX_RAISE_SUPP_GROUPS and #ENBOX_DROP_SUPP_GROUPS)
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
- * - #ENBOX_ENABLE_DUMP
- * - #ENBOX_DISABLE_DUMP
- * - enbox_setup()
+ * - #ENBOX_RAISE_SUPP_GROUPS
+ * - #ENBOX_DROP_SUPP_GROUPS
+ * - enbox_switch_ids()
+ * - [getpwent(2)]
+ * - [setresuid(2)]
+ * - [initgroups(3)]
+ * - [setgroups(2)]
+ * - [capabilities(7)]
  *
  * @ingroup utils
  *
- * [The Linux kernel user’s and administrator’s guide]: https://www.kernel.org/doc/html/latest/admin-guide/index.html
- * [Yama]:                                              https://www.kernel.org/doc/html/latest/admin-guide/LSM/Yama.html
- * [execve(2)]:                                         https://man7.org/linux/man-pages/man2/execve.2.html
- * [prctl(2)]:                                          https://man7.org/linux/man-pages/man2/prctl.2.html
- * [proc(5)]:                                           https://man7.org/linux/man-pages/man5/proc.5.html
- * [ptrace(2)]:                                         https://man7.org/linux/man-pages/man2/ptrace.2.html
+ * [getpwent(2)]:     https://man7.org/linux/man-pages/man2/getpwent.2.html
+ * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
+ * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
+ * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
  */
 extern int
-enbox_setup_dump(bool on) __nothrow;
+enbox_change_ids(const struct passwd * __restrict pwd_entry,
+                 bool                             drop_supp,
+                 uint64_t                         kept_caps)
+	__enbox_nonull(1) __warn_result;
+
+/**
+ * Prepare system privilege runtime for later change IDs operation.
+ *
+ * Prepare the current thread's system privileges context to perform a change
+ * IDs using enbox_change_ids().
+ *
+ * This will basically setup the following Linux kernel's security and
+ * capability related features:
+ * - set the [no_new_privs] attribute to 1, instructing next [execve(2)] call
+ *   not to grant privileges to do anything that could not have been done
+ *   without the [execve(2)] call ;
+ * - set and lock the `SECBIT_NOROOT` securebits flag to 1 to disable the
+ *   granting of capabilities when a SUID root program is executed or when a
+ *   process with an effective or real UID of 0 calls [execve(2)] ;
+ * - set and lock the `SECBIT_NO_CAP_AMBIENT_RAISE` securebits flag to 1 to
+ *   disallow raising ambient capabilities ;
+ * - clear all other available securebits flags ;
+ * - enable capabilities required to perform a successful call to
+ *   enbox_change_ids(), i.e. `CAP_SETPCAP`, `CAP_SETUID` and `CAP_SETGID`
+ *   capabilities ;
+ * - clear all bounding set capabilities to restrict all capabilities that may
+ *   be gained through an [execve(2)].
+ *
+ * @warning Requires CAP_SETPCAP capability.
+ *
+ * @warning
+ * Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
+ * capabilities.
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - enbox_change_ids()
+ * - [execve(2)]
+ * - [capabilities(7)]
+ *
+ * @ingroup utils
+ *
+ * [exeve(2)]:        https://man7.org/linux/man-pages/man2/execve.2.html
+ * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
+ */
+extern int
+enbox_secure_change_ids(void)
+	__warn_result;
+
+#if defined(CONFIG_ENBOX_VERBOSE)
+
+extern void
+enbox_print_status(FILE * __restrict stdio)
+	__enbox_nonull(1);
+
+#else  /* !defined(CONFIG_ENBOX_VERBOSE) */
+
+static inline __enbox_nonull(1)
+void
+enbox_print_status(FILE * __restrict stdio __unused)
+{
+}
+
+#endif /* defined(CONFIG_ENBOX_VERBOSE) */
 
 /**
  * @defgroup instance Instantiation
@@ -1518,7 +1610,7 @@ struct enbox_jail {
 extern int
 enbox_enter_jail(const struct enbox_jail * __restrict jail,
                  const struct enbox_ids * __restrict  ids)
-	__enbox_nonull(1, 2) __nothrow;
+	__enbox_nonull(1, 2) __enbox_nothrow;
 
 /**
  * Command descriptor.
@@ -1628,7 +1720,7 @@ struct enbox_cmd {
 extern int
 enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
               const struct enbox_ids * __restrict ids)
-	__enbox_nonull(1, 2) __nothrow;
+	__enbox_nonull(1, 2) __enbox_nothrow;
 
 /**
  * @defgroup conf Configuration
@@ -1769,12 +1861,10 @@ struct elog;
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
- * @see enbox_setup_dump()
- *
  * @ingroup init
  */
-extern int
+extern void
 enbox_setup(struct elog * __restrict logger)
-	__nothrow;
+	__enbox_nothrow;
 
 #endif /* _ENBOX_H */
