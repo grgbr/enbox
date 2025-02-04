@@ -729,50 +729,51 @@ enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
 }
 
 int
-enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
+enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
 {
 	enbox_assert_setup();
-	enbox_assert(!enbox_validate_pwd(pwd, false));
+	enbox_assert(!enbox_validate_pwd(pwd_entry, false));
 
 	int err;
 
-	err = enbox_change_gid(pwd->pw_gid);
+	err = enbox_change_gid(pwd_entry->pw_gid);
 	if (err) {
 		enbox_info("cannot switch to GID %hu(%s): %s (%d)",
-		           pwd->pw_gid,
-		           enbox_get_group_name(pwd->pw_gid),
+		           pwd_entry->pw_gid,
+		           enbox_get_group_name(pwd_entry->pw_gid),
 		           strerror(-err),
 		           -err);
 		return err;
 	}
 
-	enbox_gid = pwd->pw_gid;
+	enbox_gid = pwd_entry->pw_gid;
 
 	if (drop_supp)
 		err = enbox_drop_supp_groups();
 	else
-		err = enbox_raise_supp_groups(pwd->pw_name, pwd->pw_gid);
+		err = enbox_raise_supp_groups(pwd_entry->pw_name,
+		                              pwd_entry->pw_gid);
 	if (err) {
 		enbox_info("cannot setup %d(%s) users's supplementary groups: "
 		           "%s (%d)",
-		           pwd->pw_uid,
-		           pwd->pw_name,
+		           pwd_entry->pw_uid,
+		           pwd_entry->pw_name,
 		           strerror(-err),
 		           -err);
 		return err;
 	}
 
-	err = enbox_change_uid(pwd->pw_uid);
+	err = enbox_change_uid(pwd_entry->pw_uid);
 	if (err) {
 		enbox_info("cannot switch to UID %d(%s): %s (%d)",
-		           pwd->pw_uid,
-		           pwd->pw_name,
+		           pwd_entry->pw_uid,
+		           pwd_entry->pw_name,
 		           strerror(-err),
 		           -err);
 		return err;
 	}
 
-	enbox_uid = pwd->pw_uid;
+	enbox_uid = pwd_entry->pw_uid;
 
 	return 0;
 }

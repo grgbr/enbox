@@ -1316,7 +1316,7 @@ enbox_enter_jail_bypwd(int                              namespaces,
 		goto err;
 	}
 
-#warning FIXME
+#warning FIXME: use new API and fix all documentation referring to enbox_lock_caps()
 #if 0
 	err = enbox_lock_caps();
 	if (err)
@@ -1587,28 +1587,6 @@ enbox_read_umask(void)
 /**
  * @internal
  *
- * Enable process *dumpable* attribute.
- *
- * @see enbox_setup_dump()
- *
- * @ingroup utils
- */
-#define ENBOX_ENABLE_DUMP  (1)
-
-/**
- * @internal
- *
- * Disable process *dumpable* attribute.
- *
- * @see enbox_setup_dump()
- *
- * @ingroup utils
- */
-#define ENBOX_DISABLE_DUMP (0)
-
-/**
- * @internal
- *
  * Setup current process *dumpable* attribute.
  *
  * Enable or disable generation of coredumps for current process.
@@ -1627,7 +1605,6 @@ enbox_read_umask(void)
  *   those already permitted.
  * The `/proc/sys/fs/suid_dumpable` file is documented into [proc(5)].
  *
- *
  * As stated in [ptrace(2)], Linux kernel performs so-called "ptrace access
  * mode" checks whose outcome determines whether [ptrace(2)] operations are
  * permitted in addition to `CAP_SYS_PTRACE` capability and Linux Security
@@ -1641,8 +1618,6 @@ enbox_read_umask(void)
  * [The Linux kernel user’s and administrator’s guide].
  *
  * @param[in] on Enable coredumps generation if `true`, disable it otherwise.
- *
- * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
  * - #ENBOX_ENABLE_DUMP
@@ -1669,6 +1644,28 @@ enbox_setup_dump(bool on)
 	err = prctl(PR_SET_DUMPABLE, (int)on, 0, 0, 0);
 	enbox_assert(!err);
 }
+
+/**
+ * @internal
+ *
+ * Enable process *dumpable* attribute.
+ *
+ * @see enbox_setup_dump()
+ *
+ * @ingroup utils
+ */
+#define ENBOX_ENABLE_DUMP  (1)
+
+/**
+ * @internal
+ *
+ * Disable process *dumpable* attribute.
+ *
+ * @see enbox_setup_dump()
+ *
+ * @ingroup utils
+ */
+#define ENBOX_DISABLE_DUMP (0)
 
 void
 enbox_setup(struct elog * __restrict logger)

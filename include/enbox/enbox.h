@@ -758,7 +758,7 @@ enbox_clear_bound_caps(void)
  * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
  */
 extern int
-enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
+enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
 	__enbox_nonull(1) __enbox_nothrow __leaf __warn_result;
 
 /**
@@ -782,11 +782,13 @@ enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
  *
  * Finally, after return from this function, current thread permitted and
  * effective capability sets reflect the mask given by @p kept_caps.
- * Securebits are also modified and locked to the following value:
- * `SECBIT_NOROOT | SECBIT_NOROOT_LOCKED |
- *  SECBIT_NO_SETUID_FIXUP_LOCKED |
- *  SECBIT_KEEP_CAPS_LOCKED |
- *  SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED`.
+ * Securebits are also modified and locked so that the following bits are set:
+ * - `SECBIT_NOROOT`,
+ * - `SECBIT_NOROOT_LOCKED`,
+ * - `SECBIT_NO_SETUID_FIXUP_LOCKED`,
+ * - `SECBIT_KEEP_CAPS_LOCKED`,
+ * - `SECBIT_NO_CAP_AMBIENT_RAISE`,
+ * - `SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED`.
  *
  * @warning
  * Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
@@ -872,7 +874,7 @@ enbox_change_ids_byid(uid_t                          uid,
  * Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
  * capabilities.
  *
- * @param[in]    name      Name of user to change to
+ * @param[in]    user      Name of user to change to
  * @param[in]    drop_supp Load or clear supplementary groups list (see
  *                         #ENBOX_RAISE_SUPP_GROUPS and #ENBOX_DROP_SUPP_GROUPS)
  * @param[inout] caps      Internal capability state
@@ -942,7 +944,7 @@ enbox_change_ids_byname(const char * __restrict        user,
  *
  * @ingroup utils
  *
- * [exeve(2)]:        https://man7.org/linux/man-pages/man2/execve.2.html
+ * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
  * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
  * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
  */
@@ -1929,7 +1931,7 @@ struct elog;
  *
  * May alter calling process *dumpable* attribute according to
  * #CONFIG_ENBOX_DISABLE_DUMP build option.
- * 
+ *
  * When @p logger is passed as a `NULL` pointer, Enbox disables the logging of
  * all diagnostic messages.
  *
@@ -1937,9 +1939,7 @@ struct elog;
  * @warning
  * MUST be called prior to every other Enbox library function calls.
  *
- * @param[inout] logger an optional initialized Elog logger instance.
- *
- * @return 0 if successful, an errno-like error code otherwise.
+ * @param[in] logger an optional initialized Elog logger instance.
  *
  * @ingroup init
  */

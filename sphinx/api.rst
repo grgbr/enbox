@@ -207,6 +207,8 @@ mentioned above. These are :
    * User / group IDs :
      
       * :c:func:`enbox_change_ids`,
+      * :c:func:`enbox_change_ids_byname`,
+      * :c:func:`enbox_change_ids_byid`,
       * :c:func:`enbox_get_uid`,
       * :c:func:`enbox_get_gid`,
       * :c:func:`enbox_secure_change_ids`,
@@ -217,8 +219,7 @@ mentioned above. These are :
       * :c:func:`enbox_clear_amb_caps`,
       * :c:func:`enbox_clear_bound_caps`,
       * :c:func:`enbox_clear_epi_caps`,
-      * :c:func:`enbox_lock_caps`,
-        
+
    * Filesystem :
      
       * :c:func:`enbox_change_perms`,
@@ -372,6 +373,16 @@ enbox_change_ids()
 
 .. doxygenfunction:: enbox_change_ids
 
+enbox_change_ids_byname()
+*************************
+
+.. doxygenfunction:: enbox_change_ids_byname
+
+enbox_change_ids_byid()
+***********************
+
+.. doxygenfunction:: enbox_change_ids_byid
+
 enbox_change_perms()
 ********************
 
@@ -491,7 +502,7 @@ enbox_setup()
 *************
 
 .. doxygenfunction:: enbox_setup
-   
+
 enbox_switch_ids()
 ******************
 
