@@ -482,7 +482,17 @@ enbox_set_umask()
 
 .. doxygenfunction:: enbox_set_umask
 
+enbox_secure_change_ids()
+*************************
+
+.. doxygenfunction:: enbox_secure_change_ids
+
 enbox_setup()
 *************
 
 .. doxygenfunction:: enbox_setup
+   
+enbox_switch_ids()
+******************
+
+.. doxygenfunction:: enbox_switch_ids

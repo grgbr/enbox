@@ -1,6 +1,5 @@
 #include "common.h"
 #include <linux/securebits.h>
-#include <linux/capability.h>
 #include <linux/version.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
@@ -47,18 +46,8 @@
        header. Check your Linux kernel revision is compatible with Enbox...
 #endif /* CAP_LAST_CAP != CAP_CHECKPOINT_RESTORE */
 
-struct enbox_caps {
-	struct __user_cap_data_struct data[VFS_CAP_U32];
-};
-
 #define ENBOX_CAPS_NR \
 	CAP_LAST_CAP
-
-#define ENBOX_CAP(_cap) \
-	({ \
-		compile_assert(cap_valid(_cap)); \
-		UINT64_C(1) << (_cap); \
-	 })
 
 static inline __enbox_const __enbox_nothrow __warn_result
 uint64_t
@@ -627,13 +616,15 @@ enbox_print_creds(FILE * __restrict stdio)
 	ret = getgroups(NGROUPS_MAX, supp);
 	enbox_assert(ret >= 0);
 
-	fputs(         "Supp. groups  ", stdio);
 	if (ret) {
+		fputs(         "Supp. groups  ", stdio);
 		fprintf(stdio, "%d", supp[0]);
 		for (g = 1; g < ret; g++)
 			fprintf(stdio, ", %d", supp[g]);
 		putc('\n', stdio);
 	}
+	else
+		fputs(         "Supp. groups  none\n", stdio);
 
 	free(supp);
 }
@@ -793,14 +784,16 @@ enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
 int
 enbox_change_ids(const struct passwd * __restrict pwd_entry,
                  bool                             drop_supp,
-                 uint64_t                         kept_caps)
+                 struct enbox_caps * __restrict   caps)
 {
 	enbox_assert_setup();
 	enbox_assert(!enbox_validate_pwd(pwd_entry, false));
-	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+	enbox_assert(pwd_entry->pw_uid);
+	enbox_assert(pwd_entry->pw_uid != enbox_uid);
+	enbox_assert(caps);
 
-	int               err;
-	struct enbox_caps caps;
+	int      err;
+	uint64_t kept;
 
 	/*
 	 * Prepare for ID switch:
@@ -808,10 +801,8 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
 	 * - and enable the SECBIT_KEEP_CAPS flag to preserve capabilities set
 	 *   into the permitted set after the IDs switch.
 	 */
-	enbox_caps_set_eff(&caps, ENBOX_CAPS_CHIDS_MASK);
-	enbox_caps_set_perm(&caps, ENBOX_CAPS_CHIDS_MASK | kept_caps);
-	enbox_caps_set_inh(&caps, 0);
-	err = enbox_save_epi_caps(&caps);
+	enbox_caps_set_eff(caps, ENBOX_CAPS_CHIDS_MASK);
+	err = enbox_save_epi_caps(caps);
 	if (err)
 		goto err;
 	err = enbox_enable_keep_caps(true);
@@ -827,10 +818,11 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
 	 * Re-enable the CAP_SETPCAP capability into the effective set to
 	 * complete secure bits configuration below.
 	 */
-	enbox_caps_set_eff(&caps, ENBOX_CAP(CAP_SETPCAP));
-	err = enbox_save_epi_caps(&caps);
+	enbox_caps_set_eff(caps, ENBOX_CAP(CAP_SETPCAP));
+	err = enbox_save_epi_caps(caps);
 	if (err)
 		goto err;
+
 	err = enbox_save_secbits(SECBIT_NOROOT |
 	                         SECBIT_NOROOT_LOCKED |
 	                         SECBIT_KEEP_CAPS_LOCKED |
@@ -840,9 +832,10 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
 		goto err;
 
 	/* Finally, set final requested capabilities. */
-	enbox_caps_set_eff(&caps, kept_caps);
-	enbox_caps_set_perm(&caps, kept_caps);
-	err = enbox_save_epi_caps(&caps);
+	kept = enbox_caps_get_perm(caps) & ~ENBOX_CAPS_CHIDS_MASK;
+	enbox_caps_set_eff(caps, kept);
+	enbox_caps_set_perm(caps, kept);
+	err = enbox_save_epi_caps(caps);
 	if (err)
 		goto err;
 
@@ -855,16 +848,94 @@ err:
 }
 
 int
-enbox_secure_change_ids(void)
+enbox_change_ids_byid(uid_t                          uid,
+                      bool                           drop_supp,
+                      struct enbox_caps * __restrict caps)
 {
 	enbox_assert_setup();
+	enbox_assert(uid);
+	enbox_assert(uid != enbox_uid);
+	enbox_assert(caps);
 
-	int               err;
-	struct enbox_caps caps;
+	const struct passwd * pwd;
+
+	pwd = upwd_get_user_byid(uid);
+	if (!pwd) {
+		int err = errno;
+
+		enbox_assert(err > 0);
+		enbox_assert(err != ENODATA);
+		enbox_assert(err != ENAMETOOLONG);
+
+		switch (err) {
+		case ENOENT:
+			enbox_info("'%d': no such UID", uid);
+			break;
+		default:
+			enbox_info("'%d': unexpected UID: %s (%d)",
+				   uid,
+				   strerror(err),
+				   err);
+		}
+
+		return -err;
+	}
+
+	return enbox_change_ids(pwd, drop_supp, caps);
+}
+
+int
+enbox_change_ids_byname(const char * __restrict        user,
+                        bool                           drop_supp,
+                        struct enbox_caps * __restrict caps)
+{
+	enbox_assert_setup();
+	enbox_assert(upwd_validate_user_name(user) > 0);
+	enbox_assert(caps);
+
+	const struct passwd * pwd;
+
+	pwd = upwd_get_user_byname(user);
+	if (!pwd) {
+		int err = errno;
+
+		enbox_assert(err > 0);
+		enbox_assert(err != ENODATA);
+		enbox_assert(err != ENAMETOOLONG);
+
+		switch (err) {
+		case ENOENT:
+			enbox_info("'%s': no such user", user);
+			break;
+		default:
+			enbox_info("'%s': unexpected user name: %s (%d)",
+				   user,
+				   strerror(err),
+				   err);
+		}
+
+		return -err;
+	}
+
+	return enbox_change_ids(pwd, drop_supp, caps);
+}
+
+int
+enbox_secure_change_ids(struct enbox_caps * __restrict caps,
+                        uint64_t                       kept_caps)
+{
+	enbox_assert_setup();
+	enbox_assert(caps);
+	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	int err;
 
 	enbox_enable_nonewprivs();
 
-	/* Do not lock KEEP_CAPS since required for change IDs... */
+	/*
+	 * Do not lock KEEP_CAPS since enbox_change_ids() requires it to change
+	 * IDs...
+	 */
 	err = enbox_save_secbits(SECBIT_NOROOT |
 	                         SECBIT_NOROOT_LOCKED |
 	                         SECBIT_NO_CAP_AMBIENT_RAISE |
@@ -872,17 +943,29 @@ enbox_secure_change_ids(void)
 	if (err)
 		goto err;
 
-	enbox_caps_set_eff(&caps, 0);
-	enbox_caps_set_perm(&caps, ENBOX_CAPS_CHIDS_MASK);
-	enbox_caps_set_inh(&caps, 0);
-	err = enbox_save_epi_caps(&caps);
-	if (err)
-		goto err;
-
+	/*
+	 * Clear all capability bounding set: we do require none of them since
+	 * the targeted use case is not meant calling execve(2).
+	 */
 	err = enbox_clear_bound_caps();
 	if (err)
 		goto err;
 
+	/*
+	 * Setup the minimum capability set required to perform a change IDs
+	 * with preservation `kept_caps' capabilities.
+	 */
+	enbox_caps_set_eff(caps, 0);
+	enbox_caps_set_perm(caps, ENBOX_CAPS_CHIDS_MASK | kept_caps);
+	enbox_caps_set_inh(caps, 0);
+	err = enbox_save_epi_caps(caps);
+	if (err)
+		goto err;
+
+	/*
+	 * Just to be sure, clear all ambient capabilities: we do require none
+	 * of them since the targeted use case is not meant calling execve(2).
+	 */
 	enbox_clear_amb_caps();
 
 	return 0;

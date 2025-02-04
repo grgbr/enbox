@@ -88,6 +88,7 @@
 
 #include <enbox/config.h>
 #include <utils/pwd.h>
+#include <linux/capability.h>
 #include <unistd.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -590,6 +591,36 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
 	__enbox_nonull(1) __enbox_nothrow;
 
 /**
+ * Make a capability mask out of a capability index.
+ *
+ * Build a capability bitmask out of the given @p _cap capability index.
+ *
+ * Capability index definitions may found into the `<linux/capability.h>` header
+ * file shipped with your Linux kernel / C library install.
+ *
+ * @param[in] _cap A system capability index
+ *
+ * @return A system capability bitmask.
+ *
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ */
+#define ENBOX_CAP(_cap) \
+	({ \
+		compile_assert(cap_valid(_cap)); \
+		UINT64_C(1) << (_cap); \
+	 })
+
+/**
+ * An opaque structure holding internal capability state.
+ *
+ * @see
+ * - enbox_secure_change_ids()
+ */
+struct enbox_caps {
+	struct __user_cap_data_struct data[VFS_CAP_U32];
+};
+
+/**
  * Clear effective, permitted and inheritable capability sets.
  *
  * Remove all capabilities from current thread's effective, permitted and
@@ -660,41 +691,6 @@ enbox_clear_amb_caps(void) __enbox_nothrow;
 extern int
 enbox_clear_bound_caps(void)
 	__enbox_nothrow __warn_result;
-
-/**
- * Lock capability sets.
- *
- * This will basically setup the following Linux kernel's security and
- * capability related features:
- * - set the [no_new_privs] attribute to 1, instructing next [execve(2)] call
- *   not to grant privileges to do anything that could not have been done
- *   without the [execve(2)] call ;
- * - set the `SECBIT_NOROOT` securebits flag to 1 to disable the granting of
- *   capabilities when a SUID root program is executed or when a process with an
- *   effective or real UID of 0 calls [execve(2)] ;
- * - set the `SECBIT_NO_CAP_AMBIENT_RAISE` securebits flag to 1 to disallow
- *   raising ambient capabilities ;
- * - clear all other available securebits flags ;
- * - lock all securebits flags in an irreversible manner.
- *
- * @warning Requires CAP_SETPCAP capability.
- *
- * @return 0 if successful, an errno-like error code otherwise.
- *
- * @see
- * - sections `PR_SET_NO_NEW_PRIVS` and `PR_SET_SECUREBITS` of [prctl(2)]
- * - sections `Thread capability sets` and `The securebits flags` of
- *   [capabilities(7)]
- *
- * @ingroup utils
- *
- * [no_new_privs]:    https://www.kernel.org/doc/html/latest/userspace-api/no_new_privs.html
- * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
- * [prctl(2)]:        https://man7.org/linux/man-pages/man2/prctl.2.html
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
- */
-extern int
-enbox_lock_caps(void) __enbox_nothrow;
 
 /**
  * Request to setup current process's list of supplementary group IDs.
@@ -781,6 +777,9 @@ enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
  * - when @p drop_supp argument equals #ENBOX_DROP_SUPP_GROUPS, clear
  *   supplementary group list.
  *
+ * The @p caps argument *MUST* have been initialized thanks to a call to
+ * enbox_secure_change_ids().
+ *
  * Finally, after return from this function, current thread permitted and
  * effective capability sets reflect the mask given by @p kept_caps.
  * Securebits are also modified and locked to the following value:
@@ -793,11 +792,11 @@ enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
  * Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
  * capabilities.
  *
- * @param[in] pwd_entry A password file entry pointer to the user to change to
- * @param[in] kept_caps Mask of capabilities to keep in the permitted and
- *                      effective sets after the change operation
- * @param[in] drop_supp Load or clear supplementary groups list (see
- *                      #ENBOX_RAISE_SUPP_GROUPS and #ENBOX_DROP_SUPP_GROUPS)
+ * @param[in]    pwd_entry A password file entry pointer to the user to change
+ *                         to
+ * @param[in]    drop_supp Load or clear supplementary groups list (see
+ *                         #ENBOX_RAISE_SUPP_GROUPS and #ENBOX_DROP_SUPP_GROUPS)
+ * @param[inout] caps      Internal capability state
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
@@ -805,6 +804,9 @@ enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
  * - #ENBOX_RAISE_SUPP_GROUPS
  * - #ENBOX_DROP_SUPP_GROUPS
  * - enbox_switch_ids()
+ * - enbox_secure_change_ids()
+ * - enbox_change_ids_byid()
+ * - enbox_change_ids_byname()
  * - [getpwent(2)]
  * - [setresuid(2)]
  * - [initgroups(3)]
@@ -822,14 +824,86 @@ enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
 extern int
 enbox_change_ids(const struct passwd * __restrict pwd_entry,
                  bool                             drop_supp,
-                 uint64_t                         kept_caps)
-	__enbox_nonull(1) __warn_result;
+                 struct enbox_caps * __restrict   caps)
+	__enbox_nonull(1, 3) __warn_result;
+
+/**
+ * Switch to user / group IDs and setup capabilities according to the UID given
+ * in argument.
+ *
+ * Change current process's real, effective and saved user ID to UID matching
+ * @p uid UID passed in argument.
+ *
+ * See enbox_change_ids() for further details.
+ *
+ * @warning
+ * Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
+ * capabilities.
+ *
+ * @param[in]    uid       UID of user to change to
+ * @param[in]    drop_supp Load or clear supplementary groups list (see
+ *                         #ENBOX_RAISE_SUPP_GROUPS and #ENBOX_DROP_SUPP_GROUPS)
+ * @param[inout] caps      Internal capability state
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - enbox_change_ids()
+ * - enbox_secure_change_ids()
+ *
+ * @ingroup utils
+ */
+extern int
+enbox_change_ids_byid(uid_t                          uid,
+                      bool                           drop_supp,
+                      struct enbox_caps * __restrict caps)
+	__enbox_nonull(1, 3) __warn_result;
+
+/**
+ * Switch to user / group IDs and setup capabilities according to the user name
+ * given in argument.
+ *
+ * Change current process's real, effective and saved user ID to user matching
+ * @p user name passed in argument.
+ *
+ * See enbox_change_ids() for further details.
+ *
+ * @warning
+ * Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
+ * capabilities.
+ *
+ * @param[in]    name      Name of user to change to
+ * @param[in]    drop_supp Load or clear supplementary groups list (see
+ *                         #ENBOX_RAISE_SUPP_GROUPS and #ENBOX_DROP_SUPP_GROUPS)
+ * @param[inout] caps      Internal capability state
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - enbox_change_ids()
+ * - enbox_secure_change_ids()
+ *
+ * @ingroup utils
+ */
+extern int
+enbox_change_ids_byname(const char * __restrict        user,
+                        bool                           drop_supp,
+                        struct enbox_caps * __restrict caps)
+	__enbox_nonull(1, 3) __warn_result;
 
 /**
  * Prepare system privilege runtime for later change IDs operation.
  *
  * Prepare the current thread's system privileges context to perform a change
  * IDs using enbox_change_ids().
+ * 
+ * The @p kept_caps argument configures the mask of capabilities to keep enabled
+ * when returning from subsequent call to enbox_change_ids(),
+ * enbox_change_ids_byname() or enbox_change_ids_byid().
+ *
+ * @p caps shall point to an opaque #enbox_caps structure that will be
+ * initialized with the internal capability state to be later given to
+ * enbox_change_ids(), enbox_change_ids_byname() or enbox_change_ids_byid().
  *
  * This will basically setup the following Linux kernel's security and
  * capability related features:
@@ -854,10 +928,15 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
  * Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
  * capabilities.
  *
+ * @param[out] caps      Capability state to initialize
+ * @param[in]  kept_caps Mask of capabilities to keep enabled after IDs change
+ *
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
  * - enbox_change_ids()
+ * - enbox_change_ids_byid()
+ * - enbox_change_ids_byname()
  * - [execve(2)]
  * - [capabilities(7)]
  *
@@ -868,8 +947,9 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
  * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
  */
 extern int
-enbox_secure_change_ids(void)
-	__warn_result;
+enbox_secure_change_ids(struct enbox_caps * __restrict caps,
+                        uint64_t                       kept_caps)
+	__enbox_nonull(1) __warn_result;
 
 #if defined(CONFIG_ENBOX_VERBOSE)
 

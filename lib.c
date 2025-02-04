@@ -470,60 +470,6 @@ enbox_clear_ambient_caps(void)
 	return 0;
 }
 
-int
-enbox_clear_bounding_caps(void)
-{
-	enbox_assert_setup();
-
-	int cap = 0;
-
-	do {
-		if (prctl(PR_CAPBSET_DROP, (unsigned long)cap, 0, 0, 0) < 0) {
-			int err = errno;
-
-			enbox_info("cannot drop bounding set capabilities: "
-			           "%s (%d)",
-			           strerror(err),
-			           err);
-			return -err;
-		}
-
-		cap++;
-	} while (cap_valid(cap));
-
-	return 0;
-}
-
-int
-enbox_lock_caps(void)
-{
-	enbox_assert_setup();
-
-	int err;
-
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0))
-		goto err;
-
-	if (prctl(PR_SET_SECUREBITS,
-	          SECBIT_NOROOT |
-	          /*SECBIT_NO_SETUID_FIXUP |*/
-	          SECBIT_NO_CAP_AMBIENT_RAISE |
-	          SECURE_ALL_LOCKS,
-	          0,
-	          0,
-	          0,
-	          0))
-		goto err;
-
-	return 0;
-
-err:
-	err = errno;
-	enbox_info("cannot lock capabilities: %s (%d)", strerror(err), err);
-
-	return -err;
-}
-
 /******************************************************************************
  * High-level API
  ******************************************************************************/
@@ -1370,6 +1316,8 @@ enbox_enter_jail_bypwd(int                              namespaces,
 		goto err;
 	}
 
+#warning FIXME
+#if 0
 	err = enbox_lock_caps();
 	if (err)
 		return err;
@@ -1382,6 +1330,7 @@ enbox_enter_jail_bypwd(int                              namespaces,
 	err = enbox_clear_bounding_caps();
 	if (err)
 		return err;
+#endif
 
 	/*
 	 * Dissociate from parent process namespaces.
