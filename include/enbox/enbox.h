@@ -898,7 +898,7 @@ enbox_change_ids_byname(const char * __restrict        user,
  *
  * Prepare the current thread's system privileges context to perform a change
  * IDs using enbox_change_ids().
- * 
+ *
  * The @p kept_caps argument configures the mask of capabilities to keep enabled
  * when returning from subsequent call to enbox_change_ids(),
  * enbox_change_ids_byname() or enbox_change_ids_byid().
@@ -924,11 +924,12 @@ enbox_change_ids_byname(const char * __restrict        user,
  * - clear all bounding set capabilities to restrict all capabilities that may
  *   be gained through an [execve(2)].
  *
- * @warning Requires CAP_SETPCAP capability.
- *
  * @warning
- * Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
- * capabilities.
+ * - Requires CAP_SETPCAP capability and the ability to enable the CAP_SETUID
+ *   and CAP_SETUID capabilities.
+ * - Note that this function does not preserve `CAP_SETPCAP`, `CAP_SETUID`, and
+ *   `CAP_SETGID` capabilities across change IDs operation. Trying to do so will
+ *   lead to unpredictable results.
  *
  * @param[out] caps      Capability state to initialize
  * @param[in]  kept_caps Mask of capabilities to keep enabled after IDs change
