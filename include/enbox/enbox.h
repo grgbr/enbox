@@ -954,6 +954,11 @@ enbox_secure_change_ids(struct enbox_caps * __restrict caps,
                         uint64_t                       kept_caps)
 	__enbox_nonull(1) __warn_result;
 
+extern int
+enbox_secure_execve(struct enbox_caps * __restrict caps,
+                    uint64_t                       kept_caps)
+	__enbox_nonull(1) __warn_result;
+
 #if defined(CONFIG_ENBOX_VERBOSE)
 
 extern void

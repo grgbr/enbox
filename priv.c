@@ -22,7 +22,7 @@
 #error No support for Linux kernel version below 3.5 !
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5,9) */
 #if !defined(CAP_BLOCK_SUSPEND) || defined(CAP_EPOLLWAKEUP)
-#error Unexpected deprecated CAP_EPOLLWAKEUP found into <linux/capabitily.h> \
+#error Unexpected deprecated CAP_EPOLLWAKEUP found into <linux/capability.h> \
        header. Check your Linux kernel revision is compatible with Enbox...
 #endif
 
@@ -34,7 +34,7 @@
 #error No support for Linux kernel version below 5.9 !
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5,9) */
 #if !defined(CAP_CHECKPOINT_RESTORE)
-#error CAP_CHECKPOINT_RESTORE not found into <linux/capabitily.h> header. \
+#error CAP_CHECKPOINT_RESTORE not found into <linux/capability.h> header. \
        Check your Linux kernel revision is compatible with Enbox...
 #endif
 
@@ -42,12 +42,12 @@
  * Ensure that the kernel does not define capabilities Enbox is not aware of.
  */
 #if CAP_LAST_CAP != CAP_CHECKPOINT_RESTORE
-#error Unexpected additional capability found into <linux/capabitily.h> \
+#error Unexpected additional capability found into <linux/capability.h> \
        header. Check your Linux kernel revision is compatible with Enbox...
 #endif /* CAP_LAST_CAP != CAP_CHECKPOINT_RESTORE */
 
 #define ENBOX_CAPS_NR \
-	CAP_LAST_CAP
+	(CAP_LAST_CAP + 1)
 
 static inline __enbox_const __enbox_nothrow __warn_result
 uint64_t
@@ -247,6 +247,50 @@ enbox_clear_amb_caps(void)
 
 	ret = prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0);
 	enbox_assert(!ret);
+}
+
+static
+int
+enbox_raise_amb_cap(int cap)
+{
+	enbox_assert(cap_valid(cap));
+
+	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, (long)cap, 0, 0)) {
+		int err = errno;
+
+		enbox_assert(err != EINVAL);
+
+		enbox_info("cannot raise ambient capability: %s (%d)",
+		           strerror(err),
+		           err);
+
+		return -err;
+	}
+
+	return 0;
+}
+
+#include <stroll/bmap.h>
+
+int
+enbox_raise_amb_caps(uint64_t caps)
+{
+	enbox_assert(caps);
+	enbox_assert(!(caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	uint64_t     iter;
+	unsigned int c;
+	int          ret = 0;
+
+	stroll_bmap_foreach_set64(&iter, caps, &c) {
+		enbox_assert(cap_valid(c));
+
+		ret = enbox_raise_amb_cap(c);
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
 
 /*
@@ -1016,3 +1060,137 @@ err:
 
 	return err;
 }
+
+int
+enbox_secure_execve(struct enbox_caps * __restrict caps,
+                    uint64_t                       kept_caps)
+{
+	enbox_assert_setup();
+	enbox_assert(caps);
+	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	int err;
+
+	enbox_enable_nonewprivs();
+
+	/*
+	 * Do not set the SECBIT_NOROOT as it would require us to use ambient
+	 * capabilities to ensure inherited capabilities loading into permitted
+	 * and effective sets.
+	 * Ambient capabilities would otherwise be inherited and automatically
+	 * loaded into permitted and effective sets at exeve(2) time by all
+	 * unprivileged (grand)children processes...
+	 */
+	err = enbox_save_secbits(SECBIT_KEEP_CAPS_LOCKED |
+	                         SECBIT_NO_CAP_AMBIENT_RAISE |
+	                         SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED);
+	if (err)
+		goto err;
+
+	/*
+	 * Add the requested capabilities to be kept enabled after next
+	 * execve(2) into the inheritable set.
+	 * Note that an inheritable capability MUST also be enabled into the
+	 * permitted set.
+	 */
+	enbox_load_epi_caps(caps);
+	enbox_caps_set_perm(caps, enbox_caps_get_perm(caps) | kept_caps);
+	enbox_caps_set_inh(caps, kept_caps);
+	err = enbox_save_epi_caps(caps);
+	if (err)
+		goto err;
+
+	/*
+	 * Clear bounding capabilities after setting up inheritable set since
+	 * the capability bounding set acts as a limiting superset for the
+	 * capabilities that current thread can add to its inheritable set using
+	 * capset(2).
+	 * However, once a capability has been enabled into the inheritable set,
+	 * disabling it from the bounding set does not remove it from the
+	 * inheritable set.
+	 * It just prevents the capability from being added back into the
+	 * thread's inheritable set in the future.
+	 */
+	err = enbox_clear_bound_caps();
+	if (err)
+		goto err;
+
+	/*
+	 * Clear all ambient capabilities: we would not want a non-root process
+	 * inheriting capabilities from the ambient set if the process were to
+	 * change IDs...
+	 */
+	enbox_clear_amb_caps();
+
+	return 0;
+
+err:
+	enbox_info("failed to prepare for program execution: %s (%d)",
+	           strerror(-err),
+	           -err);
+
+	return err;
+}
+
+/* For non root / non zero user ids... */
+#if 0
+int
+enbox_secure_execve(struct enbox_caps * __restrict caps,
+                    uint64_t                       kept_caps)
+{
+	enbox_assert_setup();
+	enbox_assert(caps);
+	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	int err;
+
+	enbox_enable_nonewprivs();
+
+	enbox_load_epi_caps(caps);
+	enbox_caps_set_perm(caps, enbox_caps_get_perm(caps) | kept_caps);
+	enbox_caps_set_inh(caps, kept_caps);
+	err = enbox_save_epi_caps(caps);
+	if (err)
+		goto err;
+
+	/*
+	 * Setup ambient capabilities after inheritable set since the ambient
+	 * capability set obeys the invariant that no capability can ever be
+	 * ambient if it is not both permitted and inheritable.
+	 */
+	enbox_clear_amb_caps();
+	err = enbox_raise_amb_caps(kept_caps);
+	if (err)
+		goto err;
+
+	err = enbox_save_secbits(SECBIT_KEEP_CAPS_LOCKED |
+	                         SECBIT_NO_CAP_AMBIENT_RAISE |
+	                         SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED);
+	if (err)
+		goto err;
+
+	/*
+	 * Clear bounding capabilities after setting up inheritable set since
+	 * the capability bounding set acts as a limiting superset for the
+	 * capabilities that current thread can add to its inheritable set using
+	 * capset(2).
+	 * However, once a capability has been enabled into the inheritable set,
+	 * disabling it from the bounding set does not remove it from the
+	 * inheritable set.
+	 * It just prevents the capability from being added back into the
+	 * thread's inheritable set in the future.
+	 */
+	err = enbox_clear_bound_caps();
+	if (err)
+		goto err;
+
+	return 0;
+
+err:
+	enbox_info("failed to prepare for program execution: %s (%d)",
+	           strerror(-err),
+	           -err);
+
+	return err;
+}
+#endif
