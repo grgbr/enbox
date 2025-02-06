@@ -16,6 +16,9 @@ Glossary
       working directory associated with a process that is used in the resolution
       of relative file names (see |getcwd(3)|)
 
+   capabilities
+      see |capabilities|
+
    credentials
       see |credentials|
 

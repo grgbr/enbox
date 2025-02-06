@@ -49,6 +49,15 @@
 #define ENBOX_CAPS_NR \
 	(CAP_LAST_CAP + 1)
 
+/**
+ * @internal
+ *
+ * An opaque structure holding internal capability state.
+ */
+struct enbox_caps {
+	struct __user_cap_data_struct data[VFS_CAP_U32];
+};
+
 static inline __enbox_const __enbox_nothrow __warn_result
 uint64_t
 enbox_cap(int capability)
@@ -169,6 +178,8 @@ enbox_load_nonewprivs(void)
  * unset.
  * The setting of this attribute is inherited by children created by fork(2) and
  * clone(2), and preserved across execve(2).
+ *
+ * See <linux>/Documentation/userspace-api/no_new_privs.rst
  */
 static __enbox_nothrow
 void
@@ -283,7 +294,7 @@ enbox_raise_amb_caps(uint64_t caps)
 	int          ret = 0;
 
 	stroll_bmap_foreach_set64(&iter, caps, &c) {
-		enbox_assert(cap_valid(c));
+		enbox_assert(cap_valid((int)c));
 
 		ret = enbox_raise_amb_cap(c);
 		if (ret)
@@ -824,7 +835,7 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
 
 /* The set of capabilities required to perform a change of UIDs / * GIDs... */
 #define ENBOX_CAPS_CHIDS_MASK \
-	(ENBOX_CAP(CAP_SETUID) | ENBOX_CAP(CAP_SETGID))
+	(ENBOX_CAP(CAP_SETPCAP) | ENBOX_CAP(CAP_SETUID) | ENBOX_CAP(CAP_SETGID))
 
 /* Securebits used to perform a change of UIDs / * GIDs... */
 #define ENBOX_CAPS_CHIDS_SECBITS \
@@ -834,80 +845,99 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
 int
 enbox_change_ids(const struct passwd * __restrict pwd_entry,
                  bool                             drop_supp,
-                 struct enbox_caps * __restrict   caps)
+                 uint64_t                         kept_caps)
 {
 	enbox_assert_setup();
 	enbox_assert(!enbox_validate_pwd(pwd_entry, false));
 	enbox_assert(pwd_entry->pw_uid);
 	enbox_assert(pwd_entry->pw_uid != enbox_uid);
-	enbox_assert(caps);
-	enbox_assert(enbox_caps_get_perm(caps) & ENBOX_CAPS_CHIDS_MASK);
+	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
 
-	int      err;
-	uint64_t kept;
-
-	/*
-	 * Derive the set of capabilities to preserve across a change IDs
-	 * operation from the permitted set configured by
-	 * enbox_secure_change_ids().
-	 */
-	kept = enbox_caps_get_perm(caps) &
-	       ~(ENBOX_CAP(CAP_SETPCAP) | ENBOX_CAPS_CHIDS_MASK);
+	struct enbox_caps caps;
+	int               err;
 
 	/*
-	 * Prepare for ID switch: setup capabilities required to switch to new
-	 * IDs ...
+	 * Make sure we can modify :
+	 * - capabilities (at least, to clear the bounding set),
+	 * - and change UIDs / GIDs.
+	 * Also make sure `kept_caps' are added to the permitted set so that we
+	 * may enable them after the change IDs operation.
 	 */
-	enbox_caps_set_eff(caps, ENBOX_CAPS_CHIDS_MASK);
-	err = enbox_save_epi_caps(caps);
+	enbox_caps_set_eff(&caps, ENBOX_CAPS_CHIDS_MASK);
+	enbox_caps_set_perm(&caps, ENBOX_CAPS_CHIDS_MASK | kept_caps);
+	enbox_caps_set_inh(&caps, 0);
+	err = enbox_save_epi_caps(&caps);
 	if (err)
 		goto err;
 
-	if (!kept) {
+	enbox_enable_nonewprivs();
+
+	/*
+	 * Clear entire capability bounding set: we do require none of them
+	 * since the targeted use case is not meant calling execve(2) and we
+	 * want to inhibit file capabilities.
+	 */
+	err = enbox_clear_bound_caps();
+	if (err)
+		goto err;
+
+	/*
+	 * Just to be sure, clear all ambient capabilities: we do require none
+	 * of them since the targeted use case is not meant to call execve(2).
+	 */
+	enbox_clear_amb_caps();
+
+	if (kept_caps) {
 		/*
-		 * No capability preservation required: just change IDs since
-		 * KEEP_CAPS securebits flags is meant to be disabled by a
-		 * previous call to enbox_secure_change_ids() at that point.
+		 * When capability preservation is required, enable the
+		 * SECBIT_KEEP_CAPS flag to preserve capabilities set into the
+		 * permitted set after the IDs switch.
 		 */
-		err = enbox_switch_ids(pwd_entry, drop_supp);
+		err = enbox_enable_keep_caps(true);
 		if (err)
 			goto err;
-
-		return 0;
 	}
 
 	/*
-	 * When capability preservation is required, enable the SECBIT_KEEP_CAPS
-	 * flag to preserve capabilities set into the permitted set after the
-	 * IDs switch.
+	 * Do the actual change IDs: the effective capability set will
+	 * have been cleared on return from enbox_switch_ids().
 	 */
-	err = enbox_enable_keep_caps(true);
-	if (err)
-		goto err;
-
-	/* Do the actual change IDs. */
 	err = enbox_switch_ids(pwd_entry, drop_supp);
 	if (err)
 		goto err;
 
-	/*
-	 * Re-enable the CAP_SETPCAP capability into the effective set to
-	 * complete secure bits configuration below.
-	 */
-	enbox_caps_set_eff(caps, ENBOX_CAP(CAP_SETPCAP));
-	err = enbox_save_epi_caps(caps);
-	if (err)
-		goto err;
+	if (kept_caps) {
+		/*
+		 * Re-enable the CAP_SETPCAP capability into the effective set
+		 * to complete secure bits configuration below.
+		 */
+		enbox_caps_set_eff(&caps, ENBOX_CAP(CAP_SETPCAP));
+		err = enbox_save_epi_caps(&caps);
+		if (err)
+			goto err;
+	}
 
+	/* Lock securebits in a fully restrictive state. */
 	err = enbox_save_secbits(ENBOX_CAPS_CHIDS_SECBITS |
 	                         SECBIT_KEEP_CAPS_LOCKED);
 	if (err)
 		goto err;
 
-	/* Finally, set final requested capabilities. */
-	enbox_caps_set_eff(caps, kept);
-	enbox_caps_set_perm(caps, kept);
-	err = enbox_save_epi_caps(caps);
+	/*
+	 * Finally, set final requested capabilities.
+	 *
+	 * Note that event when `kept_caps' is zero, this step should always be
+	 * done. Indeed, with the KEEP_CAPS securebit disabled, the effective
+	 * set is the only set to be guaranted to be cleared on return from
+	 * enbox_switch_ids().
+	 *
+	 * See section `Effect of user ID changes on capabilities' of
+	 * capabilities(7).
+	 */
+	enbox_caps_set_eff(&caps, kept_caps);
+	enbox_caps_set_perm(&caps, kept_caps);
+	err = enbox_save_epi_caps(&caps);
 	if (err)
 		goto err;
 
@@ -920,14 +950,11 @@ err:
 }
 
 int
-enbox_change_ids_byid(uid_t                          uid,
-                      bool                           drop_supp,
-                      struct enbox_caps * __restrict caps)
+enbox_change_ids_byid(uid_t uid, bool drop_supp, uint64_t kept_caps)
 {
 	enbox_assert_setup();
-	enbox_assert(uid);
-	enbox_assert(uid != enbox_uid);
-	enbox_assert(caps);
+	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
 
 	const struct passwd * pwd;
 
@@ -953,17 +980,23 @@ enbox_change_ids_byid(uid_t                          uid,
 		return -err;
 	}
 
-	return enbox_change_ids(pwd, drop_supp, caps);
+	if (!uid || (uid == enbox_uid)) {
+		enbox_info("'%d': invalid UID change requested", uid);
+		return -EINVAL;
+	}
+
+	return enbox_change_ids(pwd, drop_supp, kept_caps);
 }
 
 int
-enbox_change_ids_byname(const char * __restrict        user,
-                        bool                           drop_supp,
-                        struct enbox_caps * __restrict caps)
+enbox_change_ids_byname(const char * __restrict user,
+                        bool                    drop_supp,
+                        uint64_t                kept_caps)
 {
 	enbox_assert_setup();
 	enbox_assert(upwd_validate_user_name(user) > 0);
-	enbox_assert(caps);
+	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
 
 	const struct passwd * pwd;
 
@@ -989,78 +1022,15 @@ enbox_change_ids_byname(const char * __restrict        user,
 		return -err;
 	}
 
-	return enbox_change_ids(pwd, drop_supp, caps);
+	if (!pwd->pw_uid || (pwd->pw_uid == enbox_uid)) {
+		enbox_info("'%s': invalid user change requested", user);
+		return -EINVAL;
+	}
+
+	return enbox_change_ids(pwd, drop_supp, kept_caps);
 }
 
-int
-enbox_secure_change_ids(struct enbox_caps * __restrict caps,
-                        uint64_t                       kept_caps)
-{
-	enbox_assert_setup();
-	enbox_assert(caps);
-	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-	enbox_assert(!(kept_caps &
-	               (ENBOX_CAP(CAP_SETPCAP) | ENBOX_CAPS_CHIDS_MASK)));
-
-	int      err;
-	int      secbits = ENBOX_CAPS_CHIDS_SECBITS;
-	uint64_t perm = ENBOX_CAPS_CHIDS_MASK;
-
-	if (!kept_caps)
-		/*
-		 * As `kept_caps' equals to zero, enbox_change_ids() is not
-		 * required to preserve capabilities across change IDs
-		 * operation: disable and lock the KEEP_CAPS securebits flag.
-		 */
-		secbits |= SECBIT_KEEP_CAPS_LOCKED;
-	else
-		/*
-		 * Required to preserve capabilities across change IDs
-		 * operations.
-		 */
-		perm |= ENBOX_CAP(CAP_SETPCAP) | kept_caps;
-
-	enbox_enable_nonewprivs();
-
-	err = enbox_save_secbits(secbits);
-	if (err)
-		goto err;
-
-	/*
-	 * Clear all capability bounding set: we do require none of them since
-	 * the targeted use case is not meant calling execve(2).
-	 */
-	err = enbox_clear_bound_caps();
-	if (err)
-		goto err;
-
-	/*
-	 * Setup the minimum capability set required to perform a change IDs
-	 * with `kept_caps' capabilities preserved.
-	 */
-	enbox_caps_set_eff(caps, 0);
-	enbox_caps_set_perm(caps, perm);
-	enbox_caps_set_inh(caps, 0);
-	err = enbox_save_epi_caps(caps);
-	if (err)
-		goto err;
-
-	/*
-	 * Just to be sure, clear all ambient capabilities: we do require none
-	 * of them since the targeted use case is not meant to call execve(2).
-	 */
-	enbox_clear_amb_caps();
-
-	return 0;
-
-err:
-	enbox_info("failed to prepare for change IDs: %s (%d)",
-	           strerror(-err),
-	           -err);
-
-	return err;
-}
-
+#if 0
 int
 enbox_secure_execve(struct enbox_caps * __restrict caps,
                     uint64_t                       kept_caps)
@@ -1133,7 +1103,11 @@ err:
 }
 
 /* For non root / non zero user ids... */
-#if 0
+extern int
+enbox_secure_execve(struct enbox_caps * __restrict caps,
+                    uint64_t                       kept_caps)
+	__enbox_nonull(1) __warn_result;
+
 int
 enbox_secure_execve(struct enbox_caps * __restrict caps,
                     uint64_t                       kept_caps)
