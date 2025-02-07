@@ -1316,9 +1316,10 @@ enbox_enter_jail_bypwd(int                              namespaces,
 		goto err;
 	}
 
-#warning FIXME: use new API and fix all documentation referring to enbox_lock_caps()
-#if 0
-	err = enbox_lock_caps();
+	enbox_enable_nonewprivs();
+	err = enbox_save_secbits(SECBIT_NOROOT |
+	                         SECBIT_NO_CAP_AMBIENT_RAISE |
+	                         SECURE_ALL_LOCKS);
 	if (err)
 		return err;
 
@@ -1327,10 +1328,9 @@ enbox_enter_jail_bypwd(int                              namespaces,
 	 * Effective, permitted, inheritable and ambient sets will be cleared at
 	 * execve() time.
 	 */
-	err = enbox_clear_bounding_caps();
+	err = enbox_clear_bound_caps();
 	if (err)
 		return err;
-#endif
 
 	/*
 	 * Dissociate from parent process namespaces.

@@ -154,6 +154,14 @@ enbox_get_group_name(gid_t gid)
 	return grp ? grp->gr_name : "??";
 }
 
+extern void
+enbox_enable_nonewprivs(void)
+	__enbox_nothrow __export_intern;
+
+extern int
+enbox_save_secbits(int secbits)
+	__enbox_nothrow __export_intern;
+
 extern int
 enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
 #if defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL)

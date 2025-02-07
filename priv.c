@@ -1,9 +1,11 @@
 #include "common.h"
+#include <stroll/bmap.h>
 #include <linux/securebits.h>
 #include <linux/version.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <stdlib.h>
+
 
 /* Support for Linux capability v3 only (Linux 2.6.26 and after). */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
@@ -60,11 +62,11 @@ struct enbox_caps {
 
 static inline __enbox_const __enbox_nothrow __warn_result
 uint64_t
-enbox_cap(int capability)
+enbox_cap(int id)
 {
-	enbox_assert(cap_valid(capability));
+	enbox_assert(cap_valid(id));
 
-	return UINT64_C(1) << capability;
+	return UINT64_C(1) << id;
 }
 
 /*
@@ -96,7 +98,6 @@ enbox_load_secbits(void)
  *
  * See PR_SET_SECUREBITS(2const) and capabilities(7).
  */
-static __enbox_nothrow __warn_result
 int
 enbox_save_secbits(int secbits)
 {
@@ -181,7 +182,6 @@ enbox_load_nonewprivs(void)
  *
  * See <linux>/Documentation/userspace-api/no_new_privs.rst
  */
-static __enbox_nothrow
 void
 enbox_enable_nonewprivs(void)
 {
@@ -260,50 +260,6 @@ enbox_clear_amb_caps(void)
 	enbox_assert(!ret);
 }
 
-static
-int
-enbox_raise_amb_cap(int cap)
-{
-	enbox_assert(cap_valid(cap));
-
-	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, (long)cap, 0, 0)) {
-		int err = errno;
-
-		enbox_assert(err != EINVAL);
-
-		enbox_info("cannot raise ambient capability: %s (%d)",
-		           strerror(err),
-		           err);
-
-		return -err;
-	}
-
-	return 0;
-}
-
-#include <stroll/bmap.h>
-
-int
-enbox_raise_amb_caps(uint64_t caps)
-{
-	enbox_assert(caps);
-	enbox_assert(!(caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	uint64_t     iter;
-	unsigned int c;
-	int          ret = 0;
-
-	stroll_bmap_foreach_set64(&iter, caps, &c) {
-		enbox_assert(cap_valid((int)c));
-
-		ret = enbox_raise_amb_cap(c);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
 /*
  * Get the bounding capability set for the current thread.
  *
@@ -371,7 +327,7 @@ capget(cap_user_header_t header, cap_user_data_t data)
 
 static inline __enbox_nonull(1) __warn_result
 uint64_t
-enbox_caps_get_eff(const struct enbox_caps * __restrict caps)
+enbox_get_eff_caps(const struct enbox_caps * __restrict caps)
 {
 	enbox_assert(caps);
 
@@ -379,9 +335,20 @@ enbox_caps_get_eff(const struct enbox_caps * __restrict caps)
 	       (uint64_t)caps->data[0].effective;
 }
 
+static inline __enbox_nonull(1) __enbox_pure __enbox_nothrow __warn_result
+bool
+enbox_eff_caps_have(const struct enbox_caps * __restrict caps,
+                    int                                  id)
+{
+	enbox_assert(caps);
+	enbox_assert(cap_valid(id));
+
+	return !!(enbox_get_eff_caps(caps) & enbox_cap(id));
+}
+
 static inline __enbox_nonull(1) __warn_result
 uint64_t
-enbox_caps_get_perm(const struct enbox_caps * __restrict caps)
+enbox_get_perm_caps(const struct enbox_caps * __restrict caps)
 {
 	enbox_assert(caps);
 
@@ -389,14 +356,36 @@ enbox_caps_get_perm(const struct enbox_caps * __restrict caps)
 	       (uint64_t)caps->data[0].permitted;
 }
 
+static inline __enbox_nonull(1) __enbox_pure __enbox_nothrow __warn_result
+bool
+enbox_perm_caps_have(const struct enbox_caps * __restrict caps,
+                     int                                  id)
+{
+	enbox_assert(caps);
+	enbox_assert(cap_valid(id));
+
+	return !!(enbox_get_perm_caps(caps) & enbox_cap(id));
+}
+
 static inline __enbox_nonull(1) __warn_result
 uint64_t
-enbox_caps_get_inh(const struct enbox_caps * __restrict caps)
+enbox_get_inh_caps(const struct enbox_caps * __restrict caps)
 {
 	enbox_assert(caps);
 
 	return (((uint64_t)caps->data[1].inheritable) << 32) |
 	       (uint64_t)caps->data[0].inheritable;
+}
+
+static inline __enbox_nonull(1) __enbox_pure __enbox_nothrow __warn_result
+bool
+enbox_inh_caps_have(const struct enbox_caps * __restrict caps,
+                    int                                  id)
+{
+	enbox_assert(caps);
+	enbox_assert(cap_valid(id));
+
+	return !!(enbox_get_inh_caps(caps) & enbox_cap(id));
 }
 
 static __enbox_nonull(1)
@@ -435,7 +424,7 @@ capset(cap_user_header_t header, const cap_user_data_t data)
 
 static inline __enbox_nonull(1) __enbox_nothrow
 void
-enbox_caps_set_eff(struct enbox_caps * __restrict caps, uint64_t effective)
+enbox_set_eff_caps(struct enbox_caps * __restrict caps, uint64_t effective)
 {
 	enbox_assert(caps);
 	enbox_assert(!(effective & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
@@ -447,7 +436,27 @@ enbox_caps_set_eff(struct enbox_caps * __restrict caps, uint64_t effective)
 
 static inline __enbox_nonull(1) __enbox_nothrow
 void
-enbox_caps_set_perm(struct enbox_caps * __restrict caps, uint64_t permitted)
+enbox_raise_eff_caps(struct enbox_caps * __restrict caps, uint64_t effective)
+{
+	enbox_assert(caps);
+	enbox_assert(!(effective & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	enbox_set_eff_caps(caps, enbox_get_eff_caps(caps) | effective);
+}
+
+static inline __enbox_nonull(1) __enbox_nothrow
+void
+enbox_drop_eff_caps(struct enbox_caps * __restrict caps, uint64_t effective)
+{
+	enbox_assert(caps);
+	enbox_assert(!(effective & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	enbox_set_eff_caps(caps, enbox_get_eff_caps(caps) & ~effective);
+}
+
+static inline __enbox_nonull(1) __enbox_nothrow
+void
+enbox_set_perm_caps(struct enbox_caps * __restrict caps, uint64_t permitted)
 {
 	enbox_assert(caps);
 	enbox_assert(!(permitted & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
@@ -459,7 +468,27 @@ enbox_caps_set_perm(struct enbox_caps * __restrict caps, uint64_t permitted)
 
 static inline __enbox_nonull(1) __enbox_nothrow
 void
-enbox_caps_set_inh(struct enbox_caps * __restrict caps, uint64_t inheritable)
+enbox_raise_perm_caps(struct enbox_caps * __restrict caps, uint64_t permitted)
+{
+	enbox_assert(caps);
+	enbox_assert(!(permitted & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	enbox_set_perm_caps(caps, enbox_get_perm_caps(caps) | permitted);
+}
+
+static inline __enbox_nonull(1) __enbox_nothrow
+void
+enbox_drop_perm_caps(struct enbox_caps * __restrict caps, uint64_t permitted)
+{
+	enbox_assert(caps);
+	enbox_assert(!(permitted & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	enbox_set_perm_caps(caps, enbox_get_perm_caps(caps) & ~permitted);
+}
+
+static inline __enbox_nonull(1) __enbox_nothrow
+void
+enbox_set_inh_caps(struct enbox_caps * __restrict caps, uint64_t inheritable)
 {
 	enbox_assert(caps);
 	enbox_assert(!(inheritable & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
@@ -467,6 +496,26 @@ enbox_caps_set_inh(struct enbox_caps * __restrict caps, uint64_t inheritable)
 	caps->data[0].inheritable = (uint32_t)
 	                            (inheritable & (UINT64_C(0xffffffff)));
 	caps->data[1].inheritable = (uint32_t)(inheritable >> 32);
+}
+
+static inline __enbox_nonull(1) __enbox_nothrow
+void
+enbox_raise_inh_caps(struct enbox_caps * __restrict caps, uint64_t inheritable)
+{
+	enbox_assert(caps);
+	enbox_assert(!(inheritable & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	enbox_set_inh_caps(caps, enbox_get_inh_caps(caps) | inheritable);
+}
+
+static inline __enbox_nonull(1) __enbox_nothrow
+void
+enbox_drop_inh_caps(struct enbox_caps * __restrict caps, uint64_t inheritable)
+{
+	enbox_assert(caps);
+	enbox_assert(!(inheritable & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	enbox_set_inh_caps(caps, enbox_get_inh_caps(caps) & ~inheritable);
 }
 
 static inline __enbox_nonull(1) __warn_result
@@ -511,21 +560,17 @@ enbox_save_epi_caps(struct enbox_caps * __restrict caps)
 	return ret;
 }
 
-int
+void
 enbox_clear_epi_caps(void)
 {
 	struct enbox_caps caps;
-	int               ret;
+	int               err __unused;
 
 	memset(&caps, 0, sizeof(caps));
 
-	ret = _enbox_save_epi_caps(&caps);
-	if (ret)
-		enbox_info("cannot clear capabilities: %s (%d)",
-		           strerror(-ret),
-		           -ret);
-
-	return ret;
+	/* This should never fail since we simply drop all capabilities... */
+	err = _enbox_save_epi_caps(&caps);
+	enbox_assert(!err);
 }
 
 #if defined(CONFIG_ENBOX_VERBOSE)
@@ -589,9 +634,9 @@ enbox_print_caps(FILE * __restrict stdio)
 	unsigned int      c;
 
 	enbox_load_epi_caps(&caps);
-	eff = enbox_caps_get_eff(&caps);
-	perm = enbox_caps_get_perm(&caps);
-	inh = enbox_caps_get_inh(&caps);
+	eff = enbox_get_eff_caps(&caps);
+	perm = enbox_get_perm_caps(&caps);
+	inh = enbox_get_inh_caps(&caps);
 	amb = enbox_load_amb_caps();
 	bound = enbox_load_bound_caps();
 
@@ -864,9 +909,9 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
 	 * Also make sure `kept_caps' are added to the permitted set so that we
 	 * may enable them after the change IDs operation.
 	 */
-	enbox_caps_set_eff(&caps, ENBOX_CAPS_CHIDS_MASK);
-	enbox_caps_set_perm(&caps, ENBOX_CAPS_CHIDS_MASK | kept_caps);
-	enbox_caps_set_inh(&caps, 0);
+	enbox_set_eff_caps(&caps, ENBOX_CAPS_CHIDS_MASK);
+	enbox_set_perm_caps(&caps, ENBOX_CAPS_CHIDS_MASK | kept_caps);
+	enbox_set_inh_caps(&caps, 0);
 	err = enbox_save_epi_caps(&caps);
 	if (err)
 		goto err;
@@ -912,7 +957,7 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
 		 * Re-enable the CAP_SETPCAP capability into the effective set
 		 * to complete secure bits configuration below.
 		 */
-		enbox_caps_set_eff(&caps, ENBOX_CAP(CAP_SETPCAP));
+		enbox_set_eff_caps(&caps, ENBOX_CAP(CAP_SETPCAP));
 		err = enbox_save_epi_caps(&caps);
 		if (err)
 			goto err;
@@ -935,8 +980,8 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
 	 * See section `Effect of user ID changes on capabilities' of
 	 * capabilities(7).
 	 */
-	enbox_caps_set_eff(&caps, kept_caps);
-	enbox_caps_set_perm(&caps, kept_caps);
+	enbox_set_eff_caps(&caps, kept_caps);
+	enbox_set_perm_caps(&caps, kept_caps);
 	err = enbox_save_epi_caps(&caps);
 	if (err)
 		goto err;
@@ -949,88 +994,106 @@ err:
 	return err;
 }
 
-int
-enbox_change_ids_byid(uid_t uid, bool drop_supp, uint64_t kept_caps)
+void
+enbox_ensure_safe(uint64_t kept_caps)
 {
 	enbox_assert_setup();
 	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
 
-	const struct passwd * pwd;
+	struct enbox_caps caps;
+	int               err __unused;
 
-	pwd = upwd_get_user_byid(uid);
-	if (!pwd) {
-		int err = errno;
+	enbox_enable_nonewprivs();
 
-		enbox_assert(err > 0);
-		enbox_assert(err != ENODATA);
-		enbox_assert(err != ENAMETOOLONG);
+	enbox_load_epi_caps(&caps);
+	if (enbox_perm_caps_have(&caps, CAP_SETPCAP)) {
 
-		switch (err) {
-		case ENOENT:
-			enbox_info("'%d': no such UID", uid);
-			break;
-		default:
-			enbox_info("'%d': unexpected UID: %s (%d)",
-				   uid,
-				   strerror(err),
-				   err);
+		/*
+		 * Enable CAP_SETPCAP to clear bounding set and setup securebits
+		 * below.
+		 */
+		if (!enbox_eff_caps_have(&caps, CAP_SETPCAP)) {
+			enbox_raise_eff_caps(&caps, ENBOX_CAP(CAP_SETPCAP));
+			err = _enbox_save_epi_caps(&caps);
+			enbox_assert(!err);
 		}
 
-		return -err;
+		/*
+		 * This may fail when trying to modify a locked bit.
+		 * However, since we just want to provide the caller with the
+		 * safest environment we can, ignore errors.
+		 */
+		enbox_save_secbits(SECBIT_NOROOT |
+		                   SECBIT_NO_CAP_AMBIENT_RAISE |
+		                   SECURE_ALL_LOCKS);
+
+		/*
+		 * This should never fail thanks to the enabled SETPCAP
+		 * capability...
+		 */
+		err = enbox_clear_bound_caps();
+		enbox_assert(!err);
 	}
 
-	if (!uid || (uid == enbox_uid)) {
-		enbox_info("'%d': invalid UID change requested", uid);
-		return -EINVAL;
-	}
+	/*
+	 * We would no want our children to acquire capabilities from the actual
+	 * ambient set...
+	 */
+	enbox_clear_amb_caps();
 
-	return enbox_change_ids(pwd, drop_supp, kept_caps);
-}
-
-int
-enbox_change_ids_byname(const char * __restrict user,
-                        bool                    drop_supp,
-                        uint64_t                kept_caps)
-{
-	enbox_assert_setup();
-	enbox_assert(upwd_validate_user_name(user) > 0);
-	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
-
-	const struct passwd * pwd;
-
-	pwd = upwd_get_user_byname(user);
-	if (!pwd) {
-		int err = errno;
-
-		enbox_assert(err > 0);
-		enbox_assert(err != ENODATA);
-		enbox_assert(err != ENAMETOOLONG);
-
-		switch (err) {
-		case ENOENT:
-			enbox_info("'%s': no such user", user);
-			break;
-		default:
-			enbox_info("'%s': unexpected user name: %s (%d)",
-				   user,
-				   strerror(err),
-				   err);
-		}
-
-		return -err;
-	}
-
-	if (!pwd->pw_uid || (pwd->pw_uid == enbox_uid)) {
-		enbox_info("'%s': invalid user change requested", user);
-		return -EINVAL;
-	}
-
-	return enbox_change_ids(pwd, drop_supp, kept_caps);
+	/* This should never fail since we only drop capabilities... */
+	enbox_set_eff_caps(&caps, enbox_get_eff_caps(&caps) & kept_caps);
+	enbox_set_perm_caps(&caps, enbox_get_perm_caps(&caps) & kept_caps);
+	enbox_set_inh_caps(&caps, 0);
+	err = _enbox_save_epi_caps(&caps);
+	enbox_assert(!err);
 }
 
 #if 0
+static
+int
+enbox_raise_amb_cap(int cap)
+{
+	enbox_assert(cap_valid(cap));
+
+	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, (long)cap, 0, 0)) {
+		int err = errno;
+
+		enbox_assert(err != EINVAL);
+
+		enbox_info("cannot raise ambient capability: %s (%d)",
+		           strerror(err),
+		           err);
+
+		return -err;
+	}
+
+	return 0;
+}
+
+
+int
+enbox_raise_amb_caps(uint64_t caps)
+{
+	enbox_assert(caps);
+	enbox_assert(!(caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	uint64_t     iter;
+	unsigned int c;
+	int          ret = 0;
+
+	stroll_bmap_foreach_set64(&iter, caps, &c) {
+		enbox_assert(cap_valid((int)c));
+
+		ret = enbox_raise_amb_cap(c);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+
 int
 enbox_secure_execve(struct enbox_caps * __restrict caps,
                     uint64_t                       kept_caps)
@@ -1064,8 +1127,8 @@ enbox_secure_execve(struct enbox_caps * __restrict caps,
 	 * permitted set.
 	 */
 	enbox_load_epi_caps(caps);
-	enbox_caps_set_perm(caps, enbox_caps_get_perm(caps) | kept_caps);
-	enbox_caps_set_inh(caps, kept_caps);
+	enbox_set_perm_caps(caps, enbox_get_perm_caps(caps) | kept_caps);
+	enbox_set_inh_caps(caps, kept_caps);
 	err = enbox_save_epi_caps(caps);
 	if (err)
 		goto err;
@@ -1086,7 +1149,7 @@ enbox_secure_execve(struct enbox_caps * __restrict caps,
 		goto err;
 
 	/*
-	 * Clear all ambient capabilities: we would not want a non-root process
+	 * Clear all ambient capabilities: we would not want a non-root process
 	 * inheriting capabilities from the ambient set if the process were to
 	 * change IDs...
 	 */
@@ -1121,8 +1184,8 @@ enbox_secure_execve(struct enbox_caps * __restrict caps,
 	enbox_enable_nonewprivs();
 
 	enbox_load_epi_caps(caps);
-	enbox_caps_set_perm(caps, enbox_caps_get_perm(caps) | kept_caps);
-	enbox_caps_set_inh(caps, kept_caps);
+	enbox_set_perm_caps(caps, enbox_get_perm_caps(caps) | kept_caps);
+	enbox_set_inh_caps(caps, kept_caps);
 	err = enbox_save_epi_caps(caps);
 	if (err)
 		goto err;
