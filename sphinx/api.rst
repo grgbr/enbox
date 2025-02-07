@@ -200,26 +200,28 @@ mentioned above. These are :
 .. hlist::
 
    * Processes :
-     
+
       * :c:func:`enbox_get_umask`,
       * :c:func:`enbox_set_umask`,
 
    * User / group IDs :
-     
+
       * :c:func:`enbox_change_ids`,
       * :c:func:`enbox_get_uid`,
       * :c:func:`enbox_get_gid`,
-      * :c:func:`enbox_secure_change_ids`,
       * :c:func:`enbox_switch_ids`,
-        
-   * Capabilities :
-     
+
+   * Privileges :
+
+      * :c:macro:`ENBOX_CAP`,
       * :c:func:`enbox_clear_amb_caps`,
       * :c:func:`enbox_clear_bound_caps`,
       * :c:func:`enbox_clear_epi_caps`,
+      * :c:func:`enbox_ensure_safe`,
+      * :c:func:`enbox_print_status`,
 
    * Filesystem :
-     
+
       * :c:func:`enbox_change_perms`,
       * :c:func:`enbox_make_blkdev`,
       * :c:func:`enbox_make_chrdev`,
@@ -240,10 +242,10 @@ Reference
 Macros
 ------
 
-ENBOX_DISABLE_DUMP
-******************
+ENBOX_CAP
+*********
 
-.. doxygendefine:: ENBOX_DISABLE_DUMP
+.. doxygendefine:: ENBOX_CAP
 
 ENBOX_DROP_SUPP_GROUPS
 **********************
@@ -401,6 +403,11 @@ enbox_destroy_conf()
 
 .. doxygenfunction:: enbox_destroy_conf
 
+enbox_ensure_safe()
+*******************
+
+.. doxygenfunction:: enbox_ensure_safe
+
 enbox_enter_jail()
 ******************
 
@@ -430,11 +437,6 @@ enbox_load_ids_byname()
 ***********************
 
 .. doxygenfunction:: enbox_load_ids_byname
-
-enbox_lock_caps()
-*****************
-
-.. doxygenfunction:: enbox_lock_caps
 
 enbox_make_blkdev()
 *******************
@@ -466,6 +468,11 @@ enbox_populate_host()
 
 .. doxygenfunction:: enbox_populate_host
 
+enbox_print_status()
+********************
+
+.. doxygenfunction:: enbox_print_status
+
 enbox_run_cmd()
 ***************
 
@@ -480,11 +487,6 @@ enbox_set_umask()
 *****************
 
 .. doxygenfunction:: enbox_set_umask
-
-enbox_secure_change_ids()
-*************************
-
-.. doxygenfunction:: enbox_secure_change_ids
 
 enbox_setup()
 *************

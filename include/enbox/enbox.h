@@ -595,8 +595,8 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
  *
  * Build a capability bitmask out of the given @p _cap capability index.
  *
- * Capability index definitions may found into the `<linux/capability.h>` header
- * file shipped with your Linux kernel / C library install.
+ * Capability index definitions may be found into the `<linux/capability.h>`
+ * header file shipped with your Linux kernel / C library install.
  *
  * @param[in] _cap A system capability index
  *
