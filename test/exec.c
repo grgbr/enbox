@@ -1,88 +1,86 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <enbox/enbox.h>
+#include <elog/elog.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 
-int main(int argc, char * const argv[])
+static struct elog_stdio log;
+
+#define dolog(_format, ...) \
+	elog_log(&log.super, \
+	         ELOG_CURRENT_SEVERITY, \
+	         _format "\n", \
+	         ## __VA_ARGS__)
+
+#define USAGE \
+"Usage: %1$s [OPTIONS] <USER>\n" \
+"Test Enbox execve logic.\n" \
+"\n" \
+"With OPTIONS:\n" \
+"    --caps=CAPS -- tries to preserve the CAPS list of capabilities across execve()\n" \
+"    -h|--help   -- this help message\n" \
+"Where:\n" \
+"    CAPS -- a comma separated list of system capabilities\n"
+
+int main(int argc, char * const argv[], char * const envp[])
 {
-	int          err;
-	unsigned int depth = 0;
-	const char * msg;
+	assert(argc >= 1);
 
-	if (argc > 1) {
-		err = 0 - ustr_parse_uint_range(argv[1], &depth, 0, 3);
-		if (err) {
-			msg = "invalid depth specified";
-			goto err;
-		}
-	}
-
-	enbox_setup(NULL);
-
-	printf("#################### Security status for `%s %u' ####################\n",
-	       program_invocation_short_name,
-	       depth);
-	enbox_print_status(stdout);
-
-	if (depth > 0) {
-		assert(depth > 0);
-		assert(depth < 10);
-
-		const char arg[2] = { '0' + depth - 1, '\0' };
-
-		execl("/home/sigors/greg/devel/tidor/enbox-priv",
-		      "/home/sigors/greg/devel/tidor/enbox-priv",
-		      arg,
-		      NULL);
-
-		err = errno;
-		msg = "failed to execute";
-		goto err;
-	}
-
-	return EXIT_SUCCESS;
-
-err:
-	fprintf(stderr,
-	        "%s: %s: %s (%d).\n",
-	        program_invocation_short_name,
-	        msg,
-	        strerror(err),
-	        err);
-
-	return EXIT_FAILURE;
-}
-
-
-#if 0
-int main(void)
-{
 	static const struct elog_stdio_conf cfg = {
 		.super.severity = ELOG_DEBUG_SEVERITY,
 		.format         = ELOG_TAG_FMT
 	};
-	struct enbox_caps                   caps;
+	int                                 ret = EXIT_FAILURE;
+	int                                 err;
+	char *                              args[argc];
+	const struct passwd *               pwd;
 
 	elog_init_stdio(&log, &cfg);
+
 	enbox_setup((struct elog *)&log);
 
-	if (enbox_secure_execve(&caps,
-	                        ENBOX_CAP(CAP_DAC_OVERRIDE) |
-	                        ENBOX_CAP(CAP_SETUID) |
-	                        ENBOX_CAP(CAP_SETGID) |
-	                        ENBOX_CAP(CAP_SYSLOG)))
-		return EXIT_FAILURE;
+	if (argc <= 1) {
+		enbox_print_status(stdout);
+		ret = EXIT_SUCCESS;
+		goto out;
+	}
 
-#define DEPTH 1
-	printf("#################### Security status for `%s %u' ####################\n",
-	       program_invocation_short_name,
-	       DEPTH);
-	enbox_print_status(stdout);
+	args[0] = argv[0];
+	if (argc > 2)
+		memcpy(&args[1], &argv[2], (argc - 2) * sizeof(argv[0]));
+	args[argc - 1] = NULL;
 
-	execl("/home/sigors/greg/devel/tidor/enbox-priv",
-	      "/home/sigors/greg/devel/tidor/enbox-priv",
-	      STROLL_STRING(DEPTH),
-	      NULL);
+	if (!strcmp(argv[1], "exec")) {
+		dolog("execv'ing '%s'...", argv[1]);
+		err = enbox_execve(argv[0],
+		                   args,
+		                   envp,
+		                   ENBOX_CAP(CAP_DAC_OVERRIDE) |
+		                   ENBOX_CAP(CAP_SETUID) |
+		                   ENBOX_CAP(CAP_SETGID) |
+		                   ENBOX_CAP(CAP_SYSLOG));
+		goto err;
+	}
+
+	pwd = upwd_get_user_byname(argv[1]);
+	if (pwd) {
+		dolog("change IDs and execv'ing '%s'...", argv[1]);
+		err = enbox_switch_ids(pwd, ENBOX_RAISE_SUPP_GROUPS);
+		if (err)
+			goto out;
+	}
+	else
+		dolog("execv'ing '%s'...", argv[1]);
+
+	execv(argv[0], args);
+	err = -errno;
+
+err:
+	dolog("execution failed: %s (%d).", strerror(-err), -err);
+out:
+	elog_fini_stdio(&log);
+
+	return ret;
 }
-#endif

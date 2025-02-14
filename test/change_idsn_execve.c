@@ -1,9 +1,11 @@
 #define _GNU_SOURCE
-#include <elog/elog.h>
+#include <stdio.h>
 #include <enbox/enbox.h>
+#include <elog/elog.h>
 #include <utils/pwd.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
 
 static struct elog_stdio log;
 
@@ -15,20 +17,12 @@ static struct elog_stdio log;
 
 #define USAGE \
 "Usage: %1$s [OPTIONS] <USER> [CAPS...]\n" \
-"Test Enbox change IDs logic.\n" \
+"Test Enbox change_idsn_execve logic.\n" \
 "\n" \
 "With OPTIONS:\n" \
-"    -h|--help -- this help message\n" \
+"    -h|--help   -- this help message\n" \
 "Where:\n" \
-"    USER -- a login user name\n" \
-"    CAPS -- a whitspace separated list of system capabilities"
-
-static
-void
-usage(void)
-{
-	fprintf(stderr, USAGE "\n", program_invocation_short_name);
-}
+"    CAPS -- a list of system capabilities\n"
 
 static const char * capabilities[] = {
 	"chown",             /*  0 */
@@ -87,41 +81,39 @@ enbox_parse_cap(const char * __restrict arg)
 	return -ENOENT;
 }
 
-int main(int argc, char * const argv[])
+int main(int argc, char * const argv[], char * const envp[])
 {
+	assert(argc >= 1);
+
 	static const struct elog_stdio_conf cfg = {
 		.super.severity = ELOG_DEBUG_SEVERITY,
 		.format         = ELOG_TAG_FMT
 	};
-	int                                 ret = EXIT_FAILURE;
-	const char *                        user;
 	const struct passwd *               pwd;
 	unsigned int                        a;
 	uint64_t                            caps = 0;
+	int                                 ret = EXIT_FAILURE;
+	int                                 err;
+	char * const                        args[] = { argv[0], NULL };
 
 	elog_init_stdio(&log, &cfg);
 
-	if (argc < 2) {
-		dolog("invalid number of argument.");
-		usage();
-		goto out;
-	}
+	enbox_setup((struct elog *)&log);
 
-	if (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")) {
-		usage();
+	if (argc <= 1) {
+		enbox_print_status(stdout);
 		ret = EXIT_SUCCESS;
 		goto out;
 	}
 
-	user = argv[1];
-	if (upwd_validate_user_name(user) <= 0) {
-		dolog("invalid user name.");
+	if (argc < 2) {
+		dolog("invalid number of arguments.");
 		goto out;
 	}
 
-	pwd = upwd_get_user_byname(user);
+	pwd = upwd_get_user_byname(argv[1]);
 	if (!pwd) {
-		dolog("unknown '%s' user.", user);
+		dolog("invalid user '%s' name.", argv[1]);
 		goto out;
 	}
 
@@ -137,20 +129,13 @@ int main(int argc, char * const argv[])
 		caps |= enbox_cap(c);
 	}
 
-	enbox_setup((struct elog *)&log);
-
-	if (pwd->pw_uid != enbox_get_uid()) {
-		if (enbox_change_ids(pwd, ENBOX_RAISE_SUPP_GROUPS, caps)) {
-		    dolog("failed to change IDs.");
-		    goto out;
-		}
-	}
-	else
-		enbox_ensure_safe(caps);
-
-	enbox_print_status(stdout);
-
-	ret = EXIT_SUCCESS;
+	err = enbox_change_idsn_execve(pwd,
+	                               ENBOX_RAISE_SUPP_GROUPS,
+	                               argv[0],
+	                               args,
+	                               NULL,
+	                               caps);
+	dolog("change_idsn_execve failed: %s (%d).", strerror(-err), -err);
 
 out:
 	elog_fini_stdio(&log);

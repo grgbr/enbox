@@ -2334,6 +2334,7 @@ PREDEFINED             = __restrict= \
                          __nothrow= \
                          __enbox_nothrow= \
                          __enbox_pure= \
+                         __enbox_const= \
                          __warn_result= \
                          __leaf=
 

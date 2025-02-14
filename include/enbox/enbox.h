@@ -591,9 +591,9 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
 	__enbox_nonull(1) __enbox_nothrow;
 
 /**
- * Make a capability mask out of a capability index.
+ * Make a capability mask out of a constant capability index.
  *
- * Build a capability bitmask out of the given @p _cap capability index.
+ * Build a capability bitmask out of the given constant @p _cap capability index.
  *
  * Capability index definitions may be found into the `<linux/capability.h>`
  * header file shipped with your Linux kernel / C library install.
@@ -602,6 +602,10 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
  *
  * @return A system capability bitmask.
  *
+ * @see
+ * - enbox_cap()
+ * - [capabilities(7)]
+ *
  * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  */
 #define ENBOX_CAP(_cap) \
@@ -609,6 +613,33 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
 		compile_assert(cap_valid(_cap)); \
 		UINT64_C(1) << (_cap); \
 	 })
+
+/**
+ * Make a capability mask out of a capability index.
+ *
+ * Build a capability bitmask out of the given @p cap capability index.
+ *
+ * Capability index definitions may be found into the `<linux/capability.h>`
+ * header file shipped with your Linux kernel / C library install.
+ *
+ * @param[in] cap A system capability index
+ *
+ * @return A system capability bitmask.
+ *
+ * @see
+ * - ENBOX_CAP
+ * - [capabilities(7)]
+ *
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ */
+static inline __enbox_const __enbox_nothrow __warn_result
+uint64_t
+enbox_cap(int cap)
+{
+	enbox_assert(cap_valid(cap));
+
+	return UINT64_C(1) << cap;
+}
 
 /**
  * Clear effective, permitted and inheritable capability sets.
@@ -759,8 +790,8 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  * one of the system primitives documented into getpwent(2).
  *
  * In addition, change current process's real, effective and saved group ID to
- * primary GID of @p user and setup current process's list of supplementary
- * group IDs according to the following :
+ * primary GID matching the @p pwd_entry and setup current process's list of
+ * supplementary group IDs according to the following :
  * - when @p drop_supp argument equals #ENBOX_RAISE_SUPP_GROUPS, setup
  *   supplementary group IDs from system group database in addition to primary
  *   group ID,
@@ -768,7 +799,7 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  *   supplementary group list.
  *
  * The @p kept_caps argument configures the mask of capabilities to keep enabled
- * when returning from subsequent call to enbox_change_ids().
+ * when returning from call to enbox_change_ids().
  *
  * Upon return, current thread permitted and effective capability sets reflect
  * the mask given by @p kept_caps. Bounding and ambient capabilitiy sets are
@@ -784,9 +815,12 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  * @warning
  * - Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
  *   capabilities.
- * - Note that this function does not preserve `CAP_SETPCAP`, `CAP_SETUID`, and
- *   `CAP_SETGID` capabilities across change IDs operation. Trying to do so will
- *   lead to unpredictable results.
+ * - Trying to change to the same UID as the current process effective UID will
+ *   lead to unpredictable result.
+ * - Trying to change to a zero UID will lead to unpredictable result.
+ * - Does not preserve `CAP_SYS_ADMIN`, `CAP_SETPCAP`, `CAP_SETUID`, and
+ *   `CAP_SETGID` capabilities across change IDs operation. Trying to do so
+ *   will lead to unpredictable results.
  *
  * @param[in]    pwd_entry A password file entry pointer to the user to change
  *                         to
@@ -800,6 +834,7 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  * - #ENBOX_RAISE_SUPP_GROUPS
  * - #ENBOX_DROP_SUPP_GROUPS
  * - enbox_switch_ids()
+ * - enbox_change_idsn_execve()
  * - [getpwent(2)]
  * - [setresuid(2)]
  * - [initgroups(3)]
@@ -820,6 +855,178 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
                  bool                             drop_supp,
                  uint64_t                         kept_caps)
 	__enbox_nonull(1) __warn_result;
+
+/**
+ * Execute the program given in arguments and preserve capabilities.
+ *
+ * Executes the program  referred to by @p path. This causes the program that is
+ * currently being run by the calling process to be replaced with a new program,
+ * with newly initialized stack, heap, and (initialized and uninitialized) data
+ * segments.
+ *
+ * The @p kept_caps argument configures the mask of capabilities to keep enabled
+ * when returning from call to enbox_execve().
+ * Capabilities referred to by @p kept_caps *MUST* also be enabled within the
+ * bounding capability set. An error is returned otherwise.
+ *
+ * Upon return, current thread permitted, effective, inheritable and ambient
+ * capability sets reflect the mask given by @p kept_caps. Bounding capabilitiy
+ * set is cleared. The [no_new_privs] attribute is set to 1 and securebits are
+ * also modified and locked so that the following bits are set:
+ * - `SECBIT_NOROOT`,
+ * - `SECBIT_NOROOT_LOCKED`,
+ * - `SECBIT_NO_SETUID_FIXUP_LOCKED`,
+ * - `SECBIT_KEEP_CAPS_LOCKED`,
+ * - `SECBIT_NO_CAP_AMBIENT_RAISE`,
+ * - `SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED`.
+ *
+ * @p argv is a `NULL` terminated array of pointers to strings passed to the new
+ * program as its command-line arguments. By convention, the first of these
+ * strings (i.e., argv[0]) should contain the filename associated with
+ * the file being executed.
+ *
+ * @p envp is an optional `NULL` terminated array of pointers to strings,
+ * conventionally of the form *key=value*, which are passed as the environment
+ * of the new program.
+ *
+ * @warning
+ * - Requires the ability to enable the CAP_SETPCAP capabilities.
+ * - @p argv *MUST* contain an arbitrary program name as first argument. Failing
+ *   to do will lead to unpredictable results.
+ * - Does not preserve `CAP_SYS_ADMIN` and `CAP_SETPCAP` capabilities across
+ *   [execve(2)] operation. Trying to do so will lead to unpredictable results.
+ *
+ * @param[in]    path      Pathname to program to [execve(2)]
+ * @param[in]    argv      Program command-line arguments
+ * @param[in]    envp      Optional program environment variable set
+ * @param[in]    kept_caps Capabilities to preserve after [execve(2)]
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - enbox_change_idsn_execve()
+ * - [execve(2)]
+ * - [capabilities(7)]
+ *
+ * @ingroup utils
+ *
+ * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
+ * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
+ */
+extern int
+enbox_execve(const char * __restrict path,
+             char * const            argv[__restrict_arr],
+             char * const            envp[__restrict_arr],
+             uint64_t                kept_caps)
+	__enbox_nonull(1, 2) __enbox_nothrow __leaf;
+
+/**
+ * Switch to user / group IDs, execute the program given in arguments and
+ * preserve capabilities.
+ *
+ * Change current process's real, effective and saved user and group IDs to UID
+ * and GIDs matching the @p pwd_entry entry and @p drop_supp arguments, then
+ * execute the program specified as the @p path, @p argv and @p envp arguments
+ * while preserving capabilities passed as @p kept_caps argument.
+ *
+ * While changing user IDs, current process's real, effective and saved group
+ * IDs are switched to primary GID matching the @p pwd_entry and current
+ * process's list of supplementary group IDs is setup according to the
+ * following :
+ * - when @p drop_supp argument equals #ENBOX_RAISE_SUPP_GROUPS, setup
+ *   supplementary group IDs from system group database in addition to primary
+ *   group ID,
+ * - when @p drop_supp argument equals #ENBOX_DROP_SUPP_GROUPS, clear
+ *   supplementary group list.
+ *
+ * The program to execute is referred to by @p path. This causes the program
+ * that is currently being run by the calling process to be replaced with a new
+ * program, with newly initialized stack, heap, and (initialized and
+ * uninitialized) data segments.
+ *
+ * The @p kept_caps argument configures the mask of capabilities to keep enabled
+ * when returning from call to enbox_change_idsn_execve().
+ * Capabilities referred to by @p kept_caps *MUST* also be enabled within the
+ * bounding capability set. An error is returned otherwise.
+ *
+ * Upon return, current thread permitted, effective, inheritable and ambient
+ * capability sets reflect the mask given by @p kept_caps. Bounding capabilitiy
+ * set is cleared. The [no_new_privs] attribute is set to 1 and securebits are
+ * also modified and locked so that the following bits are set:
+ * - `SECBIT_NOROOT`,
+ * - `SECBIT_NOROOT_LOCKED`,
+ * - `SECBIT_NO_SETUID_FIXUP_LOCKED`,
+ * - `SECBIT_KEEP_CAPS_LOCKED`,
+ * - `SECBIT_NO_CAP_AMBIENT_RAISE`,
+ * - `SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED`.
+ *
+ * The @p pwd_entry should point to a `struct passwd` entry retrieved using one
+ * of the system primitives documented into getpwent(2).
+ *
+ * The @p argv is a `NULL` terminated array of pointers to strings passed to the
+ * new program as its command-line arguments. By convention, the first of these
+ * strings (i.e., argv[0]) should contain the filename associated with the file
+ * being executed.
+ *
+ * @p envp is an optional `NULL` terminated array of pointers to strings,
+ * conventionally of the form *key=value*, which are passed as the environment
+ * of the new program.
+ *
+ * @note
+ * When @p pwd_entry points to an entry matching the current thread's effective
+ * UID, the change IDs operations are skipped entirely.
+ *
+ * @warning
+ * - Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
+ *   capabilities.
+ * - @p argv *MUST* contain an arbitrary program name as first argument. Failing
+ *   to do will lead to unpredictable results.
+ * - Does not preserve `CAP_SYS_ADMIN` and `CAP_SETPCAP` capabilities across
+ *   operations. Trying to do so will lead to unpredictable results.
+ *
+ * @param[in]    pwd_entry A password file entry pointer to the user to change
+ *                         to
+ * @param[in]    drop_supp Load or clear supplementary groups list (see
+ *                         #ENBOX_RAISE_SUPP_GROUPS and #ENBOX_DROP_SUPP_GROUPS)
+ * @param[in]    path      Pathname to program to [execve(2)]
+ * @param[in]    argv      Program command-line arguments
+ * @param[in]    envp      Optional program environment variable set
+ * @param[in]    kept_caps Capabilities to preserve after change IDs and
+ *                         program execution
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - #ENBOX_RAISE_SUPP_GROUPS
+ * - #ENBOX_DROP_SUPP_GROUPS
+ * - enbox_change_ids()
+ * - enbox_execve()
+ * - [getpwent(2)]
+ * - [setresuid(2)]
+ * - [initgroups(3)]
+ * - [setgroups(2)]
+ * - [execve(2)]
+ * - [capabilities(7)]
+ *
+ * @ingroup utils
+ *
+ * [getpwent(2)]:     https://man7.org/linux/man-pages/man2/getpwent.2.html
+ * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
+ * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
+ * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
+ * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
+ * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
+ */
+extern int
+enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
+                         bool                             drop_supp,
+                         const char * __restrict          path,
+                         char * const                     argv[__restrict_arr],
+                         char * const                     envp[__restrict_arr],
+                         uint64_t                         kept_caps)
+	__enbox_nonull(1, 3, 4);
 
 /**
  * Enable the safest security context possible.

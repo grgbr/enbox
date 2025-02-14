@@ -201,12 +201,16 @@ mentioned above. These are :
 
    * Processes :
 
+      * :c:func:`enbox_change_idsn_execve`,
+      * :c:func:`enbox_execve`,
       * :c:func:`enbox_get_umask`,
       * :c:func:`enbox_set_umask`,
 
    * User / group IDs :
 
       * :c:func:`enbox_change_ids`,
+      * :c:func:`enbox_change_idsn_execve`,
+      * :c:func:`enbox_execve`,
       * :c:func:`enbox_get_uid`,
       * :c:func:`enbox_get_gid`,
       * :c:func:`enbox_switch_ids`,
@@ -214,6 +218,7 @@ mentioned above. These are :
    * Privileges :
 
       * :c:macro:`ENBOX_CAP`,
+      * :c:func:`enbox_cap`,
       * :c:func:`enbox_clear_amb_caps`,
       * :c:func:`enbox_clear_bound_caps`,
       * :c:func:`enbox_clear_epi_caps`,
@@ -368,10 +373,20 @@ enbox_slink_entry
 Functions
 ---------
 
+enbox_cap()
+***********
+
+.. doxygenfunction:: enbox_cap
+
 enbox_change_ids()
 ******************
 
 .. doxygenfunction:: enbox_change_ids
+
+enbox_change_idsn_execve()
+**************************
+
+.. doxygenfunction:: enbox_change_idsn_execve
 
 enbox_change_perms()
 ********************
@@ -412,6 +427,11 @@ enbox_enter_jail()
 ******************
 
 .. doxygenfunction:: enbox_enter_jail
+
+enbox_execve()
+**************
+
+.. doxygenfunction:: enbox_execve
 
 enbox_get_gid()
 ***************
