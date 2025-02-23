@@ -1,3 +1,8 @@
+.. SPDX-License-Identifier: GPL-3.0-only
+   
+   This file is part of Enbox.
+   Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
+
 .. include:: _cdefs.rst
 
 .. _sect-api-overview:
@@ -5,21 +10,40 @@
 Overview
 ========
 
-What follows here provides a thorough description of how to use Enbox's library.
+What follows here provides a thorough description of how to use Enbox_'s library.
 Please, head to sections :ref:`sect-main-overview` and
-:ref:`sect-main-terminology` for an introduction to Enbox concepts.
+:ref:`sect-main-terminology` for an introduction to Enbox_ concepts.
 
-Basically, Enbox library is the C framework that lies underneath Enbox. It is
-provided to carry out Enbox related tasks directly from C/C++ applications.
+Basically, Enbox_ library is the C framework that lies underneath Enbox_. It is
+provided to carry out Enbox_ related tasks directly from C/C++ applications.
 
 In addition to a high-level functional API, the library also comes with
 additional utility functions allowing to manipulate Linux system objects in a
 limited way. See section Utilities_ for more informations.
 
+.. index:: build configuration, configuration macros
+
+Build configuration
+===================
+
+At :ref:`Build configuration time <workflow-configure-phase>`, multiple build
+options are available to customize final Enbox_ build. From client code, you
+may eventually refer to the corresponding C macros listed below:
+
+* :c:macro:`CONFIG_ENBOX_ASSERT`
+* :c:macro:`CONFIG_ENBOX_VERBOSE`
+* :c:macro:`CONFIG_ENBOX_DEBUG`
+* :c:macro:`CONFIG_ENBOX_INCLUDE_DIR`
+* :c:macro:`CONFIG_ENBOX_DISABLE_DUMP`
+* :c:macro:`CONFIG_ENBOX_TOOL`
+* :c:macro:`CONFIG_ENBOX_TOOL_STDLOG_SEVERITY`
+* :c:macro:`CONFIG_ENBOX_TOOL_STDLOG_FORMAT`
+* :c:macro:`CONFIG_ENBOX_TOOL_SHOW`
+  
 Usage
 =====
 
-Enbox library API is organized around the following functional areas which
+Enbox_ library API is organized around the following functional areas which
 you can refer to for further details :
 
 * Initialization_,
@@ -28,7 +52,7 @@ you can refer to for further details :
 * and Utilities_.
 
 The typical sequence of operations involves using the first 3 functional
-areas mentioned above. Most of the time, you use Enbox library in one of the
+areas mentioned above. Most of the time, you use Enbox_ library in one of the
 2 following ways :
 
 * `Run a configuration from filesystem`_
@@ -37,41 +61,41 @@ areas mentioned above. Most of the time, you use Enbox library in one of the
 Run a configuration from filesystem
 -----------------------------------
 
-This mode of operation is meant to apply and execute an Enbox configuration
+This mode of operation is meant to apply and execute an Enbox_ configuration
 stored into a file. This file must be formatted according to the
 configuration syntax detailed into the :ref:`sect-main-configuration` section.
 
 Additional usage details may be found into section Configuration_. This
-is the most straightforward way to use the Enbox library.
+is the most straightforward way to use the Enbox_ library.
 
 Run a configuration from hard-coded values
 ------------------------------------------
 
-This mode of operation is meant to apply and execute an Enbox configuration
+This mode of operation is meant to apply and execute an Enbox_ configuration
 from pre-defined hard-coded values found into multiple binary structures
 built at compile-time.
 
 Additional usage details may be found into section Instantiation_. This is the
-most complex way to use the Enbox library.
+most complex way to use the Enbox_ library.
 
 Initialization
 ==============
 
-Using Enbox library requires to initialize it first using :
+Using Enbox_ library requires to initialize it first using :
 
 * :c:func:`enbox_setup`
 
 Configuration
 =============
 
-Configuration directives may be used to setup Enbox library runtime behavior.
+Configuration directives may be used to setup Enbox_ library runtime behavior.
 Refer to the :ref:`usage configuration <sect-main-configuration>` section for
 additional informations.
 
 Configuration workflow involves the following typical sequence of operations :
 
-#. initialize Enbox library using :c:func:`enbox_setup`,
-#. load and parse an Enbox configuration from the content of a file using
+#. initialize Enbox_ library using :c:func:`enbox_setup`,
+#. load and parse an Enbox_ configuration from the content of a file using
    :c:func:`enbox_create_conf_from_file`,
 #. apply and execute the configuration loaded above using
    :c:func:`enbox_run_conf`.
@@ -85,7 +109,7 @@ wether the configuration was successfully applied or not and one should call
 :c:func:`enbox_destroy_conf` to release resources allocated by 
 :c:func:`enbox_create_conf_from_file`.
 
-Note that :c:type:`enbox_conf` is an opaque structure holding a loaded Enbox
+Note that :c:type:`enbox_conf` is an opaque structure holding a loaded Enbox_
 configuration that may be required by functions mentioned above.
 
 .. todo:: 
@@ -95,7 +119,7 @@ configuration that may be required by functions mentioned above.
 Instantiation
 =============
 
-Enbox library runtime behavior may also be setup from a pre-defined set of
+Enbox_ library runtime behavior may also be setup from a pre-defined set of
 hard-coded values. This is the most flexible and complex way to use the library.
 
 Support for the following tasks is implemented :
@@ -157,7 +181,7 @@ which will implictly destroy the jail.
 All priviledges, i.e. |capabilities(7)|, inherited from parent process will be
 dropped when running the program to isolate from «host», at next call to
 |execve(2)|. See section :ref:`sect-run_cmd` for additional informations about
-running a command with Enbox.
+running a command with Enbox_.
 
 Jail is instantiated according to properties set into a :c:type:`enbox_jail`
 structure allowing to specify among other things :
@@ -194,7 +218,7 @@ Although not mandatory, the command may optionally be executed from within a
 Utilities
 =========
 
-Enbox library also exposes various utility functions used to implement logics
+Enbox_ library also exposes various utility functions used to implement logics
 mentioned above. These are :
 
 .. hlist::
@@ -223,7 +247,7 @@ mentioned above. These are :
       * :c:func:`enbox_clear_bound_caps`,
       * :c:func:`enbox_clear_epi_caps`,
       * :c:func:`enbox_ensure_safe`,
-      * :c:func:`enbox_print_status`,
+      * :c:func:`enbox_print_priv`,
 
    * Filesystem :
 
@@ -243,6 +267,54 @@ Use cases
 
 Reference
 =========
+
+Configuration macros
+--------------------
+
+CONFIG_ENBOX_ASSERT
+*******************
+
+.. doxygendefine:: CONFIG_ENBOX_ASSERT
+
+CONFIG_ENBOX_VERBOSE
+********************
+
+.. doxygendefine:: CONFIG_ENBOX_VERBOSE
+
+CONFIG_ENBOX_DEBUG
+******************
+
+.. doxygendefine:: CONFIG_ENBOX_DEBUG
+
+CONFIG_ENBOX_INCLUDE_DIR
+************************
+
+.. doxygendefine:: CONFIG_ENBOX_INCLUDE_DIR
+
+CONFIG_ENBOX_DISABLE_DUMP
+*************************
+
+.. doxygendefine:: CONFIG_ENBOX_DISABLE_DUMP
+
+CONFIG_ENBOX_TOOL
+*****************
+
+.. doxygendefine:: CONFIG_ENBOX_TOOL
+
+CONFIG_ENBOX_TOOL_STDLOG_SEVERITY
+*********************************
+
+.. doxygendefine:: CONFIG_ENBOX_TOOL_STDLOG_SEVERITY
+
+CONFIG_ENBOX_TOOL_STDLOG_FORMAT
+*******************************
+
+.. doxygendefine:: CONFIG_ENBOX_TOOL_STDLOG_FORMAT
+
+CONFIG_ENBOX_TOOL_SHOW
+**********************
+
+.. doxygendefine:: CONFIG_ENBOX_TOOL_SHOW
 
 Macros
 ------
@@ -488,10 +560,10 @@ enbox_populate_host()
 
 .. doxygenfunction:: enbox_populate_host
 
-enbox_print_status()
-********************
+enbox_print_priv()
+******************
 
-.. doxygenfunction:: enbox_print_status
+.. doxygenfunction:: enbox_print_priv
 
 enbox_run_cmd()
 ***************

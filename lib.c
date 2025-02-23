@@ -7,7 +7,6 @@
 #include <sys/syscall.h>
 #include <sys/vfs.h>
 #include <linux/magic.h>
-#include <linux/capability.h>
 #include <linux/securebits.h>
 
 struct elog * enbox_logger;
@@ -1316,22 +1315,6 @@ enbox_enter_jail_bypwd(int                              namespaces,
 		goto err;
 	}
 
-	enbox_enable_nonewprivs();
-	err = enbox_save_secbits(SECBIT_NOROOT |
-	                         SECBIT_NO_CAP_AMBIENT_RAISE |
-	                         SECURE_ALL_LOCKS);
-	if (err)
-		return err;
-
-	/*
-	 * Clear bounding set capabilities.
-	 * Effective, permitted, inheritable and ambient sets will be cleared at
-	 * execve() time.
-	 */
-	err = enbox_clear_bound_caps();
-	if (err)
-		return err;
-
 	/*
 	 * Dissociate from parent process namespaces.
 	 *
@@ -1538,10 +1521,6 @@ enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
 
 	enbox_umask = umask(cmd->umask);
 
-	err = enbox_switch_ids(ids->pwd, ids->drop_supp);
-	if (err)
-		goto err;
-
 	if (cmd->cwd) {
 		err = upath_chdir(cmd->cwd);
 		if (err) {
@@ -1553,9 +1532,12 @@ enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
 		}
 	}
 
-	execve(cmd->exec[0], (char * const *)cmd->exec, NULL);
-
-	err = -errno;
+	err = enbox_change_idsn_execve(ids->pwd,
+	                               ids->drop_supp,
+	                               cmd->exec[0],
+	                               (char * const *)cmd->exec,
+	                               NULL,
+	                               cmd->caps);
 
 err:
 	enbox_err("cannot run command: %s (%d)", strerror(-err), -err);

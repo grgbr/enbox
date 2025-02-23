@@ -604,7 +604,10 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
  *
  * @see
  * - enbox_cap()
+ * - ENBOX_CAPS_NR
  * - [capabilities(7)]
+ *
+ * @ingroup utils
  *
  * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  */
@@ -625,6 +628,8 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
  * @param[in] cap A system capability index
  *
  * @return A system capability bitmask.
+ *
+ * @ingroup utils
  *
  * @see
  * - ENBOX_CAP
@@ -776,7 +781,7 @@ enbox_clear_bound_caps(void)
  * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
  * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
  * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
- * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  */
 extern int
 enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
@@ -847,7 +852,7 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
  * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
  * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
- * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
  */
 extern int
@@ -911,7 +916,7 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
  * @ingroup utils
  *
  * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
- * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
  */
 extern int
@@ -1016,7 +1021,7 @@ enbox_execve(const char * __restrict path,
  * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
  * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
  * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
- * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
  */
 extern int
@@ -1062,23 +1067,47 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
  *
  * @ingroup utils
  *
- * [capabilities(7)]: https://man7.org/linux/man-pages/man2/capabilities.7.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
  * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
  */
 extern void
 enbox_ensure_safe(uint64_t kept_caps);
 
+/**
+ * Show current thread's privileges.
+ *
+ * This function prints a detailed report of current thread's privileges, i.e.:
+ * - system capability sets,
+ * - securebits
+ * - real, effective and saved UIDs and GIDs,
+ * - as well as supplementary GIDs.
+ *
+ * No particular privileges are required to run this function.
+ *
+ * @param[in] stdio The standard I/O stream onto which to print the report.
+ *
+ * @see
+ * - [capabilities(7)]
+ * - [no_new_privs]
+ * - [credentials(7)]
+ *
+ * @ingroup utils
+ *
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
+ * [credentials(7)]:  https://man7.org/linux/man-pages/man7/credentials.7.html
+ */
 #if defined(CONFIG_ENBOX_VERBOSE)
 
 extern void
-enbox_print_status(FILE * __restrict stdio)
+enbox_print_priv(FILE * __restrict stdio)
 	__enbox_nonull(1);
 
 #else  /* !defined(CONFIG_ENBOX_VERBOSE) */
 
 static inline __enbox_nonull(1)
 void
-enbox_print_status(FILE * __restrict stdio __unused)
+enbox_print_priv(FILE * __restrict stdio __unused)
 {
 }
 
@@ -1833,6 +1862,13 @@ struct enbox_cmd {
 	 */
 	mode_t               umask;
 	/**
+	 * Optional mask of system capabilities enabled for the process running
+	 * this command.
+	 *
+	 * @see [capabilities(7)](https://man7.org/linux/man-pages/man7/capabilities.7.html)
+	 */
+	uint64_t             caps;
+	/**
 	 * Optional current working directory of process running this command.
 	 *
 	 * @see [chdir(2)](https://man7.org/linux/man-pages/man2/chdir.2.html)
@@ -2045,7 +2081,7 @@ struct elog;
  * Initialize Enbox library.
  *
  * May alter calling process *dumpable* attribute according to
- * #CONFIG_ENBOX_DISABLE_DUMP build option.
+ * CONFIG_ENBOX_DISABLE_DUMP build option.
  *
  * When @p logger is passed as a `NULL` pointer, Enbox disables the logging of
  * all diagnostic messages.

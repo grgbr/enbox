@@ -10,6 +10,11 @@
 
 #if defined(CONFIG_ENBOX_TOOL_SHOW)
 
+#include "namespaces.h"
+#include "mount_flags.h"
+#include "capabilities.h"
+#include <stroll/bmap.h>
+
 #define ENBOX_MODE_STRING_SZ (10U)
 
 static const char * __returns_nonull __nothrow
@@ -148,7 +153,7 @@ enbox_show_fifo_entry(const struct enbox_entry * __restrict ent)
 	       ent->path);
 }
 
-static size_t __enbox_nonull(2, 4) __nothrow
+static size_t __enbox_nonull(2, 4) __enbox_nothrow
 enbox_fill_flag_descs_string(unsigned long                  flags,
                              char *                         string,
                              size_t                         size __unused,
@@ -329,7 +334,7 @@ typedef void (enbox_show_entry_fn)(const struct enbox_entry * __restrict entry)
 
 static void __enbox_nonull(1)
 enbox_show_fsset(const struct enbox_fsset * __restrict fsset,
-	         enbox_show_entry_fn * const            showers[__restrict_arr])
+                 enbox_show_entry_fn * const            showers[__restrict_arr])
 {
 	enbox_assert(fsset);
 	enbox_assert(!fsset->nr || fsset->entries);
@@ -412,7 +417,7 @@ enbox_show_jail_conf(const struct enbox_jail * __restrict jail)
 	free(ns);
 }
 
-static ssize_t __enbox_nonull(2) __nothrow
+static ssize_t __enbox_nonull(2) __enbox_nothrow
 enbox_fill_group_name(gid_t gid, char * string, size_t size)
 {
 	enbox_assert(string);
@@ -450,7 +455,7 @@ enbox_fill_group_name(gid_t gid, char * string, size_t size)
 	 NGROUPS_MAX + \
 	 1)
 
-static int __enbox_nonull(1, 2) __nothrow
+static int __enbox_nonull(1, 2) __enbox_nothrow
 enbox_fill_user_groups(char                             string[__restrict_arr],
                        const struct passwd * __restrict pwd,
                        bool                             drop_supp)
@@ -532,7 +537,7 @@ static void __enbox_nonull(1)
 enbox_show_ids_conf(const struct enbox_ids * __restrict ids)
 {
 	enbox_assert(ids);
-	enbox_assert(!enbox_validate_pwd(ids->pwd, false));
+	enbox_assert(!enbox_validate_pwd(ids->pwd, true));
 
 	const struct passwd * pwd = ids->pwd;
 	char *                grps = NULL;
@@ -559,11 +564,42 @@ free:
 	free(grps);
 }
 
+static char * __enbox_nothrow
+enbox_build_caps_string(uint64_t caps)
+{
+	enbox_assert(caps);
+	enbox_assert(!(caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+
+	char *       str;
+	uint64_t     iter;
+	unsigned int c;
+	size_t       len = 0;
+
+	str = xalloc(ENBOX_CAPABILITIES_LEN + 1);
+
+	stroll_bmap_foreach_set64(&iter, caps, &c) {
+		enbox_assert((len + (len ? 1 : 0) + enbox_caps_descs[c].len) <=
+		             ENBOX_CAPABILITIES_LEN);
+
+		if (len)
+			str[len++] = ',';
+		memcpy(&str[len],
+		       enbox_caps_descs[c].kword,
+		       enbox_caps_descs[c].len);
+		len += enbox_caps_descs[c].len;
+	}
+
+	str[len] = '\0';
+
+	return str;
+}
+
 static void __enbox_nonull(1)
 enbox_show_cmd_conf(const struct enbox_cmd * __restrict cmd)
 {
 	enbox_assert(cmd);
 	enbox_assert(!(cmd->umask & ~ACCESSPERMS));
+	enbox_assert(!(cmd->caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
 	enbox_assert(!cmd->cwd || (upath_validate_path_name(cmd->cwd) > 0));
 	enbox_assert(!enbox_validate_exec(cmd->exec));
 
@@ -572,6 +608,17 @@ enbox_show_cmd_conf(const struct enbox_cmd * __restrict cmd)
 	puts("\n### Command ###\n");
 
 	printf("Umask            : %04o\n", cmd->umask);
+
+	if (cmd->caps) {
+		char * str;
+
+		str = enbox_build_caps_string(cmd->caps);
+		printf("Capabilities     : %s\n", str);
+		free(str);
+	}
+	else
+		fputs("Capabilities     : none\n", stdout);
+
 	printf("Working directory: %s\n", cmd->cwd ? cmd->cwd : "/");
 
 	fputs("Exec arguments   :", stdout);
@@ -608,9 +655,26 @@ enbox_show_conf(const struct enbox_conf * conf)
 	        program_invocation_short_name, \
 	        ## __VA_ARGS__)
 
+#if defined(CONFIG_ENBOX_TOOL_SHOW)
+#define SHOW_USAGE \
+"    show        -- show configuration settings loaded from CONFIG\n"
+#else  /* defined(CONFIG_ENBOX_TOOL_SHOW) */
+#define SHOW_USAGE
+#endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
+
 #define USAGE \
 "Usage: %1$s [OPTIONS] <CONFIG> <CMD>\n" \
-"Run a program invocation with an Enbox sandbox.\n"
+"Enbox sandboxing tool.\n" \
+"\n" \
+"With OPTIONS:\n" \
+"    -h | --help -- this help message\n" \
+"\n" \
+"With CMD:\n" \
+SHOW_USAGE \
+"    run         -- run / execute configuration loaded from CONFIG\n" \
+"\n" \
+"Where:\n" \
+"    CONFIG      -- pathname to an Enbox configuration file\n" \
 
 static void
 show_usage(void)

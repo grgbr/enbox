@@ -1,5 +1,4 @@
 #include "common.h"
-#include <stroll/bmap.h>
 #include <linux/securebits.h>
 #include <linux/version.h>
 #include <sys/prctl.h>
@@ -47,9 +46,6 @@
        header. Check your Linux kernel revision is compatible with Enbox...
 #endif /* CAP_LAST_CAP != CAP_CHECKPOINT_RESTORE */
 
-#define ENBOX_CAPS_NR \
-	(CAP_LAST_CAP + 1)
-
 /**
  * @internal
  *
@@ -58,6 +54,8 @@
 struct enbox_caps {
 	struct __user_cap_data_struct data[VFS_CAP_U32];
 };
+
+#if defined(CONFIG_ENBOX_VERBOSE)
 
 /*
  * Load and return secure bits for the current thread.
@@ -77,6 +75,8 @@ enbox_load_secbits(void)
 
 	return ret;
 }
+
+#endif /* defined(CONFIG_ENBOX_VERBOSE) */
 
 /*
  * Modify and save secure bits for the current thread.
@@ -138,6 +138,8 @@ enbox_enable_keep_caps(bool on)
 	return 0;
 }
 
+#if defined(CONFIG_ENBOX_VERBOSE)
+
 /*
  * Get the no_new_privs attribute for the current thread.
  *
@@ -156,6 +158,8 @@ enbox_load_nonewprivs(void)
 
 	return !!ret;
 }
+
+#endif /* defined(CONFIG_ENBOX_VERBOSE) */
 
 /*
  * Set the no_new_privs attribute for the calling thread.
@@ -181,6 +185,8 @@ enbox_enable_nonewprivs(void)
 	enbox_assert(!err);
 }
 
+#if defined(CONFIG_ENBOX_VERBOSE)
+
 /*
  * Get the "dumpable" attribute for the current thread.
  *
@@ -199,6 +205,10 @@ enbox_load_dump(void)
 
 	return !!ret;
 }
+
+#endif /* defined(CONFIG_ENBOX_VERBOSE) */
+
+#if defined(CONFIG_ENBOX_VERBOSE)
 
 /*
  * Get the ambient capability set for the current thread.
@@ -232,6 +242,8 @@ enbox_load_amb_caps(void)
 
 	return caps;
 }
+
+#endif /* defined(CONFIG_ENBOX_VERBOSE) */
 
 static __enbox_nothrow
 int
@@ -278,6 +290,8 @@ enbox_clear_amb_caps(void)
 	enbox_assert(!ret);
 }
 
+#if defined(CONFIG_ENBOX_VERBOSE)
+
 /*
  * Get the bounding capability set for the current thread.
  *
@@ -305,6 +319,8 @@ enbox_load_bound_caps(void)
 
 	return caps;
 }
+
+#endif /* defined(CONFIG_ENBOX_VERBOSE) */
 
 int
 enbox_clear_bound_caps(void)
@@ -591,51 +607,13 @@ enbox_clear_epi_caps(void)
 	enbox_assert(!err);
 }
 
-#if defined(CONFIG_ENBOX_VERBOSE)
-
-static const char * const enbox_caps_names[] = {
-	[CAP_CHOWN]              = "chown",             /*  0 */
-	[CAP_DAC_OVERRIDE]       = "dac_override",
-	[CAP_DAC_READ_SEARCH]    = "dac_read_search",
-	[CAP_FOWNER]             = "fowner",
-	[CAP_FSETID]             = "fsetid",
-	[CAP_KILL]               = "kill",              /*  5 */
-	[CAP_SETGID]             = "setgid",
-	[CAP_SETUID]             = "setuid",
-	[CAP_SETPCAP]            = "setpcap",
-	[CAP_LINUX_IMMUTABLE]    = "linux_immutable",
-	[CAP_NET_BIND_SERVICE]   = "net_bind_service",  /* 10 */
-	[CAP_NET_BROADCAST]      = "net_broadcast",
-	[CAP_NET_ADMIN]          = "net_admin",
-	[CAP_NET_RAW]            = "net_raw",
-	[CAP_IPC_LOCK]           = "ipc_lock",
-	[CAP_IPC_OWNER]          = "ipc_owner",         /* 15 */
-	[CAP_SYS_MODULE]         = "sys_module",
-	[CAP_SYS_RAWIO]          = "sys_rawio",
-	[CAP_SYS_CHROOT]         = "sys_chroot",
-	[CAP_SYS_PTRACE]         = "sys_ptrace",
-	[CAP_SYS_PACCT]          = "sys_pacct",         /* 20 */
-	[CAP_SYS_ADMIN]          = "sys_admin",
-	[CAP_SYS_BOOT]           = "sys_boot",
-	[CAP_SYS_NICE]           = "sys_nice",
-	[CAP_SYS_RESOURCE]       = "sys_resource",
-	[CAP_SYS_TIME]           = "sys_time",          /* 25 */
-	[CAP_SYS_TTY_CONFIG]     = "sys_tty_config",
-	[CAP_MKNOD]              = "mknod",
-	[CAP_LEASE]              = "lease",
-	[CAP_AUDIT_WRITE]        = "audit_write",
-	[CAP_AUDIT_CONTROL]      = "audit_control",     /* 30 */
-	[CAP_SETFCAP]            = "setfcap",
-	[CAP_MAC_OVERRIDE]       = "mac_override",
-	[CAP_MAC_ADMIN]          = "mac_admin",
-	[CAP_SYSLOG]             = "syslog",
-	[CAP_WAKE_ALARM]         = "wake_alarm",        /* 35 */
-	[CAP_BLOCK_SUSPEND]      = "block_suspend",
-	[CAP_AUDIT_READ]         = "audit_read",
-	[CAP_PERFMON]            = "perfmon",
-	[CAP_BPF]                = "bpf",
-	[CAP_CHECKPOINT_RESTORE] = "checkpoint_restore" /* 40 */
+const struct enbox_flag_desc enbox_caps_descs[] = {
+	/* Include generated capability descriptor definitions. */
+#include "capabilities.i"
+	{ NULL, }
 };
+
+#if defined(CONFIG_ENBOX_VERBOSE)
 
 static __enbox_nonull(1)
 void
@@ -664,7 +642,7 @@ enbox_print_caps(FILE * __restrict stdio)
 	for (c = 0; c < ENBOX_CAPS_NR; c++) {
 		fprintf(stdio,
 		        "%-18.18s         %s         %s           %s       %s        %s\n",
-		        enbox_caps_names[c],
+		        enbox_caps_descs[c].kword,
 		        (perm & enbox_cap(c)) ? "on" : " .",
 		        (eff & enbox_cap(c)) ? "on" : " .",
 		        (inh & enbox_cap(c)) ? "on" : " .",
@@ -748,7 +726,7 @@ enbox_print_creds(FILE * __restrict stdio)
 }
 
 void
-enbox_print_status(FILE * __restrict stdio)
+enbox_print_priv(FILE * __restrict stdio)
 {
 	enbox_assert_setup();
 	enbox_assert(stdio);
@@ -906,13 +884,6 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
 	 SECBIT_KEEP_CAPS_LOCKED | \
 	 SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED)
 
-/*
- * Do not allow propagation of these capabilities across execve(2) or
- * enbox_switch_ids() operations.
- */
-#define ENBOX_CAPS_INVAL \
-	(ENBOX_CAP(CAP_SETPCAP) | ENBOX_CAP(CAP_SYS_ADMIN))
-
 int
 enbox_change_ids(const struct passwd * __restrict pwd_entry,
                  bool                             drop_supp,
@@ -921,8 +892,7 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
 	enbox_assert_setup();
 	enbox_assert(!enbox_validate_pwd(pwd_entry, false));
 	enbox_assert(pwd_entry->pw_uid != enbox_uid);
-	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-	enbox_assert(!(kept_caps & (ENBOX_CAPS_INVAL | ENBOX_CAPS_CHIDS_MASK)));
+	enbox_assert(kept_caps & (ENBOX_CAPS_VALID | ENBOX_CAPS_CHIDS_MASK));
 
 	struct enbox_caps caps;
 	int               err;
@@ -1049,8 +1019,7 @@ enbox_execve_with_caps(struct enbox_caps * __restrict caps,
 	enbox_assert(argv);
 	enbox_assert(argv[0]);
 	enbox_assert(*argv[0]);
-	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-	enbox_assert(!(kept_caps & ENBOX_CAPS_INVAL));
+	enbox_assert(kept_caps & (ENBOX_CAPS_VALID | ENBOX_CAPS_CHIDS_MASK));
 
 	int err;
 
@@ -1118,8 +1087,7 @@ enbox_execve(const char * __restrict path,
 	enbox_assert(argv);
 	enbox_assert(argv[0]);
 	enbox_assert(*argv[0]);
-	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-	enbox_assert(!(kept_caps & ENBOX_CAPS_INVAL));
+	enbox_assert(kept_caps & ENBOX_CAPS_VALID);
 
 	struct enbox_caps caps;
 	int               err;
@@ -1162,8 +1130,7 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
 	enbox_assert(argv);
 	enbox_assert(argv[0]);
 	enbox_assert(*argv[0]);
-	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-	enbox_assert(!(kept_caps & ENBOX_CAPS_INVAL));
+	enbox_assert(kept_caps & ENBOX_CAPS_VALID);
 
 	struct enbox_caps caps;
 	uint64_t          eff;

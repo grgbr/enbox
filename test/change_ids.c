@@ -148,7 +148,7 @@ int main(int argc, char * const argv[])
 	else
 		enbox_ensure_safe(caps);
 
-	enbox_print_status(stdout);
+	enbox_print_priv(stdout);
 
 	ret = EXIT_SUCCESS;
 

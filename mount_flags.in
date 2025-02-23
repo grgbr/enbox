@@ -1,7 +1,7 @@
 # List of general mounting flags supported.
 #
 # This file is used to generate mounting flag descriptors related definitions
-# using `gen_mount_flags_header' and `gen_flag_descs_src' scripts.
+# using `gen_flag_descs_header' and `gen_flag_descs_src' scripts.
 # See ebuild.mk for details about the generation workflow.
 #
 # string keyword accepted by     corresponding mounting

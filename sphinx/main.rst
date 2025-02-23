@@ -5,25 +5,25 @@
 Overview
 ========
 
-Enbox's primary goal is to secure processes running onto Linux based systems.
+Enbox_'s primary goal is to secure processes running onto Linux based systems.
 
-Simply put, Enbox provides a way to run a Linux process in an isolated runtime
+Simply put, Enbox_ provides a way to run a Linux process in an isolated runtime
 environment which we call a |jail|. This runtime container confers the ability
 to control the process accesses to system resources according to a predefined
 configuration.
 
-Thanks to Enbox, a process gains additional security since isolated from all
+Thanks to Enbox_, a process gains additional security since isolated from all
 other processes on the |host| machine. In addition, the whole system is
 hardened against software vulnerabilities since processes may be run with
 restricted privileges.
 
-Enbox ships with a :ref:`binary tool <usage>` and a
+Enbox_ ships with a :ref:`binary tool <usage>` and a
 :ref:`library <sect-api-overview>`.
 The :ref:`enbox tool <usage>` allows system administrators to setup and
 instantiate processes according to settings stored into dedicated configuration_
 files.
 The :ref:`library <sect-api-overview>`, which the :ref:`enbox tool <usage>` is
-based upon, provides developpers with a way to carry out Enbox related tasks
+based upon, provides developpers with a way to carry out Enbox_ related tasks
 directly from their own code.
 
 .. _sect-main-terminology:
@@ -31,8 +31,8 @@ directly from their own code.
 Terminology
 ===========
 
-Using Enbox involves setting up multiple kind of objects. These are described in
-the following sections.
+Using Enbox_ involves setting up multiple kind of objects. These are described
+in the following sections.
 
 .. _sect-main-jail:
 
@@ -44,17 +44,17 @@ processes on the |host| machine. Once all jail'ed (possibly child) processes
 have |exit(2)|'ed, the container is destroyed and all its allocated resources
 are released by the kernel.
 
-Enbox allows you to control how isolated a jail is from global system
+Enbox_ allows you to control how isolated a jail is from global system
 resources, other processes and jails on the |host| machine. The underlying
 containment logic is based upon Linux's |namespaces|, |capabilities| and
 |credentials| switching mechanisms.
 
 Depending on the jail'ed process expectations, the jail may require |host| and
-/ or jail filesystem images to properly run. Enbox allows you to define and
+/ or jail filesystem images to properly run. Enbox_ allows you to define and
 populate both |host| and jail'ed filesystem hierarchies.
 
 You may think of a |jail| as an extended version of |chroot(8)| with additional
-isolation not available when simply using it. In addition, Enbox ease
+isolation not available when simply using it. In addition, Enbox_ ease
 the process of preparing the |chroot(8)| filesystem image by combining 2 Linux
 kernel features:
 
@@ -72,7 +72,7 @@ Host
 ----
 
 The hardware machine the initial OS is running on.
-Thanks to Linux OS services, Enbox allows you to define and dedicate subsets of
+Thanks to Linux OS services, Enbox_ allows you to define and dedicate subsets of
 |host| resources to be shared with a |jail|.
 
 Depending on |jail|'s expectations, you may need to populate the host filesystem
@@ -94,10 +94,10 @@ A set of identifiers described into section `User and group identifiers` of
 * |gid|,
 * |supplementary groups|.
 
-When switching to a pre-configured set of identifiers, Enbox drops inherited
+When switching to a pre-configured set of identifiers, Enbox_ drops inherited
 privileges of current process.
 
-When combined with |capabilities| management, this mechanism allows Enbox to
+When combined with |capabilities| management, this mechanism allows Enbox_ to
 enforce permanent strong privilege restrictions.
 
 .. _sect-main-capabilities:
@@ -112,7 +112,7 @@ into |capabilities(7)|:
     into distinct units, known as capabilities, which can be independently
     enabled and disabled.
 
-Enbox ensures that all capabilities are dropped when switching to a
+Enbox_ ensures that all capabilities are dropped when switching to a
 non-privileged user (using |setresuid(2)|) and at |execve(2)| time.
 
 .. _sect-main-namespaces:
@@ -129,7 +129,7 @@ into |namespaces(7)|:
     are visible to other processes that are members of the namespace, but
     are invisible to other processes.
 
-More specifically, Enbox handles the following types of namespace:
+More specifically, Enbox_ handles the following types of namespace:
 
 * |mount_namespaces(7)|,
 * |cgroup_namespaces(7)|,
@@ -137,8 +137,8 @@ More specifically, Enbox handles the following types of namespace:
 * `IPC` namespaces (see |namespaces(7)|),
 * and |network_namespaces(7)|.
 
-Enbox is mainly designed to run onto embedded systems, i.e., from within a
-controlled software runtime. That is the reason why Enbox is a |execve(2)| based
+Enbox_ is mainly designed to run onto embedded systems, i.e., from within a
+controlled software runtime. That is the reason why Enbox_ is a |execve(2)| based
 containment system only (to keep things simple and lightweight). As a
 consequence, this comes with a few limitations with respect to namespace
 isolation handling:
@@ -240,7 +240,7 @@ at least one of the top-level statements according to the following syntax.
 
    <**config**> ::= [<`top-host`_>] [<`top-ids`_> [<`top-jail`_>] <`top-cmd`_>]
 
-Each top-level statement configures a subset of the Enbox behavior as described
+Each top-level statement configures a subset of the Enbox_ behavior as described
 below:
 
 * `top-host`_ statement relates to host filesystem content ;
@@ -274,6 +274,76 @@ below:
 
 Reference
 ---------
+
+caps-attr
+*********
+
+Within the context of a `top-cmd`_ statement, specify the list of system
+|capabilities(7)| to run the command process with.
+
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**caps-attr**> ::= 'caps = [' <caps-list> ']'
+   <**caps-list**> ::= '"' <**cap**> '"' [|LSEP| '"' <**cap**> '"']...
+   <**cap**>       ::= 'chown'
+                 | 'dac_override'
+                 | 'dac_read_search'
+                 | 'fowner'
+                 | 'fsetid'
+                 | 'kill'
+                 | 'setgid'
+                 | 'setuid'
+                 | 'linux_immutable'
+                 | 'net_bind_service'
+                 | 'net_broadcast'
+                 | 'net_admin'
+                 | 'net_raw'
+                 | 'ipc_lock'
+                 | 'ipc_owner'
+                 | 'sys_module'
+                 | 'sys_rawio'
+                 | 'sys_chroot'
+                 | 'sys_ptrace'
+                 | 'sys_pacct'
+                 | 'sys_boot'
+                 | 'sys_nice'
+                 | 'sys_resource'
+                 | 'sys_time'
+                 | 'sys_tty_config'
+                 | 'mknod'
+                 | 'lease'
+                 | 'audit_write'
+                 | 'audit_control'
+                 | 'setfcap'
+                 | 'mac_override'
+                 | 'mac_admin'
+                 | 'syslog'
+                 | 'wake_alarm'
+                 | 'block_suspend'
+                 | 'audit_read'
+                 | 'perfmon'
+                 | 'bpf'
+                 | 'checkpoint_restore'
+
+This attribute is *optional*.
+
+.. important::
+   For obvisous security reasons, the propagation of ``CAP_SETPCAP`` and
+   ``CAP_SYS_ADMIN`` capabilities are rejected.
+
+.. rubric:: Example
+
+.. code-block::
+
+   # Run command process with CAP_NET_BIND_SERVICE and CAP_NET_RAW
+   # capabilities(7)
+   cmd = {
+           ...
+           caps = [ "net_bind_service", "net_raw" ]
+   }
 
 cwd-attr
 ********
@@ -877,9 +947,9 @@ Define a |procfs(5)| filesystem entry to be mounted from within a |jail|.
 Mount a |procfs(5)| filesystem under the :file:`/proc` mount point into the
 |jail|.
 
-.. note:
+.. important::
 
-   Enbox implicitly creates the :file:`/proc` mount point directory into the
+   Enbox_ implicitly creates the :file:`/proc` mount point directory into the
    |jail|.
 
 Use fs-proc-flags_ and fs-bind-opts_ to customize the way the :file:`/proc` is
@@ -921,7 +991,7 @@ Customize mount properties when mounting a |procfs(5)| inside a |jail|.
 
    <**fs-proc-flags**>  ::= 'flags = [' <proc-flag-list> ']'
    <**proc-flag-list**> ::= '"' <**proc-flag**> '"' [|LSEP| '"' <**proc-flag**> '"']...
-   <**file-flag**>      ::= 'nodev'
+   <**proc-flag**>      ::= 'nodev'
                       | 'noexec'
                       | 'nosuid'
                       | 'ro'
@@ -1025,9 +1095,9 @@ Use fs-orig-attr_ to specify the |pathname| identifying the (sub)tree onto the
 root directory that identifies the (sub)tree mount point directory within the
 |jail|.
 
-.. note:
+.. important::
 
-   Enbox implicitly creates |jail|'s (sub)tree mount point when needed.
+   Enbox_ implicitly creates |jail|'s (sub)tree mount point when needed.
 
 Attributes mentioned above are *mandatory*.
 
@@ -1222,7 +1292,7 @@ Specify an optional list of |namespaces| to make a |jail| a member of.
                | 'ipc'
                | 'net'
 
-For each type of namespace specified in the <**ns-list**> statement, Enbox
+For each type of namespace specified in the <**ns-list**> statement, Enbox_
 creates a new namespace of the given type and makes the |jail| a member of it.
 
 |Namespaces| are given as an array of |STRING|. `ns-attr`_ is *optional* and
@@ -1242,6 +1312,48 @@ when unspecified.
            ...
    }
 
+top-cmd
+*******
+
+Specify an optional external program to |execve(2)| with tunable runtime context
+settings.
+
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**top-cmd**> ::= 'cmd = {' <`exec-attr`_> [|SSEP| <`umask-attr`_>] [|SSEP| <`caps-attr`_>] [|SSEP| <`cwd-attr`_>] '}'
+
+`top-cmd`_ is *mandatory* if and only if the `top-jail`_ statement has been
+specified. Indeed, spawning a jail without running a command from within it
+would be useless.
+
+In addition, specifying a `top-cmd`_ *requires* a valid `top-ids`_ statement so
+that the command process may switch to the expected |credentials| before
+calling |execve(2)|.
+
+Use `exec-attr`_ to specify how to run the command program.
+Use `umask-attr`_ to specify the |umask| to run the command process with.
+Use `caps-attr`_ to specify the |capabilities| to run the command process with.
+Use `cwd-attr`_ to specify the |cwd| to run the command process with.
+
+.. rubric:: Example
+
+.. code-block::
+
+   # Specify a command to run
+   cmd = {
+           # List of command arguments given to execve(2)
+           exec = [ "/sbin/mydaemon", "--opt", "value" ]
+           # Command process's file mode creation mask
+           umask = 0137
+           # Command process will run with these system capabilities(7)
+           caps = [ "net_bind_service", "net_raw" ]
+           # Command process's current working directory
+           cwd = "/var/lib/mydaemon"
+   }
+   
 top-host
 ********
 
@@ -1266,7 +1378,7 @@ Created entries may be further *imported* into the jail via the `top-jail`_
 statement. They will will be available at *command* execution time (see the
 `top-cmd`_ statement).
 
-Note that Enbox does not handle the removal of created entries. It is delegated
+Note that Enbox_ does not handle the removal of created entries. It is delegated
 to system administration tasks.
 
 .. rubric:: Example
@@ -1348,7 +1460,7 @@ a *command* may be run from inside the jail.
 Use `ns-attr`_ to specify which |namespaces| to make the |jail| a member of.
 Use `fs-path-attr`_ to specify the |pathname| to the |jail|'s filesystem root
 directory.
-Use <`jail-fsset`_> to instruct Enbox how to populate the |jail|'s filesystem
+Use <`jail-fsset`_> to instruct Enbox_ how to populate the |jail|'s filesystem
 content.
 
 .. rubric:: Example
@@ -1366,45 +1478,6 @@ content.
            )
    }
 
-top-cmd
-*******
-
-Specify an optional external program to |execve(2)| with tunable runtime context
-settings.
-
-.. rubric:: Syntax
-
-.. parsed-literal::
-   :class: highlight
-
-   <**top-cmd**> ::= 'cmd = {' <`exec-attr`_> [|SSEP| <`umask-attr`_>] [|SSEP| <`cwd-attr`_>] '}'
-
-`top-cmd`_ is *mandatory* if and only if the `top-jail`_ statement has been
-specified. Indeed, spawning a jail without running a command from within it
-would be useless.
-
-In addition, specifying a `top-cmd`_ *requires* a valid `top-ids`_ statement so
-that the command process may switch to the expected |credentials| before
-calling |execve(2)|.
-
-Use `exec-attr`_ to specify how to run the command program.
-Use `umask-attr`_ to specify the |umask| to run the command process with.
-Use `cwd-attr`_ to specify the |cwd| to run the command process with.
-
-.. rubric:: Example
-
-.. code-block::
-
-   # Specify a command to run
-   cmd = {
-           # List of command arguments given to execve(2)
-           exec = [ "/sbin/mydaemon", "--opt", "value" ]
-           # Command process's file mode creation mask
-           umask = 0137
-           # Command process's current working directory
-           cwd = "/var/lib/mydaemon"
-   }
-   
 umask-attr
 **********
 

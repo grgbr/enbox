@@ -302,8 +302,7 @@ enbox_load_pwd_setting_byname(const config_setting_t * __restrict setting,
 
 static int __enbox_nonull(1, 2)
 enbox_load_pwd_setting(const config_setting_t * __restrict setting,
-                       const struct passwd ** __restrict   pwd,
-                       bool                                allow_root)
+                       const struct passwd ** __restrict   pwd)
 {
 	enbox_assert(setting);
 	enbox_assert(config_setting_name(setting));
@@ -327,7 +326,7 @@ enbox_load_pwd_setting(const config_setting_t * __restrict setting,
 	if (err)
 		return err;
 
-	err = enbox_validate_pwd(*pwd, allow_root);
+	err = enbox_validate_pwd(*pwd, true);
 	if (err) {
 		enbox_conf_err(setting,
 		               "invalid user entry: %s (%d)",
@@ -578,7 +577,7 @@ enbox_load_user_entry_setting(const config_setting_t * __restrict setting,
 	enbox_assert(ent->type >= 0);
 	enbox_assert(ent->type < ENBOX_ENTRY_TYPE_NR);
 
-	err = enbox_load_pwd_setting(setting, &pwd, true);
+	err = enbox_load_pwd_setting(setting, &pwd);
 	if (err)
 		return err;
 
@@ -1024,8 +1023,8 @@ enbox_parse_mount_flags_setting(const config_setting_t * __restrict setting,
 	enbox_assert(valid);
 	enbox_assert(flags);
 
-	const char *                              str;
-	unsigned int                              d;
+	const char * str;
+	unsigned int d;
 
 	str = config_setting_get_string(setting);
 	if (!str) {
@@ -1822,7 +1821,7 @@ enbox_load_ids_user(const config_setting_t * __restrict setting,
 
 	struct enbox_ids * ids = (struct enbox_ids *)data;
 
-	return enbox_load_pwd_setting(setting, &ids->pwd, false);
+	return enbox_load_pwd_setting(setting, &ids->pwd);
 }
 
 static int __enbox_nonull(1, 2)
@@ -1841,7 +1840,7 @@ enbox_load_ids_drop_supp(const config_setting_t * __restrict setting,
 
 static int __enbox_nonull(1, 2)
 enbox_do_load_ids(const config_setting_t * __restrict setting,
-                struct enbox_ids * __restrict       ids)
+                  struct enbox_ids * __restrict       ids)
 {
 	enbox_assert(setting);
 	enbox_assert(ids);
@@ -1882,7 +1881,7 @@ enbox_do_load_ids(const config_setting_t * __restrict setting,
 		err = -ENODATA;
 		goto err;
 	}
-	enbox_assert(!enbox_validate_pwd(ids->pwd, false));
+	enbox_assert(!enbox_validate_pwd(ids->pwd, true));
 
 	return 0;
 
@@ -1937,6 +1936,96 @@ enbox_load_cmd_umask(const config_setting_t * __restrict setting,
 	struct enbox_cmd * cmd = (struct enbox_cmd *)data;
 
 	return enbox_load_mode_setting(setting, &cmd->umask, ACCESSPERMS);
+}
+
+static int __enbox_nonull(1, 2)
+enbox_parse_caps_setting(const config_setting_t * __restrict setting,
+                         uint64_t * __restrict               caps)
+{
+	enbox_assert(setting);
+	enbox_assert(caps);
+
+	const char * str;
+	unsigned int d;
+	uint64_t     msk;
+
+	str = config_setting_get_string(setting);
+	if (!str) {
+		enbox_conf_err(setting, "string required");
+		return -EINVAL;
+	}
+
+	for (d = 0; enbox_caps_descs[d].kword; d++) {
+		if (!memcmp(str,
+		            enbox_caps_descs[d].kword,
+		            enbox_caps_descs[d].len + 1))
+			break;
+	}
+
+	if (!enbox_caps_descs[d].kword) {
+		enbox_conf_err(setting, "unknown '%s' capability", str);
+		return -ENOENT;
+	}
+
+	msk = enbox_cap(enbox_caps_descs[d].value);
+	if (!(msk & ENBOX_CAPS_VALID)) {
+		enbox_conf_err(setting, "invalid '%s' capability", str);
+		return -EINVAL;
+	}
+
+	if (*caps & msk) {
+		enbox_conf_warn(setting,
+		                "duplicate '%s' capability ignored",
+		                str);
+		return 0;
+	}
+
+	*caps |= msk;
+
+	return 0;
+}
+
+static int __enbox_nonull(1, 2)
+enbox_load_cmd_caps(const config_setting_t * __restrict setting,
+                    void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+
+	struct enbox_cmd * cmd = (struct enbox_cmd *)data;
+	int                nr;
+	int                e;
+	uint64_t           caps = 0;
+
+	if (!config_setting_is_array(setting)) {
+		enbox_conf_err(setting, "array of strings required");
+		return -EINVAL;
+	}
+
+	nr = config_setting_length(setting);
+	enbox_assert(nr >= 0);
+	if (!nr) {
+		enbox_conf_err(setting, "empty list not allowed");
+		return -ENODATA;
+	}
+
+	for (e = 0; e < nr; e++) {
+		const config_setting_t * set;
+		int                      err;
+
+		set = config_setting_get_elem(setting, e);
+		enbox_assert(set);
+
+		err = enbox_parse_caps_setting(set, &caps);
+		if (err)
+			return err;
+	}
+
+	enbox_assert(caps);
+	enbox_assert(!(caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+	cmd->caps = caps;
+
+	return 0;
 }
 
 static int __enbox_nonull(1, 2)
@@ -2056,6 +2145,7 @@ enbox_do_load_cmd(const config_setting_t * __restrict setting,
 	int                              nr;
 	static const struct enbox_loader loaders[] = {
 		{ .name = "umask", .load = enbox_load_cmd_umask },
+		{ .name = "caps",  .load = enbox_load_cmd_caps },
 		{ .name = "cwd",   .load = enbox_load_cmd_cwd },
 		{ .name = "exec",  .load = enbox_load_cmd_exec }
 	};
@@ -2074,6 +2164,7 @@ enbox_do_load_cmd(const config_setting_t * __restrict setting,
 	}
 
 	cmd->umask = (mode_t)-1;
+	cmd->caps = 0;
 
 	err = enbox_load_setting(setting,
 	                         cmd,

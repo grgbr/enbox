@@ -11,6 +11,18 @@
 #include <libconfig.h>
 #include <linux/sched.h>
 
+#define ENBOX_MAKE_LIBCONFIG_VERS(_maj, _min, _rev) \
+	(((_maj) << 16) | ((_min) << 8) | _rev)
+
+#define ENBOX_LIBCONFIG_VERS \
+	ENBOX_MAKE_LIBCONFIG_VERS(LIBCONFIG_VER_MAJOR, \
+	                          LIBCONFIG_VER_MINOR, \
+	                          LIBCONFIG_VER_REVISION)
+
+#if ENBOX_LIBCONFIG_VERS < ENBOX_MAKE_LIBCONFIG_VERS(1, 6, 0)
+#error Libconfig library too old (revision 1.6.0 or later required)
+#endif
+
 /*
  * Declare a symbol as unused when Enbox is built with verbose support disabled.
  * This prevents GCC from emitting a warning when a variable is only used for
@@ -79,12 +91,9 @@ extern const struct enbox_flag_desc enbox_mount_flag_descs[];
 extern const struct enbox_flag_desc enbox_namespace_descs[];
 #endif /* defined(CONFIG_ENBOX_TOOL) */
 
-/* Include generated mounting flags definitions. */
-#include "mount_flags.h"
-
 extern int
 enbox_validate_mount_time_flags(unsigned long flags)
-	__const __nothrow __leaf __export_intern;
+	__enbox_const __enbox_nothrow __leaf __export_intern;
 
 #define enbox_assert_jail(_jail) \
 	enbox_assert(_jail); \
@@ -101,8 +110,31 @@ enbox_validate_mount_time_flags(unsigned long flags)
 	 CLONE_NEWIPC | \
 	 CLONE_NEWNET)
 
-/* Include generated namespaces definitions. */
-#include "namespaces.h"
+/* Maximum number of supported system capabilities. */
+#define ENBOX_CAPS_NR \
+	(CAP_LAST_CAP + 1)
+
+/*
+ * Mask of capabilities that Enbox refuses to propagate across setresuid(2) and
+ * execve(2).
+ */
+#define ENBOX_CAPS_INVAL \
+	(ENBOX_CAP(CAP_SETPCAP) | ENBOX_CAP(CAP_SYS_ADMIN))
+
+/*
+ * Mask of capabilities that Enbox allows to propagate across setresuid(2) and
+ * execve(2).
+ */
+#define ENBOX_CAPS_VALID \
+	(((UINT64_C(1) << ENBOX_CAPS_NR) - 1) & ~(ENBOX_CAPS_INVAL))
+
+#if defined(CONFIG_ENBOX_TOOL)
+#define __enbox_export_caps
+#else  /* !defined(CONFIG_ENBOX_TOOL) */
+#define __enbox_export_caps __export_intern
+#endif /* defined(CONFIG_ENBOX_TOOL) */
+
+extern const struct enbox_flag_desc enbox_caps_descs[] __enbox_export_caps;
 
 extern struct elog * enbox_logger;
 
@@ -122,7 +154,8 @@ extern struct elog * enbox_logger;
 
 #else /* !defined(CONFIG_ENBOX_VERBOSE) */
 
-#define enbox_info(_format, ...)
+#define enbox_info(_format, ...) \
+	do {} while (0)
 
 #endif /* defined(CONFIG_ENBOX_VERBOSE) */
 
@@ -170,7 +203,8 @@ enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
 	__enbox_nonull(1) \
 	__enbox_pure \
 	__enbox_nothrow \
-	__leaf __warn_result \
+	__leaf \
+	__warn_result \
 	__export_intern;
 #endif /* defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL) */
 
@@ -178,16 +212,16 @@ enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
 
 extern int
 enbox_validate_exec_arg(const char * __restrict arg)
-	__pure __nothrow __leaf __export_intern;
+	__enbox_pure __enbox_nothrow __leaf __export_intern;
 
 #if defined(CONFIG_ENBOX_ASSERT)
 
 extern int
 enbox_validate_exec(const char * const exec[__restrict_arr])
 #if !defined(CONFIG_ENBOX_TOOL)
-	__enbox_nonull(1) __pure __nothrow __leaf __export_intern;
+	__enbox_nonull(1) __enbox_pure __enbox_nothrow __leaf __export_intern;
 #else  /* defined(CONFIG_ENBOX_TOOL) */
-	__enbox_nonull(1) __pure __nothrow __leaf;
+	__enbox_nonull(1) __enbox_pure __enbox_nothrow __leaf;
 #endif /* !defined(CONFIG_ENBOX_TOOL) */
 
 #else  /* !defined(CONFIG_ENBOX_ASSERT) */

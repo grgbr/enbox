@@ -90,6 +90,7 @@
 .. _utils:               https://github.com/grgbr/utils/
 .. _breathe:             https://github.com/michaeljones/breathe/
 .. _gcc:                 https://gcc.gnu.org/
+.. _enbox:               https://github.com/grgbr/enbox/
 
 
 ..

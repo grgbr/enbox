@@ -101,7 +101,7 @@ int main(int argc, char * const argv[], char * const envp[])
 	enbox_setup((struct elog *)&log);
 
 	if (argc <= 1) {
-		enbox_print_status(stdout);
+		enbox_print_priv(stdout);
 		ret = EXIT_SUCCESS;
 		goto out;
 	}
