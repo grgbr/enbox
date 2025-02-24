@@ -43,7 +43,7 @@ tagfiles := $(shell find $(CURDIR) -type f)
 doxyconf  := $(CURDIR)/sphinx/Doxyfile
 doxyenv   := SRCDIR="$(HEADERDIR) $(SRCDIR)" \
              INCDIR="$(patsubst -I%,%,$(filter -I%,$(common-cflags))) \
-                     $(BUILDDIR)" \
+                     $(BUILDDIR)/src" \
              VERSION="$(VERSION)"
 
 sphinxsrc := $(CURDIR)/sphinx
