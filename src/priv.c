@@ -356,7 +356,7 @@ static inline __enbox_nonull(1, 2) __warn_result
 int
 capget(cap_user_header_t header, cap_user_data_t data)
 {
-	return syscall(SYS_capget, header, data);
+	return (int)syscall(SYS_capget, header, data);
 }
 
 static inline __enbox_nonull(1) __warn_result
@@ -453,7 +453,7 @@ static inline __enbox_nonull(1, 2) __warn_result
 int
 capset(cap_user_header_t header, const cap_user_data_t data)
 {
-	return syscall(SYS_capset, header, data);
+	return (int)syscall(SYS_capset, header, data);
 }
 
 static inline __enbox_nonull(1) __enbox_nothrow
@@ -627,7 +627,7 @@ enbox_print_caps(FILE * __restrict stdio)
 	uint64_t          inh;
 	uint64_t          amb;
 	uint64_t          bound;
-	unsigned int      c;
+	int               c;
 
 	enbox_load_epi_caps(&caps);
 	eff = enbox_get_eff_caps(&caps);
@@ -810,7 +810,7 @@ enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
 	if (!pwd->pw_name)
 		return -EINVAL;
 
-	err = upwd_validate_user_name(pwd->pw_name);
+	err = (int)upwd_validate_user_name(pwd->pw_name);
 	if (err < 0)
 		return err;
 

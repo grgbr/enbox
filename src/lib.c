@@ -44,7 +44,7 @@ enbox_chmod(const char * path, mode_t mode)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
-	enbox_assert(!(mode & ~ALLPERMS));
+	enbox_assert(!(mode & ~((mode_t)ALLPERMS)));
 
 	int err;
 
@@ -64,7 +64,8 @@ enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
-	enbox_assert(!(mode & ~ALLPERMS) || (mode == ENBOX_KEEP_MODE));
+	enbox_assert(!(mode & ~((mode_t)ALLPERMS)) ||
+	             (mode == ENBOX_KEEP_MODE));
 	enbox_assert((uid != ENBOX_KEEP_UID) ||
 	             (gid != ENBOX_KEEP_GID) ||
 	             (mode != ENBOX_KEEP_MODE));
@@ -101,7 +102,7 @@ enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(uid != ENBOX_KEEP_UID);
 	enbox_assert(gid != ENBOX_KEEP_GID);
-	enbox_assert(!(mode & ~ALLPERMS));
+	enbox_assert(!(mode & ~((mode_t)ALLPERMS)));
 
 	int err;
 
@@ -205,7 +206,7 @@ enbox_make_slink(const char * __restrict path,
 				goto err;
 			}
 
-			err = readlink(path, lnk, PATH_MAX);
+			err = (int)readlink(path, lnk, PATH_MAX);
 			enbox_assert(err);
 			enbox_assert(err < PATH_MAX);
 			if (err < 0) {
@@ -215,7 +216,7 @@ enbox_make_slink(const char * __restrict path,
 			}
 			lnk[err] = '\0';
 
-			if (strncmp(target, lnk, err + 1)) {
+			if (strncmp(target, lnk, (size_t)err + 1)) {
 				err = -EPERM;
 				goto free;
 			}
@@ -259,7 +260,7 @@ enbox_make_node(const char * path, mode_t mode, dev_t dev, uid_t uid, gid_t gid)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
-	enbox_assert(!(mode & ~(S_IFCHR | S_IFBLK | DEFFILEMODE)));
+	enbox_assert(!(mode & ~((mode_t)(S_IFCHR | S_IFBLK | DEFFILEMODE))));
 	enbox_assert(S_ISCHR(mode) ^ S_ISBLK(mode));
 	enbox_assert((major(dev) > 0) || !(mode & (S_IFCHR | S_IFBLK)));
 	enbox_assert(uid != ENBOX_KEEP_UID);
@@ -331,7 +332,7 @@ enbox_make_chrdev(const char * path,
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(uid != ENBOX_KEEP_UID);
 	enbox_assert(gid != ENBOX_KEEP_GID);
-	enbox_assert(!(mode & ~DEFFILEMODE));
+	enbox_assert(!(mode & ~((mode_t)DEFFILEMODE)));
 	enbox_assert(major > 0);
 
 	int err;
@@ -365,7 +366,7 @@ enbox_make_blkdev(const char * path,
 	enbox_assert(major > 0);
 	enbox_assert(uid != ENBOX_KEEP_UID);
 	enbox_assert(gid != ENBOX_KEEP_GID);
-	enbox_assert(!(mode & ~DEFFILEMODE));
+	enbox_assert(!(mode & ~((mode_t)DEFFILEMODE)));
 
 	int err;
 
@@ -392,7 +393,7 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(uid != ENBOX_KEEP_UID);
 	enbox_assert(gid != ENBOX_KEEP_GID);
-	enbox_assert(!(mode & ~DEFFILEMODE));
+	enbox_assert(!(mode & ~((mode_t)DEFFILEMODE)));
 
 	int err;
 
@@ -450,23 +451,6 @@ err:
 	           -err);
 
 	return err;
-}
-
-int
-enbox_clear_ambient_caps(void)
-{
-	enbox_assert_setup();
-
-	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0)) {
-		int err = errno;
-
-		enbox_info("cannot clear ambient capability set: %s (%d)",
-		           strerror(err),
-		           err);
-		return -err;
-	}
-
-	return 0;
 }
 
 /******************************************************************************
@@ -674,7 +658,8 @@ enbox_remount(const char * __restrict path,
               const char * __restrict data)
 {
 	enbox_assert(upath_validate_path_name(path) > 0);
-	enbox_assert(!(flags & ~(MS_BIND | ENBOX_VALID_MOUNT_FLAGS)));
+	enbox_assert(!(flags &
+	               ~((unsigned long)(MS_BIND | ENBOX_VALID_MOUNT_FLAGS))));
 
 	/*
 	 * Source and filesystem type arguments are ignored.
@@ -731,7 +716,7 @@ enbox_mount_proc(unsigned long           flags,
                  const char * __restrict opts)
 {
 	enbox_assert_setup();
-	enbox_assert(!(flags & ~ENBOX_PROC_VALID_FLAGS));
+	enbox_assert(!(flags & ~((unsigned long)ENBOX_PROC_VALID_FLAGS)));
 	enbox_assert_mount_time_flags(flags);
 	enbox_assert(!opts || opts[0]);
 
@@ -789,11 +774,11 @@ enbox_normalize_path(const char * __restrict path,
 	if (len < 0)
 		return len;
 
-	norm = malloc(len + 1);
+	norm = malloc((size_t)len + 1);
 	if (!norm)
 		return -ENOMEM;
 
-	len = upath_normalize(path, len + 1, norm, len + 1);
+	len = upath_normalize(path, (size_t)len + 1, norm, (size_t)len + 1);
 	if (len < 0) {
 		free(norm);
 		return len;
@@ -813,7 +798,7 @@ enbox_validate_bind_mntpt(const char * __restrict path)
 
 	len = enbox_normalize_path(path, &norm);
 	if (len <= 0)
-		return len ? len : -ENODATA;
+		return len ? (int)len : -ENODATA;
 
 	if (norm[0] == '/')
 		goto einval;
@@ -850,13 +835,13 @@ free:
 static int __enbox_nonull(1, 2) __enbox_nothrow
 enbox_bind_tree(const char * __restrict path,
                 const char * __restrict orig,
-                int                     flags,
+                unsigned long           flags,
                 const char * __restrict opts)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(orig) > 0);
 	enbox_assert_bind_mntpt(path);
-	enbox_assert(!(flags & ~ENBOX_TREE_VALID_FLAGS));
+	enbox_assert(!(flags & ~((unsigned long)ENBOX_TREE_VALID_FLAGS)));
 	enbox_assert_mount_time_flags(flags);
 	enbox_assert(!opts || *opts);
 
@@ -927,13 +912,13 @@ enbox_bind_tree_entry(const struct enbox_entry * __restrict ent)
 static int __enbox_nonull(1, 2) __enbox_nothrow
 enbox_bind_file(const char * __restrict path,
                 const char * __restrict orig,
-                int                     flags,
+                unsigned long           flags,
                 const char * __restrict opts)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(orig) > 0);
 	enbox_assert_bind_mntpt(path);
-	enbox_assert(!(flags & ~ENBOX_FILE_VALID_FLAGS));
+	enbox_assert(!(flags & ~((unsigned long)ENBOX_FILE_VALID_FLAGS)));
 	enbox_assert_mount_time_flags(flags);
 
 	struct stat stat;
@@ -1094,7 +1079,7 @@ enbox_seal_jail_root(const char * __restrict path,
 	 * We need to close every file descriptors opened onto root filesystem
 	 * to be allowed to remount it with the right options.
 	 */
-	err = ufd_close_fds(STDERR_FILENO + 1, ~(0));
+	err = ufd_close_fds(STDERR_FILENO + 1, ~(0U));
 	if (err)
 		return err;
 
@@ -1112,7 +1097,7 @@ static int __enbox_nonull(1, 3) __enbox_nothrow
 enbox_setup_jail(const char * __restrict  path,
                  gid_t                    gid,
                  const struct enbox_entry entries[__restrict_arr],
-                 size_t                   nr)
+                 unsigned int             nr)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -1297,7 +1282,7 @@ enbox_enter_jail_bypwd(int                              namespaces,
                        gid_t                            gid,
                        const char * __restrict          path,
                        const struct enbox_entry         entries[__restrict_arr],
-                       size_t                           nr)
+                       unsigned int                     nr)
 {
 	enbox_assert_setup();
 	enbox_assert(!(namespaces & ~ENBOX_VALID_NAMESPACE_FLAGS));
@@ -1510,7 +1495,7 @@ enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
 {
 	enbox_assert_setup();
 	enbox_assert(cmd);
-	enbox_assert(!(cmd->umask & ~ALLPERMS));
+	enbox_assert(!(cmd->umask & ~((mode_t)ALLPERMS)));
 	enbox_assert(!cmd->cwd ||
 	             (upath_validate_path_name(cmd->cwd) > 0));
 	enbox_assert(!enbox_validate_exec(cmd->exec));
@@ -1532,12 +1517,14 @@ enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
 		}
 	}
 
+STROLL_IGNORE_WARN("-Wcast-qual")
 	err = enbox_change_idsn_execve(ids->pwd,
 	                               ids->drop_supp,
 	                               cmd->exec[0],
 	                               (char * const *)cmd->exec,
 	                               NULL,
 	                               cmd->caps);
+STROLL_RESTORE_WARN
 
 err:
 	enbox_err("cannot run command: %s (%d)", strerror(-err), -err);

@@ -258,7 +258,7 @@ enbox_show_bind_entry(const struct enbox_entry * __restrict ent,
                       mode_t                                type)
 {
 	enbox_assert(ent);
-	enbox_assert(!(type & ~S_IFMT));
+	enbox_assert(!(type & ~((mode_t)S_IFMT)));
 
 	int         err;
 	struct stat stat;
@@ -397,7 +397,7 @@ enbox_show_jail_conf(const struct enbox_jail * __restrict jail)
 
 	ns = xalloc(ENBOX_NAMESPACES_LEN + 1);
 
-	len = enbox_fill_flag_descs_string(jail->namespaces,
+	len = enbox_fill_flag_descs_string((unsigned long)jail->namespaces,
 	                                   ns,
 	                                   ENBOX_NAMESPACES_LEN + 1,
 	                                   enbox_namespace_descs);
@@ -434,11 +434,13 @@ enbox_fill_group_name(gid_t gid, char * string, size_t size)
 	if (!len || (len >= LOGIN_NAME_MAX))
 		return -EINVAL;
 
-	len = snprintf(string, size, "%hu(%s)", gid, grp->gr_name);
+	len = (size_t)snprintf(string, size, "%hu(%s)", gid, grp->gr_name);
+	enbox_assert((int)len > 0);
+	enbox_assert(len <= (SSIZE_MAX));
 	if (len >= size)
 		return -EMSGSIZE;
 
-	return len;
+	return (ssize_t)len;
 }
 
 /*
@@ -464,13 +466,13 @@ enbox_fill_user_groups(char                             string[__restrict_arr],
 	enbox_assert(pwd);
 
 	size_t  left = ENBOX_GROUP_LIST_SIZE;
-	int     ret;
+	ssize_t ret;
 
 	/* Fill in primary group first. */
 	ret = enbox_fill_group_name(pwd->pw_gid, string, left);
 	enbox_assert(ret);
 	if (ret < 0)
-		return ret;
+		return (int)ret;
 
 	enbox_assert((size_t)ret < left);
 
@@ -479,7 +481,7 @@ enbox_fill_user_groups(char                             string[__restrict_arr],
 		int     nr = NGROUPS_MAX + 1;
 		int     g;
 
-		gids = xalloc(nr * sizeof(*gids));
+		gids = xalloc((size_t)nr * sizeof(*gids));
 
 		left -= (size_t)ret;
 
@@ -530,7 +532,7 @@ free:
 		/* Group list completed. */
 		ret = 0;
 
-	return ret;
+	return (int)ret;
 }
 
 static void __enbox_nonull(1)
@@ -598,7 +600,7 @@ static void __enbox_nonull(1)
 enbox_show_cmd_conf(const struct enbox_cmd * __restrict cmd)
 {
 	enbox_assert(cmd);
-	enbox_assert(!(cmd->umask & ~ACCESSPERMS));
+	enbox_assert(!(cmd->umask & ~((mode_t)ACCESSPERMS)));
 	enbox_assert(!(cmd->caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
 	enbox_assert(!cmd->cwd || (upath_validate_path_name(cmd->cwd) > 0));
 	enbox_assert(!enbox_validate_exec(cmd->exec));

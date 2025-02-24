@@ -128,7 +128,7 @@ enbox_load_setting(const config_setting_t * __restrict    setting,
 		unsigned int             l;
 		int                      err;
 
-		set = config_setting_get_elem(setting, s);
+		set = config_setting_get_elem(setting, (unsigned int)s);
 		enbox_assert(set);
 
 		/* Cannot be empty as parent setting is a group setting. */
@@ -263,7 +263,7 @@ enbox_load_pwd_setting_byname(const config_setting_t * __restrict setting,
 	user = config_setting_get_string(setting);
 	enbox_assert(user);
 
-	err = upwd_validate_user_name(user);
+	err = (int)upwd_validate_user_name(user);
 	if (err > 0) {
 		const struct passwd * pass;
 
@@ -399,7 +399,7 @@ enbox_load_group_name_setting(const config_setting_t * __restrict setting,
 	group = config_setting_get_string(setting);
 	enbox_assert(group);
 
-	err = upwd_validate_group_name(group);
+	err = (int)upwd_validate_group_name(group);
 	if (err > 0) {
 		err = upwd_get_gid_byname(group, gid);
 		if (!err)
@@ -525,7 +525,7 @@ enbox_load_path_setting(const config_setting_t * __restrict setting,
 		return -EINVAL;
 	}
 
-	err = upath_validate_path_name(str);
+	err = (int)upath_validate_path_name(str);
 	if (err < 0) {
 		switch (err) {
 		case -ENODATA:
@@ -1099,7 +1099,7 @@ enbox_load_mount_flags_setting(const config_setting_t * __restrict setting,
 		const config_setting_t * set;
 		int                      err;
 
-		set = config_setting_get_elem(setting, e);
+		set = config_setting_get_elem(setting, (unsigned int)e);
 		enbox_assert(set);
 
 		err = enbox_parse_mount_flags_setting(set, valid, &flg);
@@ -1510,17 +1510,20 @@ enbox_load_fsset(const config_setting_t * __restrict setting,
 		return -ENODATA;
 	}
 
-	entries = malloc(nr * sizeof(*entries));
+	entries = malloc((size_t)nr * sizeof(*entries));
 	if (!entries)
 		return -ENOMEM;
 
 	for (e = 0; e < nr; e++) {
-		err = enbox_load_entry(setting, e, &entries[e], loader);
+		err = enbox_load_entry(setting,
+		                       (unsigned int)e,
+		                       &entries[e],
+		                       loader);
 		if (err)
 			goto free;
 	}
 
-	fsset->nr = nr;
+	fsset->nr = (unsigned int)nr;
 	fsset->entries = entries;
 
 	return 0;
@@ -1537,8 +1540,10 @@ enbox_unload_fsset(struct enbox_fsset * __restrict fsset)
 	enbox_assert(fsset);
 	enbox_assert(!fsset->nr || fsset->entries);
 
+STROLL_IGNORE_WARN("-Wcast-qual")
 	if (fsset->nr)
 		free((void *)fsset->entries);
+STROLL_RESTORE_WARN
 }
 
 static int __enbox_nonull(1, 2)
@@ -1614,7 +1619,7 @@ enbox_parse_namespaces_setting(const config_setting_t * __restrict setting,
 		return -EINVAL;
 	}
 
-	if (*namespaces & enbox_namespace_descs[d].value) {
+	if ((unsigned int)*namespaces & enbox_namespace_descs[d].value) {
 		enbox_conf_warn(setting,
 		                "duplicate '%s' namespace ignored",
 		                str);
@@ -1654,7 +1659,7 @@ enbox_load_namespaces_setting(const config_setting_t * __restrict setting,
 		const config_setting_t * set;
 		int                      err;
 
-		set = config_setting_get_elem(setting, n);
+		set = config_setting_get_elem(setting, (unsigned int)n);
 		enbox_assert(set);
 
 		err = enbox_parse_namespaces_setting(set, &ns);
@@ -1967,7 +1972,7 @@ enbox_parse_caps_setting(const config_setting_t * __restrict setting,
 		return -ENOENT;
 	}
 
-	msk = enbox_cap(enbox_caps_descs[d].value);
+	msk = enbox_cap((int)enbox_caps_descs[d].value);
 	if (!(msk & ENBOX_CAPS_VALID)) {
 		enbox_conf_err(setting, "invalid '%s' capability", str);
 		return -EINVAL;
@@ -2013,7 +2018,7 @@ enbox_load_cmd_caps(const config_setting_t * __restrict setting,
 		const config_setting_t * set;
 		int                      err;
 
-		set = config_setting_get_elem(setting, e);
+		set = config_setting_get_elem(setting, (unsigned int)e);
 		enbox_assert(set);
 
 		err = enbox_parse_caps_setting(set, &caps);
@@ -2048,7 +2053,7 @@ enbox_parse_exec_arg(const config_setting_t * __restrict setting,
 	enbox_assert(arg);
 
 	const char * str;
-	size_t       err;
+	int          err;
 
 	str = config_setting_get_string(setting);
 	if (!str) {
@@ -2106,7 +2111,7 @@ enbox_load_cmd_exec(const config_setting_t * __restrict setting,
 		return -E2BIG;
 	}
 
-	exec = malloc((nr + 1) * sizeof(exec[0]));
+	exec = malloc(((size_t)nr + 1) * sizeof(exec[0]));
 	if (!exec)
 		return -ENOMEM;
 
@@ -2114,7 +2119,7 @@ enbox_load_cmd_exec(const config_setting_t * __restrict setting,
 		const config_setting_t * set;
 		int                      err;
 
-		set = config_setting_get_elem(setting, a);
+		set = config_setting_get_elem(setting, (unsigned int)a);
 		enbox_assert(set);
 
 		err = enbox_parse_exec_arg(set, &exec[a]);
@@ -2216,7 +2221,9 @@ enbox_unload_cmd(struct enbox_cmd * __restrict cmd)
 {
 	enbox_assert(cmd);
 
+STROLL_IGNORE_WARN("-Wcast-qual")
 	free((void *)cmd->exec);
+STROLL_RESTORE_WARN
 	free(cmd);
 }
 
