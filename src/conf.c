@@ -546,8 +546,6 @@ enbox_load_path_setting(const config_setting_t * __restrict setting,
 	return 0;
 }
 
-#warning Ensure path is absolute for host entry definitions ?!!
-
 static int __enbox_nonull(1, 2)
 enbox_load_path_entry_setting(const config_setting_t * __restrict setting,
                               void * __restrict                   data)
@@ -641,8 +639,37 @@ enbox_load_dir_mode_setting(const config_setting_t * __restrict setting,
 }
 
 static int __enbox_nonull(1, 2)
+enbox_validate_entry_path(const config_setting_t * __restrict   setting,
+                          const struct enbox_entry * __restrict entry,
+                          bool                                  allow_relative)
+{
+	enbox_assert(setting);
+	enbox_assert(config_setting_is_group(setting));
+	enbox_assert(config_setting_length(setting) >= 2);
+	enbox_assert(entry);
+
+	if (!entry->path) {
+		/* Path is mandatory. */
+		enbox_conf_err(setting, "missing 'path' setting");
+		return -ENODATA;
+	}
+
+	if (!allow_relative) {
+		/* Reject relative paths. */
+		if (entry->path[0] != '/') {
+			enbox_conf_err(setting,
+			               "relative 'path' setting rejected");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int __enbox_nonull(1, 2)
 enbox_load_dir_entry(const config_setting_t * __restrict setting,
-                     struct enbox_entry * __restrict     entry)
+                     struct enbox_entry * __restrict     entry,
+                     bool                                allow_relative)
 {
 	enbox_assert(setting);
 	enbox_assert(config_setting_is_group(setting));
@@ -668,12 +695,9 @@ enbox_load_dir_entry(const config_setting_t * __restrict setting,
 	if (err)
 		goto err;
 
-	if (!entry->path) {
-		/* Path is mandatory. */
-		enbox_conf_err(setting, "missing 'path' setting");
-		err = -ENODATA;
+	err = enbox_validate_entry_path(setting, entry, allow_relative);
+	if (err)
 		goto err;
-	}
 
 	if (entry->uid == ((uid_t)-1))
 		/* User is optional, use current effective UID as default. */
@@ -711,7 +735,8 @@ enbox_load_slink_target_setting(const config_setting_t * __restrict setting,
 
 static int __enbox_nonull(1, 2)
 enbox_load_slink_entry(const config_setting_t * __restrict setting,
-                       struct enbox_entry * __restrict     entry)
+                       struct enbox_entry * __restrict     entry,
+                       bool                                allow_relative)
 {
 	enbox_assert(setting);
 	enbox_assert(config_setting_is_group(setting));
@@ -722,7 +747,7 @@ enbox_load_slink_entry(const config_setting_t * __restrict setting,
 	int                              err;
 	static const struct enbox_loader loaders[] = {
 		{ .name = "path",   .load = enbox_load_path_entry_setting },
-		{ .name = "type",  .load = enbox_skip_entry_setting },
+		{ .name = "type",   .load = enbox_skip_entry_setting },
 		{ .name = "user",   .load = enbox_load_user_entry_setting },
 		{ .name = "group",  .load = enbox_load_group_entry_setting },
 		{ .name = "target", .load = enbox_load_slink_target_setting }
@@ -737,12 +762,9 @@ enbox_load_slink_entry(const config_setting_t * __restrict setting,
 	if (err)
 		goto err;
 
-	if (!entry->path) {
-		/* Path is mandatory. */
-		enbox_conf_err(setting, "missing 'path' setting");
-		err = -ENODATA;
+	err = enbox_validate_entry_path(setting, entry, allow_relative);
+	if (err)
 		goto err;
-	}
 
 	if (entry->uid == ((uid_t)-1))
 		/* User is optional, use current effective UID as default. */
@@ -805,7 +827,8 @@ enbox_load_dev_minor_setting(const config_setting_t * __restrict setting,
 
 static int __enbox_nonull(1, 2)
 enbox_load_dev_entry(const config_setting_t * __restrict setting,
-                     struct enbox_entry * __restrict     entry)
+                     struct enbox_entry * __restrict     entry,
+                     bool                                allow_relative)
 {
 	enbox_assert(setting);
 	enbox_assert(config_setting_is_group(setting));
@@ -836,11 +859,9 @@ enbox_load_dev_entry(const config_setting_t * __restrict setting,
 	if (err)
 		return err;
 
-	if (!entry->path) {
-		/* Path is mandatory. */
-		enbox_conf_err(setting, "missing 'path' setting");
-		return -ENODATA;
-	}
+	err = enbox_validate_entry_path(setting, entry, allow_relative);
+	if (err)
+		return err;
 
 	if (entry->uid == ((uid_t)-1))
 		/* User is optional, use current effective UID as default. */
@@ -871,7 +892,8 @@ enbox_load_dev_entry(const config_setting_t * __restrict setting,
 
 static int __enbox_nonull(1, 2)
 enbox_load_chrdev_entry(const config_setting_t * __restrict setting,
-                        struct enbox_entry * __restrict     entry)
+                        struct enbox_entry * __restrict     entry,
+                        bool                                allow_relative)
 {
 	enbox_assert(setting);
 	enbox_assert(entry);
@@ -879,7 +901,7 @@ enbox_load_chrdev_entry(const config_setting_t * __restrict setting,
 
 	int ret;
 
-	ret = enbox_load_dev_entry(setting, entry);
+	ret = enbox_load_dev_entry(setting, entry, allow_relative);
 	if (ret)
 		enbox_conf_err(setting, "invalid character device entry");
 
@@ -888,7 +910,8 @@ enbox_load_chrdev_entry(const config_setting_t * __restrict setting,
 
 static int __enbox_nonull(1, 2)
 enbox_load_blkdev_entry(const config_setting_t * __restrict setting,
-                        struct enbox_entry * __restrict     entry)
+                        struct enbox_entry * __restrict     entry,
+                        bool                                allow_relative)
 {
 	enbox_assert(setting);
 	enbox_assert(entry);
@@ -896,7 +919,7 @@ enbox_load_blkdev_entry(const config_setting_t * __restrict setting,
 
 	int ret;
 
-	ret = enbox_load_dev_entry(setting, entry);
+	ret = enbox_load_dev_entry(setting, entry, allow_relative);
 	if (ret)
 		enbox_conf_err(setting, "invalid block device entry");
 
@@ -916,7 +939,8 @@ enbox_load_fifo_mode_setting(const config_setting_t * __restrict setting,
 
 static int __enbox_nonull(1, 2)
 enbox_load_fifo_entry(const config_setting_t * __restrict setting,
-                     struct enbox_entry * __restrict     entry)
+                      struct enbox_entry * __restrict     entry,
+                      bool                                allow_relative)
 {
 	enbox_assert(setting);
 	enbox_assert(config_setting_is_group(setting));
@@ -942,12 +966,9 @@ enbox_load_fifo_entry(const config_setting_t * __restrict setting,
 	if (err)
 		goto err;
 
-	if (!entry->path) {
-		/* Path is mandatory. */
-		enbox_conf_err(setting, "missing 'path' setting");
-		err = -ENODATA;
+	err = enbox_validate_entry_path(setting, entry, allow_relative);
+	if (err)
 		goto err;
-	}
 
 	if (entry->uid == ((uid_t)-1))
 		/* User is optional, use current effective UID as default. */
@@ -981,23 +1002,23 @@ enbox_load_host_entry(const config_setting_t * __restrict setting,
 
 	switch (ent->type) {
 	case ENBOX_DIR_ENTRY_TYPE:
-		ret = enbox_load_dir_entry(setting, ent);
+		ret = enbox_load_dir_entry(setting, ent, false);
 		break;
 
 	case ENBOX_SLINK_ENTRY_TYPE:
-		ret = enbox_load_slink_entry(setting, ent);
+		ret = enbox_load_slink_entry(setting, ent, false);
 		break;
 
 	case ENBOX_CHRDEV_ENTRY_TYPE:
-		ret = enbox_load_chrdev_entry(setting, ent);
+		ret = enbox_load_chrdev_entry(setting, ent, false);
 		break;
 
 	case ENBOX_BLKDEV_ENTRY_TYPE:
-		ret = enbox_load_blkdev_entry(setting, ent);
+		ret = enbox_load_blkdev_entry(setting, ent, false);
 		break;
 
 	case ENBOX_FIFO_ENTRY_TYPE:
-		ret = enbox_load_fifo_entry(setting, ent);
+		ret = enbox_load_fifo_entry(setting, ent, false);
 		break;
 
 	default:
@@ -1229,12 +1250,9 @@ enbox_load_file_entry(const config_setting_t * __restrict setting,
 	if (err)
 		goto err;
 
-	if (!entry->path) {
-		/* Path is mandatory. */
-		enbox_conf_err(setting, "missing 'path' setting");
-		err = -ENODATA;
+	err = enbox_validate_entry_path(setting, entry, true);
+	if (err)
 		goto err;
-	}
 
 	if (!entry->bind.orig) {
 		/* Bind mount source pathname is mandatory. */
@@ -1302,12 +1320,9 @@ enbox_load_tree_entry(const config_setting_t * __restrict setting,
 	if (err)
 		goto err;
 
-	if (!entry->path) {
-		/* Path is mandatory. */
-		enbox_conf_err(setting, "missing 'path' setting");
-		err = -ENODATA;
+	err = enbox_validate_entry_path(setting, entry, true);
+	if (err)
 		goto err;
-	}
 
 	if (!entry->bind.orig) {
 		/* Bind mount source pathname is mandatory. */
@@ -1416,11 +1431,11 @@ enbox_load_jail_entry(const config_setting_t * __restrict setting,
 		break;
 
 	case ENBOX_DIR_ENTRY_TYPE:
-		ret = enbox_load_dir_entry(setting, ent);
+		ret = enbox_load_dir_entry(setting, ent, true);
 		break;
 
 	case ENBOX_SLINK_ENTRY_TYPE:
-		ret = enbox_load_slink_entry(setting, ent);
+		ret = enbox_load_slink_entry(setting, ent, true);
 		break;
 
 	case ENBOX_TREE_ENTRY_TYPE:
