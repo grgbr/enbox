@@ -6,7 +6,6 @@ Rationalize:
 * label setting checking
 * generalize struct user usage (for host / jail entries)
 * error vs info logging review
-* ensure path is absolute for host entry definitions ?
 
 Features:
 * fix signal disposition ?

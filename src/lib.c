@@ -922,6 +922,7 @@ enbox_bind_file(const char * __restrict path,
 	enbox_assert_mount_time_flags(flags);
 
 	struct stat stat;
+	int         fd;
 	int         err;
 
 	err = upath_lstat(orig, &stat);
@@ -938,20 +939,20 @@ enbox_bind_file(const char * __restrict path,
 	/*
 	 * Create an empty new file to provide the bind mount operation a
 	 * "mount point"...
-	 * Since we are going to call execve() or exit() after jail creation,
-	 * use close-on-exec flag to prevent from calling an extra close().
 	 */
-	err = ufile_new(path,
-	                O_WRONLY | O_EXCL | O_CLOEXEC | O_NOATIME | O_NOFOLLOW |
-	                O_NONBLOCK,
-	                S_IRUSR | S_IWUSR);
-	if (err < 0)
+	fd = ufile_new(path,
+	               O_WRONLY | O_EXCL | O_CLOEXEC | O_NOATIME | O_NOFOLLOW |
+	               O_NONBLOCK,
+	               S_IRUSR | S_IWUSR);
+	if (fd < 0) {
+		err = fd;
 		goto err;
+	}
 
 	/* Perform the bind mount... */
 	err = enbox_bind_mount(orig, path);
 	if (err)
-		goto err;
+		goto close;
 
 	if (flags) {
 		/*
@@ -965,11 +966,20 @@ enbox_bind_file(const char * __restrict path,
 		 */
 		err = enbox_remount(path, MS_BIND | flags, opts);
 		if (err)
-			goto err;
+			goto close;
 	}
+
+	/*
+	 * Close the file descriptor opened above to make sure
+	 * enbox_seal_jail_root() may remount the jail's root filesystem
+	 * read-only...
+	 */
+	ufile_close(fd);
 
 	return 0;
 
+close:
+	ufile_close(fd);
 err:
 	enbox_info("'%s': cannot bind mount file: %s (%d)",
 	           path,

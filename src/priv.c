@@ -1070,7 +1070,8 @@ enbox_execve_with_caps(struct enbox_caps * __restrict caps,
 	 * Finally jump into program given by arguments. Returning from
 	 * execve(2) means failure...
 	 */
-	err = execve(path, argv, envp);
+	execve(path, argv, envp);
+	err = -errno;
 	enbox_assert(err);
 
 	return err;
