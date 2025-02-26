@@ -1287,19 +1287,19 @@ enbox_chroot_jail(void)
 	return 0;
 }
 
-static int __enbox_nonull(3, 4) __enbox_nothrow
-enbox_enter_jail_bypwd(int                              namespaces,
-                       gid_t                            gid,
-                       const char * __restrict          path,
-                       const struct enbox_entry         entries[__restrict_arr],
-                       unsigned int                     nr)
+int
+enbox_enter_jail(const struct enbox_jail * __restrict jail,
+                 const struct enbox_cmd * __restrict  cmd)
 {
 	enbox_assert_setup();
-	enbox_assert(!(namespaces & ~ENBOX_VALID_NAMESPACE_FLAGS));
-	enbox_assert(gid != (gid_t)-1);
-	enbox_assert(upath_validate_path_name(path) > 0);
-	enbox_assert(entries);
-	enbox_assert(nr);
+	enbox_assert(jail);
+	enbox_assert(!(jail->namespaces & ~ENBOX_VALID_NAMESPACE_FLAGS));
+	enbox_assert(upath_validate_path_name(jail->root_path) > 0);
+	enbox_assert(jail->fsset.entries);
+	enbox_assert(jail->fsset.nr);
+	enbox_assert(cmd);
+	enbox_assert(!cmd->ids || !enbox_validate_pwd(cmd->ids->pwd, true));
+	enbox_assert(!cmd->exec || !enbox_validate_exec(cmd->exec));
 
 	int          err;
 	const char * msg __enbox_terse_unused;
@@ -1317,13 +1317,16 @@ enbox_enter_jail_bypwd(int                              namespaces,
 	 * - CLONE_FILES not needed since current file descriptor table is
 	 *   duplicated at execve() time.
 	 */
-	err = enbox_unshare(namespaces | CLONE_FS | CLONE_SYSVSEM);
+	err = enbox_unshare(jail->namespaces | CLONE_FS | CLONE_SYSVSEM);
 	if (err) {
 		msg = "cannot dissociate from parent namespaces";
 		goto err;
 	}
 
-	err = enbox_setup_jail(path, gid, entries, nr);
+	err = enbox_setup_jail(jail->root_path,
+	                       cmd->ids ? cmd->ids->pwd->pw_gid : enbox_gid,
+	                       jail->fsset.entries,
+	                       jail->fsset.nr);
 	if (err) {
 		msg = "cannot setup jail filesystem";
 		goto err;
@@ -1340,34 +1343,9 @@ enbox_enter_jail_bypwd(int                              namespaces,
 
 err:
 	enbox_info("%s: %s (%d)", msg, strerror(-err), -err);
+	enbox_err("cannot enter jail: %s (%d)", strerror(-err), -err);
 
 	return err;
-}
-
-int
-enbox_enter_jail(const struct enbox_jail * __restrict jail,
-                 const struct enbox_ids * __restrict  ids)
-{
-	enbox_assert_setup();
-	enbox_assert_jail(jail);
-	enbox_assert(ids);
-	enbox_assert(ids->pwd);
-
-	int err;
-
-	err = enbox_enter_jail_bypwd(jail->namespaces,
-	                             ids->pwd->pw_gid,
-	                             jail->root_path,
-	                             jail->fsset.entries,
-	                             jail->fsset.nr);
-	if (err) {
-		enbox_err("cannot enter jail: %s (%d)",
-		          strerror(-err),
-		          -err);
-		return err;
-	}
-
-	return 0;
 }
 
 int
@@ -1500,17 +1478,15 @@ enbox_validate_exec(const char * const args[__restrict_arr])
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
 
 int
-enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
-              const struct enbox_ids * __restrict ids)
+enbox_run_cmd(const struct enbox_cmd * __restrict cmd)
 {
 	enbox_assert_setup();
 	enbox_assert(cmd);
 	enbox_assert(!(cmd->umask & ~((mode_t)ALLPERMS)));
 	enbox_assert(!cmd->cwd ||
 	             (upath_validate_path_name(cmd->cwd) > 0));
-	enbox_assert(!enbox_validate_exec(cmd->exec));
-	enbox_assert(ids);
-	enbox_assert(ids->pwd);
+	enbox_assert(!cmd->ids || !enbox_validate_pwd(cmd->ids->pwd, true));
+	enbox_assert(!cmd->exec || !enbox_validate_exec(cmd->exec));
 
 	int err;
 
@@ -1527,14 +1503,35 @@ enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
 		}
 	}
 
+	if (cmd->exec) {
 STROLL_IGNORE_WARN("-Wcast-qual")
-	err = enbox_change_idsn_execve(ids->pwd,
-	                               ids->drop_supp,
-	                               cmd->exec[0],
-	                               (char * const *)cmd->exec,
-	                               NULL,
-	                               cmd->caps);
+		if (cmd->ids) {
+			err = enbox_change_idsn_execve(cmd->ids->pwd,
+			                               cmd->ids->drop_supp,
+			                               cmd->exec[0],
+			                               (char * const *)
+			                               cmd->exec,
+			                               NULL,
+			                               cmd->caps);
+		}
+		else
+			err = enbox_execve(cmd->exec[0],
+			                   (char * const *)cmd->exec,
+			                   NULL,
+			                   cmd->caps);
 STROLL_RESTORE_WARN
+	}
+	else {
+		if (cmd->ids) {
+			err = enbox_change_ids(cmd->ids->pwd,
+			                       cmd->ids->drop_supp,
+			                       cmd->caps);
+			if (err)
+				goto err;
+		}
+		else
+			return 0;
+	}
 
 err:
 	enbox_err("cannot run command: %s (%d)", strerror(-err), -err);
@@ -1562,6 +1559,8 @@ enbox_read_umask(void)
 
 	return msk;
 }
+
+#if defined(CONFIG_ENBOX_DISABLE_DUMP)
 
 /**
  * @internal
@@ -1646,6 +1645,16 @@ enbox_setup_dump(bool on)
  */
 #define ENBOX_DISABLE_DUMP (0)
 
+#else  /* !defined(CONFIG_ENBOX_DISABLE_DUMP) */
+
+static inline
+void
+enbox_setup_dump(bool on __unused)
+{
+
+}
+
+#endif /* !defined(CONFIG_ENBOX_DISABLE_DUMP) */
 void
 enbox_setup(struct elog * __restrict logger)
 {

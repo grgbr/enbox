@@ -745,7 +745,7 @@ enbox_clear_bound_caps(void)
  *
  * Change current process's real, effective and saved user ID to UID matching
  * @p pwd_entry entry passed in argument. This pointer may be retrieved using
- * one of the system primitives documented into getpwent(2).
+ * one of the system primitives documented into [getpwent(3)].
  *
  * In addition, change current process's real, effective and saved group ID to
  * primary GID of @p user and setup current process's list of supplementary
@@ -769,7 +769,7 @@ enbox_clear_bound_caps(void)
  * - #ENBOX_RAISE_SUPP_GROUPS
  * - #ENBOX_DROP_SUPP_GROUPS
  * - enbox_change_ids()
- * - [getpwent(2)]
+ * - [getpwent(3)]
  * - [setresuid(2)]
  * - [initgroups(3)]
  * - [setgroups(2)]
@@ -777,7 +777,7 @@ enbox_clear_bound_caps(void)
  *
  * @ingroup utils
  *
- * [getpwent(2)]:     https://man7.org/linux/man-pages/man2/getpwent.2.html
+ * [getpwent(3)]:     https://man7.org/linux/man-pages/man3/getpwent.3.html
  * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
  * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
  * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
@@ -792,7 +792,7 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  *
  * Change current process's real, effective and saved user ID to UID matching
  * @p pwd_entry entry passed in argument. This pointer may be retrieved using
- * one of the system primitives documented into getpwent(2).
+ * one of the system primitives documented into [getpwent(3)].
  *
  * In addition, change current process's real, effective and saved group ID to
  * primary GID matching the @p pwd_entry and setup current process's list of
@@ -840,7 +840,7 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  * - #ENBOX_DROP_SUPP_GROUPS
  * - enbox_switch_ids()
  * - enbox_change_idsn_execve()
- * - [getpwent(2)]
+ * - [getpwent(3)]
  * - [setresuid(2)]
  * - [initgroups(3)]
  * - [setgroups(2)]
@@ -848,7 +848,7 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  *
  * @ingroup utils
  *
- * [getpwent(2)]:     https://man7.org/linux/man-pages/man2/getpwent.2.html
+ * [getpwent(3)]:     https://man7.org/linux/man-pages/man3/getpwent.3.html
  * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
  * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
  * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
@@ -967,7 +967,7 @@ enbox_execve(const char * __restrict path,
  * - `SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED`.
  *
  * The @p pwd_entry should point to a `struct passwd` entry retrieved using one
- * of the system primitives documented into getpwent(2).
+ * of the system primitives documented into [getpwent(3)].
  *
  * The @p argv is a `NULL` terminated array of pointers to strings passed to the
  * new program as its command-line arguments. By convention, the first of these
@@ -1007,7 +1007,7 @@ enbox_execve(const char * __restrict path,
  * - #ENBOX_DROP_SUPP_GROUPS
  * - enbox_change_ids()
  * - enbox_execve()
- * - [getpwent(2)]
+ * - [getpwent(3)]
  * - [setresuid(2)]
  * - [initgroups(3)]
  * - [setgroups(2)]
@@ -1016,7 +1016,7 @@ enbox_execve(const char * __restrict path,
  *
  * @ingroup utils
  *
- * [getpwent(2)]:     https://man7.org/linux/man-pages/man2/getpwent.2.html
+ * [getpwent(3)]:     https://man7.org/linux/man-pages/man3/getpwent.3.html
  * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
  * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
  * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
@@ -1594,17 +1594,37 @@ enbox_populate_host(const struct enbox_fsset * __restrict fsset)
  *
  * User / group identifiers.
  *
- * Opaque structure storing user and group membership informations.
+ * Opaque structure storing user and group membership informations. It should be
+ * initialized using one of the enbox_load_ids_byid() or enbox_load_ids_byname()
+ * functions.
  *
  * @see
  * - enbox_load_ids_byid()
  * - enbox_load_ids_byname()
  * - enbox_enter_jail()
  * - enbox_run_cmd()
+ * - [getpwent(3)]
+ * - [credentials(7)]
  *
  * @ingroup instance
+ *
+ * [getpwent(3)]:     https://man7.org/linux/man-pages/man3/getpwent.3.html
+ * [credentials(7)]:  https://man7.org/linux/man-pages/man7/credentials.7.html
  */
-struct enbox_ids;
+struct enbox_ids {
+	/**
+	 * @internal
+	 *
+	 * A pointer to a password database entry.
+	 */
+	const struct passwd * pwd;
+	/**
+	 * @internal
+	 *
+	 * Wether to request the loading of supplementary groups or not.
+	 */
+	bool                  drop_supp;
+};
 
 /**
  * Load user and group membership identifiers by UID.
@@ -1633,8 +1653,13 @@ struct enbox_ids;
  * - enbox_run_cmd()
  * - enbox_change_ids()
  * - enbox_load_ids_byname()
+ * - [getpwent(3)]
+ * - [credentials(7)]
  *
  * @ingroup instance
+ *
+ * [getpwent(3)]:     https://man7.org/linux/man-pages/man2/getpwent.3.html
+ * [credentials(7)]:  https://man7.org/linux/man-pages/man7/credentials.7.html
  */
 extern int
 enbox_load_ids_byid(struct enbox_ids * __restrict ids,
@@ -1668,14 +1693,143 @@ enbox_load_ids_byid(struct enbox_ids * __restrict ids,
  * - enbox_run_cmd()
  * - enbox_change_ids()
  * - enbox_load_ids_byid()
+ * - [getpwent(3)]
+ * - [credentials(7)]
  *
  * @ingroup instance
+ *
+ * [getpwent(3)]:     https://man7.org/linux/man-pages/man2/getpwent.3.html
+ * [credentials(7)]:  https://man7.org/linux/man-pages/man7/credentials.7.html
  */
 extern int
 enbox_load_ids_byname(struct enbox_ids * __restrict ids,
                       const char * __restrict       user,
                       bool                          drop_supp)
 	__enbox_nonull(1, 2);
+
+/**
+ * Command descriptor.
+ *
+ * This structure holds properties used to setup runtime context of an
+ * optional [execve(2)]'ed program given to enbox_run_cmd().
+ *
+ * @see
+ * - enbox_run_cmd()
+ * - enbox_enter_jail()
+ * - enbox_populate_host()
+ *
+ * @ingroup instance
+ */
+struct enbox_cmd {
+	/**
+	 * File creation mode mask of current process.
+	 *
+	 * @see [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
+	 */
+	mode_t               umask;
+	/**
+	 * Optional pointer to a structure holding user and group membership
+	 * identifiers to change to for current process.
+	 *
+	 * @see
+	 * - enbox_load_ids_byid()
+	 * - enbox_load_ids_byname()
+	 * - [credentials(7)](https://man7.org/linux/man-pages/man7/credentials.7.html)
+	 */
+	struct enbox_ids *   ids;
+	/**
+	 * Optional mask of system capabilities enabled for current process.
+	 *
+	 * @see [capabilities(7)](https://man7.org/linux/man-pages/man7/capabilities.7.html)
+	 */
+	uint64_t             caps;
+	/**
+	 * Optional current working directory of current process.
+	 *
+	 * @see [chdir(2)](https://man7.org/linux/man-pages/man2/chdir.2.html)
+	 */
+	const char *         cwd;
+	/**
+	 * An optional array of arguments used to execute a program by current
+	 * process.
+	 *
+	 * First array entry will be passed to [execve(2)] as first argument.
+	 * The whole array will be passed to [execve(2)] as second argument.
+	 * This array must be `NULL` terminated.
+	 *
+	 * Command will be executed with an empty environment.
+	 *
+	 * @warning The maximum number of array entries is restricted to 1024
+	 *          excluding the terminating `NULL` entry.
+	 *
+	 * @see [execve(2)]
+	 *
+	 * [execve(2)]: https://man7.org/linux/man-pages/man2/execve.2.html
+	 */
+	const char * const * exec;
+};
+
+/**
+ * Run a command.
+ *
+ * Setup runtime context for further program execution and optionally
+ * [execve(2)] a program according to properties stored into @p cmd argument.
+ *
+ * enbox_run_cmd() carries out the following sequence of actions:
+ * 1. setup current process file creation mode mask according to
+ *    #enbox_cmd::umask value ;
+ * 2. optionally change to directory pointed to by #enbox_cmd::cwd if not
+ *    `NULL`;
+ * 3. change current process's real, effective and saved user ID and setup
+ *    current process's list of supplementary group IDs according to
+ *    #enbox_cmd::ids content if present ;
+ * 4. adjust [capabilities(7)] according to #enbox_cmd::caps ;
+ * 5. finally call [execve(2)] using arguments found into #enbox_cmd::exec
+ *    array.
+ *
+ * See #enbox_cmd for further details about properties used to setup
+ * runtime context and optional program of current process.
+ *
+ * enbox_populate_host() and / or enbox_enter_jail() may be called prior to
+ * enbox_run_cmd() to setup the «host» mount namespace or the jail container
+ * respectively.
+ *
+ * @warning
+ * Should an error occur, current program state will be left as-is, i.e. in an
+ * unpredictable state. Caller should exit(3) as soon as possible.
+ *
+ * @param[in] cmd Properties used to [execve(2)] this command
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - #enbox_cmd
+ * - enbox_set_umask()
+ * - enbox_load_ids_byid()
+ * - enbox_load_ids_byname()
+ * - enbox_change_ids()
+ * - enbox_populate_host()
+ * - enbox_enter_jail()
+ * - [execve(2)]
+ * - [chdir(2)]
+ * - [umask(2)]
+ * - [capabilities(7)]
+ * - [credentials(7)]
+ * - [exit(3)]
+ *
+ * @ingroup instance
+ *
+ * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
+ * [chdir(2)]:        https://man7.org/linux/man-pages/man2/chdir.2.html
+ * [umask(2)]:        https://man7.org/linux/man-pages/man2/umask.2.html
+ * [exit(3)]:         https://man7.org/linux/man-pages/man3/exit.3.html
+ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * [credentials(7)]:  https://man7.org/linux/man-pages/man7/credentials.7.html
+ */
+extern int
+enbox_run_cmd(const struct enbox_cmd * __restrict cmd)
+	__enbox_nonull(1) __enbox_nothrow;
+
 
 /**
  * Default list of new namespaces a jail is made a member of.
@@ -1744,8 +1898,8 @@ struct enbox_jail {
  * [execve(2)] a program from within a runtime context isolated from the main
  * system-wide runtime using enbox_run_cmd().
  * Jail will be created according to properties passed as @p jail argument.
- * In addition, @p ids argument must point to user and group membership
- * identifiers that will be passed to the next enbox_run_cmd() call.
+ * In addition, @p cmd argument must point to a command descriptor and should be
+ * passed to the next enbox_run_cmd() call if needed.
  *
  * enbox_enter_jail() carries out the following sequence of actions:
  * 1. clear the whole environment using [clearenv(3)] ;
@@ -1799,14 +1953,11 @@ struct enbox_jail {
  *    keyrings isolation...
  *
  * @param[in] jail Properties of jail to create
- * @param[in] ids  User and group membership identifiers used to [execve(2)] as
- *                 when calling enbox_run_cmd()
+ * @param[in] cmd  Command descriptor used to prepare the jail for
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
- * - enbox_load_ids_byid()
- * - enbox_load_ids_byname()
  * - enbox_run_cmd()
  * - enbox_lock_caps()
  * - enbox_clear_bounding_caps()
@@ -1835,124 +1986,7 @@ struct enbox_jail {
  */
 extern int
 enbox_enter_jail(const struct enbox_jail * __restrict jail,
-                 const struct enbox_ids * __restrict  ids)
-	__enbox_nonull(1, 2) __enbox_nothrow;
-
-/**
- * Command descriptor.
- *
- * This structure holds properties used to [execve(2)] a program using
- * enbox_run_cmd().
- *
- * @see
- * - enbox_run_cmd()
- * - enbox_enter_jail()
- * - enbox_populate_host()
- * - [execve(2)]
- *
- * @ingroup instance
- *
- * [execve(2)]:     https://man7.org/linux/man-pages/man2/execve.2.html
- */
-struct enbox_cmd {
-	/**
-	 * File creation mode mask of process running this command.
-	 *
-	 * @see [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
-	 */
-	mode_t               umask;
-	/**
-	 * Optional mask of system capabilities enabled for the process running
-	 * this command.
-	 *
-	 * @see [capabilities(7)](https://man7.org/linux/man-pages/man7/capabilities.7.html)
-	 */
-	uint64_t             caps;
-	/**
-	 * Optional current working directory of process running this command.
-	 *
-	 * @see [chdir(2)](https://man7.org/linux/man-pages/man2/chdir.2.html)
-	 */
-	const char *         cwd;
-	/**
-	 * Array of arguments used to execute this command.
-	 *
-	 * First array entry will be passed to [execve(2)] as first argument.
-	 * The whole array will be passed to [execve(2)] as second argument.
-	 * This array must be `NULL` terminated.
-	 *
-	 * Command will be executed with an empty environment.
-	 *
-	 * @warning The maximum number of array entries is restricted to 1024
-	 *          excluding the terminating `NULL` entry.
-	 *
-	 * @see [execve(2)]
-	 *
-	 * [execve(2)]: https://man7.org/linux/man-pages/man2/execve.2.html
-	 */
-	const char * const * exec;
-};
-
-/**
- * Run a command.
- *
- * [execve(2)] a program according to properties stored into @p exec and @p ids
- * arguments.
- *
- * enbox_run_cmd() carries out the following sequence of actions:
- * 1. setup current process file creation mode mask according to
- *    #enbox_cmd::umask value ;
- * 2. change current process's real, effective and saved user ID and setup
- *    current process's list of supplementary group IDs according to @p ids
- *    content ;
- * 3. optionally change to directory pointed to by #enbox_cmd::cwd if not
- *    `NULL`;
- * 4. finally call [execve(2)] using arguments found into #enbox_cmd::exec
- *    array.
- *
- * @p ids argument must point to user and group membership identifiers that will
- * be switched to before calling [execve(2)]. You may use enbox_load_ids_byid()
- * or enbox_load_ids_byname() to initialize @p ids.
- *
- * See #enbox_cmd::exec for details about how this command is [execve(2)]'ed.
- *
- * enbox_populate_host() and / or enbox_enter_jail() may be called prior to
- * enbox_run_cmd() to setup the «host» mount namespace or the jail container
- * respectively.
- *
- * @warning
- * Should an error occur, current program state will be left as-is, i.e. in an
- * unpredictable state. Caller should exit(3) as soon as possible.
- *
- * @param[in] cmd Properties used to [execve(2)] this command
- * @param[in] ids User and group membership identifiers to switch to before
- *                calling [execve(2)]
- *
- * @return 0 if successful, an errno-like error code otherwise.
- *
- * @see
- * - #enbox_cmd
- * - enbox_set_umask()
- * - enbox_load_ids_byid()
- * - enbox_load_ids_byname()
- * - enbox_change_ids()
- * - enbox_populate_host()
- * - enbox_enter_jail()
- * - [execve(2)]
- * - [chdir(2)]
- * - [umask(2)]
- * - [exit(2)]
- *
- * @ingroup instance
- *
- * [execve(2)]:     https://man7.org/linux/man-pages/man2/execve.2.html
- * [chdir(2)]:      https://man7.org/linux/man-pages/man2/chdir.2.html
- * [umask(2)]:      https://man7.org/linux/man-pages/man2/umask.2.html
- * [exit(3)]:       https://man7.org/linux/man-pages/man3/exit.3.html
- */
-extern int
-enbox_run_cmd(const struct enbox_cmd * __restrict cmd,
-              const struct enbox_ids * __restrict ids)
+                 const struct enbox_cmd * __restrict  cmd)
 	__enbox_nonull(1, 2) __enbox_nothrow;
 
 /**

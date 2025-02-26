@@ -1865,6 +1865,7 @@ enbox_do_load_ids(const config_setting_t * __restrict setting,
 	enbox_assert(setting);
 	enbox_assert(ids);
 	enbox_assert(!ids->pwd);
+	enbox_assert(!ids->drop_supp);
 
 	int                              err;
 	int                              nr;
@@ -1885,9 +1886,6 @@ enbox_do_load_ids(const config_setting_t * __restrict setting,
 		enbox_conf_err(setting, "missing setting(s)");
 		return -ENODATA;
 	}
-
-	ids->pwd = NULL;
-	ids->drop_supp = false;
 
 	err = enbox_load_setting(setting,
 	                         ids,
@@ -1917,11 +1915,11 @@ enbox_load_ids(const config_setting_t * __restrict setting,
 {
 	enbox_assert(setting);
 	enbox_assert(data);
-	enbox_assert(!((struct enbox_conf *)data)->ids);
+	enbox_assert(!((struct enbox_cmd *)data)->ids);
 
-	struct enbox_conf * conf = (struct enbox_conf *)data;
-	struct enbox_ids *  ids;
-	int                 err;
+	struct enbox_cmd * cmd = (struct enbox_cmd *)data;
+	struct enbox_ids * ids;
+	int                err;
 
 	ids = calloc(1, sizeof(*ids));
 	if (!ids)
@@ -1933,17 +1931,9 @@ enbox_load_ids(const config_setting_t * __restrict setting,
 		return err;
 	}
 
-	conf->ids = ids;
+	cmd->ids = ids;
 
 	return 0;
-}
-
-static void __enbox_nonull(1)
-enbox_unload_ids(struct enbox_ids * __restrict ids)
-{
-	enbox_assert(ids);
-
-	free(ids);
 }
 
 static int __enbox_nonull(1, 2)
@@ -2159,12 +2149,14 @@ enbox_do_load_cmd(const config_setting_t * __restrict setting,
 	enbox_assert(setting);
 	enbox_assert(cmd);
 	enbox_assert(!cmd->cwd);
+	enbox_assert(!cmd->ids);
 	enbox_assert(!cmd->exec);
 
 	int                              err;
 	int                              nr;
 	static const struct enbox_loader loaders[] = {
 		{ .name = "umask", .load = enbox_load_cmd_umask },
+		{ .name = "ids",   .load = enbox_load_ids },
 		{ .name = "caps",  .load = enbox_load_cmd_caps },
 		{ .name = "cwd",   .load = enbox_load_cmd_cwd },
 		{ .name = "exec",  .load = enbox_load_cmd_exec }
@@ -2184,7 +2176,6 @@ enbox_do_load_cmd(const config_setting_t * __restrict setting,
 	}
 
 	cmd->umask = (mode_t)-1;
-	cmd->caps = 0;
 
 	err = enbox_load_setting(setting,
 	                         cmd,
@@ -2192,11 +2183,6 @@ enbox_do_load_cmd(const config_setting_t * __restrict setting,
 	                         stroll_array_nr(loaders));
 	if (err)
 		return err;
-
-	if (!cmd->exec) {
-		enbox_conf_err(setting, "missing 'exec' setting");
-		return -ENODATA;
-	}
 
 	if (cmd->umask == (mode_t)-1)
 		cmd->umask = 0077;
@@ -2237,6 +2223,7 @@ enbox_unload_cmd(struct enbox_cmd * __restrict cmd)
 	enbox_assert(cmd);
 
 STROLL_IGNORE_WARN("-Wcast-qual")
+	free((void *)cmd->ids);
 	free((void *)cmd->exec);
 STROLL_RESTORE_WARN
 	free(cmd);
@@ -2251,8 +2238,6 @@ enbox_unload_conf(struct enbox_conf * __restrict conf)
 		enbox_unload_cmd(conf->cmd);
 	if (conf->jail)
 		enbox_unload_jail(conf->jail);
-	if (conf->ids)
-		enbox_unload_ids(conf->ids);
 	if (conf->host)
 		enbox_unload_host(conf->host);
 }
@@ -2262,7 +2247,6 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 {
 	enbox_assert(conf);
 	enbox_assert(!conf->host);
-	enbox_assert(!conf->ids);
 	enbox_assert(!conf->jail);
 	enbox_assert(!conf->cmd);
 
@@ -2270,7 +2254,6 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 	const config_setting_t *         root;
 	static const struct enbox_loader loaders[] = {
 		{ .name = "host", .load = enbox_load_host },
-		{ .name = "ids",  .load = enbox_load_ids },
 		{ .name = "jail", .load = enbox_load_jail },
 		{ .name = "cmd",  .load = enbox_load_cmd }
 	};
@@ -2286,17 +2269,8 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 	if (err)
 		goto err;
 
-	if ((conf->jail || conf->cmd) && !conf->ids) {
-		/*
-		 * IDs setting is mandatory when 'jail' or 'cmd' settings are
-		 * enabled.
-		 */
-		enbox_err("%s: missing 'ids' setting",
-		          config_setting_source_file(root));
-		err = -ENODATA;
-		goto err;
-	}
-	else if (conf->jail && !conf->cmd) {
+#warning document that ids is optional
+	if (conf->jail && !conf->cmd) {
 		/*
 		 * 'cmd' command setting is mandatory when 'jail' setting is
 		 * enabled.
@@ -2321,7 +2295,6 @@ enbox_load_conf_file(struct enbox_conf * __restrict conf,
 {
 	enbox_assert(conf);
 	enbox_assert(!conf->host);
-	enbox_assert(!conf->ids);
 	enbox_assert(!conf->jail);
 	enbox_assert(!conf->cmd);
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -2394,13 +2367,13 @@ enbox_run_conf(const struct enbox_conf * __restrict conf)
 	}
 
 	if (conf->jail) {
-		err = enbox_enter_jail(conf->jail, conf->ids);
+		err = enbox_enter_jail(conf->jail, conf->cmd);
 		if (err)
 			return err;
 	}
 
 	if (conf->cmd)
-		return enbox_run_cmd(conf->cmd, conf->ids);
+		return enbox_run_cmd(conf->cmd);
 
 	return 0;
 }

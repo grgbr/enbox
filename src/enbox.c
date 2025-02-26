@@ -549,8 +549,6 @@ enbox_show_ids_conf(const struct enbox_ids * __restrict ids)
 	const struct passwd * pwd = ids->pwd;
 	char *                grps = NULL;
 
-	puts("\n### User / group IDs ###\n");
-
 	/*
 	 * Allocate a string large enough to hold a comma separated list
 	 * of supplementary groups (including primary group).
@@ -558,14 +556,14 @@ enbox_show_ids_conf(const struct enbox_ids * __restrict ids)
 	grps = xalloc(ENBOX_GROUP_LIST_SIZE);
 
 	if (!enbox_fill_user_groups(grps, pwd, ids->drop_supp)) {
-		printf("User  : %u(%s)\n", pwd->pw_uid, pwd->pw_name);
-		printf("Groups: %s\n", grps);
+		printf("User             : %u(%s)\n", pwd->pw_uid, pwd->pw_name);
+		printf("Groups           : %s\n", grps);
 
 		goto free;
 	}
 
-	puts("User  : ?(?\?)");
-	puts("Groups: ?");
+	puts("User               : ?(?\?)");
+	puts("Groups             : ?");
 
 free:
 	free(grps);
@@ -608,13 +606,17 @@ enbox_show_cmd_conf(const struct enbox_cmd * __restrict cmd)
 	enbox_assert(!(cmd->umask & ~((mode_t)ACCESSPERMS)));
 	enbox_assert(!(cmd->caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
 	enbox_assert(!cmd->cwd || (upath_validate_path_name(cmd->cwd) > 0));
-	enbox_assert(!enbox_validate_exec(cmd->exec));
+	enbox_assert(!cmd->ids || !enbox_validate_pwd(cmd->ids->pwd, true));
+	enbox_assert(!cmd->exec || !enbox_validate_exec(cmd->exec));
 
 	unsigned int a = 0;
 
 	puts("\n### Command ###\n");
 
 	printf("Umask            : %04o\n", cmd->umask);
+
+	if (cmd->ids)
+		enbox_show_ids_conf(cmd->ids);
 
 	if (cmd->caps) {
 		char * str;
@@ -628,10 +630,14 @@ enbox_show_cmd_conf(const struct enbox_cmd * __restrict cmd)
 
 	printf("Working directory: %s\n", cmd->cwd ? cmd->cwd : "/");
 
-	fputs("Exec arguments   :", stdout);
-	do {
-		printf(" %s", cmd->exec[a]);
-	} while (cmd->exec[++a]);
+	if (cmd->exec) {
+		fputs("Exec arguments   :", stdout);
+		do {
+			printf(" %s", cmd->exec[a]);
+		} while (cmd->exec[++a]);
+	}
+	else
+		fputs("Exec arguments   : none", stdout);
 	putchar('\n');
 }
 
@@ -642,8 +648,6 @@ enbox_show_conf(const struct enbox_conf * conf)
 
 	if (conf->host)
 		enbox_show_host_conf(conf->host);
-	if (conf->ids)
-		enbox_show_ids_conf(conf->ids);
 	if (conf->jail)
 		enbox_show_jail_conf(conf->jail);
 	if (conf->cmd)
