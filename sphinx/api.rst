@@ -36,8 +36,7 @@ may eventually refer to the corresponding C macros listed below:
 * :c:macro:`CONFIG_ENBOX_INCLUDE_DIR`
 * :c:macro:`CONFIG_ENBOX_DISABLE_DUMP`
 * :c:macro:`CONFIG_ENBOX_TOOL`
-* :c:macro:`CONFIG_ENBOX_TOOL_STDLOG_SEVERITY`
-* :c:macro:`CONFIG_ENBOX_TOOL_STDLOG_FORMAT`
+* :c:macro:`CONFIG_ENBOX_STDLOG_SEVERITY`
 * :c:macro:`CONFIG_ENBOX_TOOL_SHOW`
   
 Usage
@@ -301,15 +300,10 @@ CONFIG_ENBOX_TOOL
 
 .. doxygendefine:: CONFIG_ENBOX_TOOL
 
-CONFIG_ENBOX_TOOL_STDLOG_SEVERITY
-*********************************
+CONFIG_ENBOX_STDLOG_SEVERITY
+****************************
 
-.. doxygendefine:: CONFIG_ENBOX_TOOL_STDLOG_SEVERITY
-
-CONFIG_ENBOX_TOOL_STDLOG_FORMAT
-*******************************
-
-.. doxygendefine:: CONFIG_ENBOX_TOOL_STDLOG_FORMAT
+.. doxygendefine:: CONFIG_ENBOX_STDLOG_SEVERITY
 
 CONFIG_ENBOX_TOOL_SHOW
 **********************

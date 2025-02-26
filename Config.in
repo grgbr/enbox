@@ -41,26 +41,32 @@ config ENBOX_TOOL
 	help
 	  Build enbox library tool.
 
-config ENBOX_TOOL_STDLOG_SEVERITY
-	int "STDIO logger severity"
+config ENBOX_TOOL_LOG_SEVERITY
+	int "Utility logger severity"
 	range 0 7
 	default 4
 	depends on ENBOX_TOOL
 	help
 	  Internal tool messages with severity greater than this won't be sent
-	  to standard I/O logger.
+	  to logger(s).
 	  See syslog(3) levels for more informations about available severities.
 
-config ENBOX_TOOL_STDLOG_FORMAT
-	hex "STDIO logger format"
-	range 0 0x1f
-	default 0x10
+config ENBOX_TOOL_LOG_FACILITY
+	int "Utility logger facility"
+	range 0 23
+	default 16
 	depends on ENBOX_TOOL
 	help
-	  Internal tool messages sent to standard I/O logger will be logged
-	  according to this format.
-	  See eLog library's header elog_format enum for more informations about
-	  available format flags.
+	  Enbox tool will log internal messages with this facility by default.
+	  See syslog(3) facilities for more informations.
+
+config ENBOX_TOOL_MQLOG_NAME
+	string "Message queue name"
+	default "/init"
+	depends on ENBOX_TOOL
+	help
+	  Name of POSIX message queue that Enbox tool may use to log messages.
+	  See mq_overview(7) for informations about message queue identifiers.
 
 config ENBOX_TOOL_SHOW
 	bool "Enable utility display"

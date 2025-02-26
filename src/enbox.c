@@ -657,6 +657,14 @@ enbox_show_conf(const struct enbox_conf * conf)
 	        program_invocation_short_name, \
 	        ## __VA_ARGS__)
 
+/* Make sure configured log facility is consistent with <sys/syslog.h> */
+#if (CONFIG_ENBOX_TOOL_LOG_FACILITY < 0) || \
+    (CONFIG_ENBOX_TOOL_LOG_FACILITY >= LOG_NFACILITIES)
+#error Log facility configured at build time is invalid !
+#endif
+#define ENBOX_TOOL_LOG_FACILITY \
+	(CONFIG_ENBOX_TOOL_LOG_FACILITY << 3)
+
 #if defined(CONFIG_ENBOX_TOOL_SHOW)
 #define SHOW_USAGE \
 "    show        -- show configuration settings loaded from CONFIG\n"
@@ -669,113 +677,460 @@ enbox_show_conf(const struct enbox_conf * conf)
 "Enbox sandboxing tool.\n" \
 "\n" \
 "With OPTIONS:\n" \
-"    -h | --help -- this help message\n" \
+"    --log-tag=TAG              -- log message using tag TAG\n" \
+"                                  (defaults to `%1$s')\n" \
+"    --stdlog-level=SEVERITY    -- set console log verbosity level to SEVERITY\n" \
+"                                  (defaults to `%2$s')\n" \
+"    --syslog-level=SEVERITY    -- set syslog verbosity level to SEVERITY\n" \
+"                                  (defaults to `none')\n" \
+"    --syslog-facility=FACILITY -- set syslog facility to FACILITY\n" \
+"                                  (defaults to `%3$s')\n" \
+"    --mqlog-level=SEVERITY     -- set message queue log verbosity level to SEVERITY\n" \
+"                                  (defaults to `none')\n" \
+"    --mqlog-facility=FACILITY  -- set syslog facility to FACILITY\n" \
+"                                  (defaults to `%3$s')\n" \
+"    --mqlog-name=NAME          -- use NAME as logging message queue name\n" \
+"                                  (defaults to `" CONFIG_ENBOX_TOOL_MQLOG_NAME "')\n" \
+"    -h | --help                -- this help message\n" \
 "\n" \
 "With CMD:\n" \
 SHOW_USAGE \
 "    run         -- run / execute configuration loaded from CONFIG\n" \
 "\n" \
 "Where:\n" \
-"    CONFIG      -- pathname to an Enbox configuration file\n" \
+"    CONFIG   -- pathname to an Enbox configuration file\n" \
+"    TAG      -- logging message tag\n" \
+"    NAME     -- POSIX message queue name, including the leading `/'\n" \
+"    SEVERITY := none|dflt|emerg|alert|crit|err|warn|notice|info\n" \
+"    FACILITY := dflt|auth|authpriv|cron|daemon|ftp|lpr|mail|news|syslog|user\n" \
+"                |local0|local1|local2|local3|local4|local5|local6|local7\n" \
 
 static void
 show_usage(void)
 {
-	fprintf(stderr, USAGE, program_invocation_short_name);
+	fprintf(stderr,
+	        USAGE,
+	        program_invocation_short_name,
+	        elog_get_severity_label(CONFIG_ENBOX_TOOL_LOG_SEVERITY),
+	        elog_get_facility_label(ENBOX_TOOL_LOG_FACILITY));
 }
 
-static struct elog_stdio      stdlog;
-static struct elog_stdio_conf stdlog_conf = {
-	.super.severity = CONFIG_ENBOX_TOOL_STDLOG_SEVERITY,
-	.format         = CONFIG_ENBOX_TOOL_STDLOG_FORMAT
+struct enbox_log_parse {
+	struct elog_parse std;
+	struct elog_parse sys;
+	struct elog_parse mq;
 };
 
-int
-main(int argc, char * const argv[])
+enum enbox_log_kind {
+	ENBOX_STDLOG = 1U << 0,
+	ENBOX_SYSLOG = 1U << 1,
+	ENBOX_MQLOG  = 1U << 2
+};
+
+struct enbox_log_conf {
+	unsigned int            subs;
+	struct elog_stdio_conf  std;
+	struct elog_syslog_conf sys;
+	struct elog_mqueue_conf mq;
+};
+
+static int __enbox_nonull(1, 2, 4) __enbox_nothrow
+enbox_log_parse_level(struct enbox_log_parse * __restrict parse,
+                      struct enbox_log_conf * __restrict  config,
+                      enum enbox_log_kind                 kind,
+                      const char * __restrict             arg)
 {
-	int                 ret = EXIT_FAILURE;
-	struct enbox_conf * conf;
-	enum {
-		INVALID,
-		RUN,
+	enbox_assert(parse);
+	enbox_assert(config);
+	enbox_assert(kind);
+	enbox_assert(arg);
+
+	if (strcmp(arg, "none")) {
+		struct elog_parse * prs;
+		struct elog_conf *  cfg;
+
+		switch (kind) {
+		case ENBOX_STDLOG:
+			prs = &parse->std;
+			cfg = &config->std.super;
+			break;
+
+		case ENBOX_SYSLOG:
+			prs = &parse->sys;
+			cfg = &config->sys.super;
+			break;
+
+		case ENBOX_MQLOG:
+			prs = &parse->mq;
+			cfg = &config->mq.super;
+			break;
+
+		default:
+			enbox_assert(0);
+		}
+
+		if (elog_parse_severity(prs, cfg, arg)) {
+			show_error("%s.\n\n", prs->error);
+			return EXIT_FAILURE;
+		}
+
+		config->subs |= kind;
+	}
+	else
+		config->subs &= ~kind;
+
+	return EXIT_SUCCESS;
+}
+
+static int __enbox_nonull(1, 2)
+enbox_log_realize_parse(struct enbox_log_parse * __restrict parse,
+                        struct enbox_log_conf * __restrict  config)
+{
+	enbox_assert(parse);
+	enbox_assert(config);
+
+	if (config->subs & ENBOX_STDLOG) {
+		if (elog_realize_parse(&parse->std, &config->std.super)) {
+			show_error("%s.\n\n", parse->std.error);
+			return EXIT_FAILURE;
+		}
+	}
+
+	if (config->subs & ENBOX_SYSLOG) {
+		if (elog_realize_parse(&parse->sys, &config->sys.super)) {
+			show_error("%s.\n\n", parse->sys.error);
+			return EXIT_FAILURE;
+		}
+	}
+
+	if (config->subs & ENBOX_MQLOG) {
+		if (elog_realize_parse(&parse->mq, &config->mq.super)) {
+			show_error("%s.\n\n", parse->mq.error);
+			return EXIT_FAILURE;
+		}
+	}
+
+	return EXIT_SUCCESS;
+}
+
+static void __enbox_nonull(1, 2) __enbox_nothrow
+enbox_log_init_parse(struct enbox_log_parse * __restrict parse,
+                     struct enbox_log_conf * __restrict  config)
+{
+	enbox_assert(parse);
+	enbox_assert(config);
+
+	static const struct elog_stdio_conf  std_dflt = {
+		.super.severity = CONFIG_ENBOX_TOOL_LOG_SEVERITY,
+		.format         = ELOG_TAG_FMT
+	};
+	static const struct elog_syslog_conf sys_dflt = {
+		.super.severity = CONFIG_ENBOX_TOOL_LOG_SEVERITY,
+		.format         = ELOG_PID_FMT,
+		.facility       = ENBOX_TOOL_LOG_FACILITY
+	};
+	static const struct elog_mqueue_conf mq_dflt = {
+		.super.severity = CONFIG_ENBOX_TOOL_LOG_SEVERITY,
+		.facility       = ENBOX_TOOL_LOG_FACILITY,
+		.name           = CONFIG_ENBOX_TOOL_MQLOG_NAME
+	};
+
+	elog_init_stdio_parse(&parse->std, &config->std, &std_dflt);
+	config->subs = ENBOX_STDLOG;
+	elog_init_syslog_parse(&parse->sys, &config->sys, &sys_dflt);
+	elog_init_mqueue_parse(&parse->mq, &config->mq, &mq_dflt);
+}
+
+static void __enbox_nonull(1) __enbox_nothrow
+enbox_log_fini_parse(struct enbox_log_parse * __restrict parse)
+{
+	enbox_assert(parse);
+
+	elog_fini_parse(&parse->mq);
+	elog_fini_parse(&parse->sys);
+	elog_fini_parse(&parse->std);
+}
+
+struct enbox_log {
+	struct elog *      top;
+	struct elog_multi  multi;
+	struct elog_stdio  std;
+	struct elog_syslog sys;
+	struct elog_mqueue mq;
+};
+
+static int __enbox_nonull(1, 3)
+enbox_log_enable(struct enbox_log * __restrict      log,
+                 const char * __restrict            tag,
+                 struct enbox_log_conf * __restrict config)
+{
+	enbox_assert(log);
+	enbox_assert(config);
+
+	int err = -ENOMEM;
+
+	if ((config->std.super.severity < 0) &&
+	    (config->sys.super.severity < 0) &&
+	    (config->mq.super.severity < 0)) {
+		log->top = NULL;
+		return 0;
+	}
+
+	elog_setup(tag, ELOG_DFLT_PID);
+
+	elog_init_multi(&log->multi, elog_fini);
+
+	if (config->subs & ENBOX_STDLOG) {
+		elog_init_stdio(&log->std, &config->std);
+		if(elog_register_multi_sublog(&log->multi, &log->std.super))
+			goto fini;
+	}
+
+	if (config->subs & ENBOX_SYSLOG) {
+		elog_init_syslog(&log->sys, &config->sys);
+		if (elog_register_multi_sublog(&log->multi, &log->sys.super))
+			goto fini;
+	}
+
+	if (config->subs & ENBOX_MQLOG) {
+		err = elog_init_mqueue(&log->mq, &config->mq);
+		if (err) {
+			show_error("failed to initialize message queue logger: "
+			           "%s (%d).\n",
+			           strerror(-err),
+			           -err);
+			goto fini;
+		}
+		if (elog_register_multi_sublog(&log->multi, &log->mq.super))
+			goto fini;
+	}
+
+	log->top = &log->multi.super;
+
+	return 0;
+
+fini:
+	elog_fini_multi(&log->multi);
+
+	return err;
+}
+
+static void __enbox_nonull(1)
+enbox_log_fini(struct enbox_log * __restrict log)
+{
+	enbox_assert(log);
+
+	if (log->top)
+		elog_fini(log->top);
+}
+
+enum {
+	INVALID_CMD = -1,
+	NONE_CMD,
+	RUN_CMD,
 #if defined(CONFIG_ENBOX_TOOL_SHOW)
-		SHOW
+	SHOW_CMD
 #endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
-	}                   cmd = INVALID;
+};
+
+static __enbox_nonull(2, 3)
+int
+enbox_parse_cmdln(int                           argc,
+                  char * const                  argv[],
+                  struct enbox_log * __restrict log)
+{
+	enbox_assert(argv);
+	enbox_assert(log);
+
+	struct enbox_log_parse parse;
+	struct enbox_log_conf  conf;
+	const char *           tag = ELOG_DFLT_TAG;
+	int                    ret = INVALID_CMD;
+
+	enbox_log_init_parse(&parse, &conf);
 
 	while (true) {
-		int                        opt;
-		static const struct option opts[] = {
-			{ "help", no_argument, NULL, 'h' },
-			{ NULL,   0,           NULL,  0 }
+		enum {
+			LOG_TAG_OPT         = 1U << 0,
+			STDLOG_LEVEL_OPT    = 1U << 1,
+			SYSLOG_LEVEL_OPT    = 1U << 2,
+			SYSLOG_FACILITY_OPT = 1U << 3,
+			MQLOG_LEVEL_OPT     = 1U << 4,
+			MQLOG_FACILITY_OPT  = 1U << 5,
+			MQLOG_NAME_OPT      = 1U << 6,
+			HELP_OPT            = 'h',
+			MISSING_OPT         = ':',
+			UNKNOWN_OPT         = '?'
 		};
+		static const struct option opts[] = {
+			{ "log-tag",         required_argument, NULL, LOG_TAG_OPT },
+			{ "stdlog-level",    required_argument, NULL, STDLOG_LEVEL_OPT },
+			{ "syslog-level",    required_argument, NULL, SYSLOG_LEVEL_OPT },
+			{ "syslog-facility", required_argument, NULL, SYSLOG_FACILITY_OPT },
+			{ "mqlog-level",     required_argument, NULL, MQLOG_LEVEL_OPT },
+			{ "mqlog-facility",  required_argument, NULL, MQLOG_FACILITY_OPT },
+			{ "mqlog-name",      required_argument, NULL, MQLOG_NAME_OPT },
+			{ "help",            no_argument,       NULL, HELP_OPT },
+			{ NULL,              0,                 NULL, 0 }
+		};
+		int                        opt;
 
 		opt = getopt_long(argc, argv, "h", opts, NULL);
 		if (opt < 0)
 			break;
 
 		switch (opt) {
-		case 'h':
-			ret = EXIT_SUCCESS;
-			goto usage;
+		case LOG_TAG_OPT:
+			if (!elog_is_tag_valid(optarg)) {
+				show_error("invalid tag '%s' specified.\n\n",
+				           optarg);
+				goto fini_parse;
+			}
+			tag = optarg;
+			break;
 
-		case ':':
+		case STDLOG_LEVEL_OPT:
+			if (enbox_log_parse_level(&parse,
+			                          &conf,
+			                          ENBOX_STDLOG,
+			                          optarg))
+				goto fini_parse;
+			break;
+
+		case SYSLOG_LEVEL_OPT:
+			if (enbox_log_parse_level(&parse,
+			                          &conf,
+			                          ENBOX_SYSLOG,
+			                          optarg))
+				goto fini_parse;
+			break;
+
+		case SYSLOG_FACILITY_OPT:
+			if (elog_parse_syslog_facility(&parse.sys,
+			                               &conf.sys,
+			                               optarg)) {
+				show_error("%s.\n\n", parse.sys.error);
+				goto fini_parse;
+			}
+			conf.subs |= ENBOX_SYSLOG;
+			break;
+
+		case MQLOG_LEVEL_OPT:
+			if (enbox_log_parse_level(&parse,
+			                          &conf,
+			                          ENBOX_MQLOG,
+			                          optarg))
+				goto fini_parse;
+			break;
+
+		case MQLOG_FACILITY_OPT:
+			if (elog_parse_mqueue_facility(&parse.mq,
+			                               &conf.mq,
+			                               optarg)) {
+				show_error("%s.\n\n", parse.mq.error);
+				goto fini_parse;
+			}
+			conf.subs |= ENBOX_MQLOG;
+			break;
+
+		case MQLOG_NAME_OPT:
+			if (elog_parse_mqueue_name(&parse.mq,
+			                           &conf.mq,
+			                           optarg)) {
+				show_error("%s.\n\n", parse.mq.error);
+				goto fini_parse;
+			}
+			conf.subs |= ENBOX_MQLOG;
+			break;
+
+		case HELP_OPT:
+			ret = NONE_CMD;
+			goto fini_parse;
+
+		case MISSING_OPT:
 			show_error("option '%s' requires an argument.\n\n",
 			           argv[optind - 1]);
-			goto usage;
+			goto fini_parse;
 
-		case '?':
+		case UNKNOWN_OPT:
 			show_error("unrecognized option '%s'.\n\n",
 			           argv[optind - 1]);
-			goto usage;
+			goto fini_parse;
 
 		default:
 			show_error("unexpected option parsing error.\n\n");
-			goto usage;
+			goto fini_parse;
 		}
 	}
 
-	if ((argc - optind) < 2) {
-		show_error("missing arguments.\n\n");
-		goto usage;
-	}
-
-	if (!upath_validate_path_name(argv[optind])) {
-		show_error("'%s': invalid configuration file pathname.\n",
-		           argv[optind]);
-		return EXIT_FAILURE;
-	}
+	ret = enbox_log_realize_parse(&parse, &conf);
+	enbox_log_fini_parse(&parse);
+	if (ret)
+		return INVALID_CMD;
 
 	if ((argc - optind) != 2) {
 		show_error("invalid number of arguments.\n\n");
 		goto usage;
 	}
 
+	if (!upath_validate_path_name(argv[optind])) {
+		show_error("'%s': invalid configuration file pathname.\n",
+		           argv[optind]);
+		return INVALID_CMD;
+	}
+
 	if (!strcmp(argv[optind + 1], "run"))
-		cmd = RUN;
+		ret = RUN_CMD;
 #if defined(CONFIG_ENBOX_TOOL_SHOW)
 	else if (!strcmp(argv[optind + 1], "show"))
-		cmd = SHOW;
+		ret = SHOW_CMD;
 #endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
 	else {
 		show_error("'%s': unknown command.\n", argv[optind + 1]);
 		goto usage;
 	}
 
-	elog_init_stdio(&stdlog, &stdlog_conf);
-	enbox_setup((struct elog *)&stdlog);
+	if (enbox_log_enable(log, tag, &conf))
+		return INVALID_CMD;
+
+	return ret;
+
+fini_parse:
+	enbox_log_fini_parse(&parse);
+usage:
+	show_usage();
+
+	return ret;
+}
+
+int
+main(int argc, char * const argv[])
+{
+	struct enbox_log    log;
+	int                 cmd;
+	struct enbox_conf * conf;
+	int                 ret = EXIT_FAILURE;
+
+	cmd = enbox_parse_cmdln(argc, argv, &log);
+	if (cmd == NONE_CMD)
+		return EXIT_SUCCESS;
+	else if (cmd == INVALID_CMD)
+		return EXIT_FAILURE;
+
+	enbox_setup(log.top);
 
 	conf = enbox_create_conf_from_file(argv[optind]);
 	if (!conf)
 		goto out;
 
 	switch (cmd) {
-	case RUN:
-		ret = !enbox_run_conf(conf) ? EXIT_SUCCESS : EXIT_FAILURE;
+	case RUN_CMD:
+		if (!enbox_run_conf(conf))
+			ret = EXIT_SUCCESS;
 		break;
 
 #if defined(CONFIG_ENBOX_TOOL_SHOW)
-	case SHOW:
+	case SHOW_CMD:
 		enbox_show_conf(conf);
 		ret = EXIT_SUCCESS;
 		break;
@@ -787,16 +1142,10 @@ main(int argc, char * const argv[])
 
 #if defined(CONFIG_ENBOX_DEBUG)
 	enbox_destroy_conf(conf);
-
-out:
-	elog_fini_stdio(&stdlog);
-#else  /* !defined(CONFIG_ENBOX_DEBUG) */
-out:
-	fflush(NULL);
 #endif /* defined(CONFIG_ENBOX_DEBUG) */
-	return ret;
 
-usage:
-	show_usage();
+out:
+	enbox_log_fini(&log);
+
 	return ret;
 }
