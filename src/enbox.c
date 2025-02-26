@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <getopt.h>
 
+#if !defined(CONFIG_ELOG_HAVE_FACILITY)
+#error eLog facility support required ! \
+       Enable eLog CONFIG_ELOG_HAVE_FACILITY build configuration option !
+#endif /* !defined(CONFIG_ELOG_HAVE_FACILITY) */
+
 /******************************************************************************
  * Display logic
  ******************************************************************************/
