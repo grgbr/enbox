@@ -238,13 +238,12 @@ at least one of the top-level statements according to the following syntax.
 .. parsed-literal::
    :class: highlight
 
-   <**config**> ::= [<`top-host`_>] [<`top-ids`_> [<`top-jail`_>] <`top-cmd`_>]
+   <**config**> ::= [<`top-host`_>] [<`top-jail`_>] <`top-cmd`_>]
 
 Each top-level statement configures a subset of the Enbox_ behavior as described
 below:
 
 * `top-host`_ statement relates to host filesystem content ;
-* `top-ids`_ statement relates to system user and group identifiers ;
 * `top-jail`_ statement relates to containment logic ;
 * `top-cmd`_: statement relates to program execution.
 
@@ -256,11 +255,6 @@ below:
    host = (
         ...
    )
-
-   # Load system user and group identifiers
-   ids = {
-        ...
-   }
 
    # Containment logic settings
    jail = {
@@ -373,7 +367,7 @@ This attribute is optional and *defaults* to ``"/"`` when unspecified.
 drop-supp-attr
 **************
 
-Within the context of a `top-ids`_ statement, specify wether to drop
+Within the context of a `ids-attr`_ statement, specify wether to drop
 |supplementary groups| from the group access list or not.
 
 .. rubric:: Syntax
@@ -1223,6 +1217,44 @@ As shown above, <**group**> may be specified as either a |gid| or a |groupname|.
         ...
    }
 
+ids-attr
+********
+
+From within a `top-cmd`_ statement, define system user and groups used to :
+
+* spawn a jail via the `top-jail`_ statement ;
+* run a command via the `top-cmd`_ statement.
+
+This setting is *optional*. If not defined, no user / group IDs change will
+happend before running the command specified by a `top-cmd`_ statement, i.e., it
+will run using the current process user / group |credentials|.
+
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**ids-attr**> ::= 'ids = {' <`user-attr`_> [|SSEP| <`drop-supp-attr`_>] '}'
+
+Use `user-attr`_ to specify the system user to load |credentials| for.
+
+Setup `drop-supp-attr`_ to specify how to load |supplementary groups| the
+user specified by `user-attr`_ is a member of.
+
+Note that group access list will always contain the user's primary group.
+
+.. rubric:: Example
+
+.. code-block::
+
+   # Load system user and groups
+   ids = {
+           # System user and its (implicit) related primary group
+           user = "myuser"
+           # Do drop supplementary groups myuser is a member of.
+           drop_supp = true
+   }
+
 jail-fsset
 **********
 
@@ -1323,18 +1355,16 @@ settings.
 .. parsed-literal::
    :class: highlight
 
-   <**top-cmd**> ::= 'cmd = {' <`exec-attr`_> [|SSEP| <`umask-attr`_>] [|SSEP| <`caps-attr`_>] [|SSEP| <`cwd-attr`_>] '}'
+   <**top-cmd**> ::= 'cmd = {' <`exec-attr`_> [|SSEP| <`umask-attr`_>] [|SSEP| <`ids-attr`_>] [|SSEP| <`caps-attr`_>] [|SSEP| <`cwd-attr`_>] '}'
 
 `top-cmd`_ is *mandatory* if and only if the `top-jail`_ statement has been
 specified. Indeed, spawning a jail without running a command from within it
 would be useless.
 
-In addition, specifying a `top-cmd`_ *requires* a valid `top-ids`_ statement so
-that the command process may switch to the expected |credentials| before
-calling |execve(2)|.
-
 Use `exec-attr`_ to specify how to run the command program.
 Use `umask-attr`_ to specify the |umask| to run the command process with.
+Use `ids-attr`_ to specify the user / group |credentials| to run the command
+process with.
 Use `caps-attr`_ to specify the |capabilities| to run the command process with.
 Use `cwd-attr`_ to specify the |cwd| to run the command process with.
 
@@ -1348,12 +1378,16 @@ Use `cwd-attr`_ to specify the |cwd| to run the command process with.
            exec = [ "/sbin/mydaemon", "--opt", "value" ]
            # Command process's file mode creation mask
            umask = 0137
+           # Command process will run with this user / group credentials
+           ids = {
+                    ...
+           }
            # Command process will run with these system capabilities(7)
            caps = [ "net_bind_service", "net_raw" ]
            # Command process's current working directory
            cwd = "/var/lib/mydaemon"
    }
-   
+
 top-host
 ********
 
@@ -1399,43 +1433,6 @@ to system administration tasks.
            }
    )
 
-top-ids
-*******
-
-Define system user and groups used to :
-
-* spawn a jail via the `top-jail`_ statement ;
-* run a command via the `top-cmd`_ statement.
-
-This setting is not required in the context of a single `top-host`_ statement
-configuration.
-
-.. rubric:: Syntax
-
-.. parsed-literal::
-   :class: highlight
-
-   <**top-ids**> ::= 'ids = {' <`user-attr`_> [|SSEP| <`drop-supp-attr`_>] '}'
-
-Use `user-attr`_ to specify the system user to load |credentials| for.
-
-Setup `drop-supp-attr`_ to specify how to load |supplementary groups| the
-user specified by `user-attr`_ is a member of.
-
-Note that group access list will always contain the user's primary group.
-
-.. rubric:: Example
-
-.. code-block::
-
-   # Load system user and groups
-   ids = {
-           # System user and its (implicit) related primary group
-           user = "myuser"
-           # Do drop supplementary groups myuser is a member of.
-           drop_supp = true
-   }
-
 top-jail
 ********
 
@@ -1452,10 +1449,14 @@ Specify an optional jail to spawn with tunable settings.
 `top-jail`_ is *optional*. If not defined, no jail will be spawned before
 running a command specified by a `top-cmd`_ statement.
 
-Specifying a `top-jail`_ *requires* a valid `top-ids`_ statement so that the
-jail may be spawend accordingly at runtime.
-Specifying a `top-jail`_ also *requires* a valid `top-cmd`_ statement so that
-a *command* may be run from inside the jail.
+Specifying a `top-jail`_ *requires* a valid `top-cmd`_ statement so that a
+*command* may be run from inside the jail.
+
+Also note that the |jail| build logic assigns its root filesystem entries group
+membership according to the `ids-attr`_ attribute when specified from
+within the `top-cmd`_ statement.
+When unspecified, current process primary group membership is assigned instead
+(see |credentials| for more informations).
 
 Use `ns-attr`_ to specify which |namespaces| to make the |jail| a member of.
 Use `fs-path-attr`_ to specify the |pathname| to the |jail|'s filesystem root
@@ -1520,8 +1521,8 @@ Within the context of a parent filesystem object, the `user-attr`_ statement
 sets up owner permission bits of the related object.  See sections `jail-fsset`_
 and `top-host`_ for more informations about concerned filesystem object types.
 
-Within the context of a `top-ids`_ statement, `user-attr`_ specifies the user to
-load |credentials| for.
+Within the context of a `ids-attr`_ statement, `user-attr`_ specifies the user
+to load |credentials| for.
 
 .. rubric:: Example
 

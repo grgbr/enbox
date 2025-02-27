@@ -152,7 +152,8 @@ specifications.
 Manage user and groups
 ----------------------
 
-System user ownership and group membership informations are required to :
+Optionally, system user ownership and group membership informations are used
+to :
 
 * initialize the root filesystem of a :ref:`spawned jail <sect-spawn_jail>` ;
 * switch to user and group identifiers before
@@ -203,10 +204,10 @@ identifiers. It also provides the ability to set additional runtime context
 properties such as process file mode creation mask, current working directory,
 program arguments, etc...
 
-The :c:func:`enbox_load_ids_byid` function `execve(2)_` a command specified by
-the content of a :c:type:`enbox_cmd` structure.
+The :c:func:`enbox_run_cmd` function `execve(2)_` a command specified by the
+content of a :c:type:`enbox_cmd` structure.
 
-The program will run under the system user and groups given into a
+Eventually, the program will run under the system user and groups given into a
 :c:type:`enbox_ids` structure previously loaded as explained into
 `sect-usr_grp_ids` section.
 
@@ -416,10 +417,6 @@ enbox_ids
 *********
 
 .. doxygenstruct:: enbox_ids
-
-.. todo::
-
-   Hide struct enbox_ids internal fields
 
 enbox_jail
 **********
