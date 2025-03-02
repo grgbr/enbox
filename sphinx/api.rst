@@ -228,12 +228,15 @@ mentioned above. These are :
       * :c:func:`enbox_change_idsn_execve`,
       * :c:func:`enbox_execve`,
       * :c:func:`enbox_get_umask`,
+      * :c:func:`enbox_prep_proc`,
+      * :c:type:`enbox_proc`,
       * :c:func:`enbox_set_umask`,
 
    * User / group IDs :
 
       * :c:func:`enbox_change_ids`,
       * :c:func:`enbox_change_idsn_execve`,
+      * :c:func:`enbox_change_proc_ids`,
       * :c:func:`enbox_execve`,
       * :c:func:`enbox_get_uid`,
       * :c:func:`enbox_get_gid`,
@@ -374,15 +377,20 @@ enbox_bind_entry
 
 .. doxygenstruct:: enbox_bind_entry
 
-enbox_cmd
-*********
-
-.. doxygenstruct:: enbox_cmd
-
 enbox_conf
 **********
 
 .. doxygenstruct:: enbox_conf
+
+enbox_jail
+**********
+
+.. doxygenstruct:: enbox_jail
+
+enbox_proc
+**********
+
+.. doxygenstruct:: enbox_proc
 
 .. todo::
 
@@ -450,6 +458,11 @@ enbox_change_idsn_execve()
 **************************
 
 .. doxygenfunction:: enbox_change_idsn_execve
+
+enbox_change_proc_ids
+*********************
+
+.. doxygenfunction:: enbox_change_proc_ids
 
 enbox_change_perms()
 ********************
@@ -551,15 +564,15 @@ enbox_populate_host()
 
 .. doxygenfunction:: enbox_populate_host
 
+enbox_prep_proc
+***************
+
+.. doxygenfunction:: enbox_prep_proc
+
 enbox_print_priv()
 ******************
 
 .. doxygenfunction:: enbox_print_priv
-
-enbox_run_cmd()
-***************
-
-.. doxygenfunction:: enbox_run_cmd
 
 enbox_run_conf()
 ****************

@@ -283,7 +283,41 @@ TAB_SIZE               = 8
 # with the commands \{ and \} for these it is advised to use the version @{ and
 # @} or use a double escape (\\{ and \\})
 
-ALIASES                =
+# A simple one line reference Licensing information alias.
+ALIASES += license="@par License^^"
+
+# Declare an alias command taking one parameter to output a link to a manpage
+# rendered by Sphinx / Breathe logic.
+#
+# For infos about how to embed reStructuredText markup into Doxygen comments,
+# see: https://breathe.readthedocs.io/en/latest/markups.html#
+#
+# For infos about how to define Doxygen custom commands with arguments, refer
+# to: https://www.doxygen.nl/manual/custcmd.html#custcmd_complex
+ALIASES += man{1}="@verbatim embed:rst:inline :manpage:`\1` @endverbatim"
+
+# Declare an alias allowing to cross reference Sphinx / reStructuredText
+# documentation sections using the explicit target given in argument.
+ALIASES += rstref{1}="@verbatim embed:rst:inline :ref:`\1` @endverbatim"
+
+# Declare an alias allowing to use the predefined Sphinx / reStructuredText
+# substitution directive given in argument.
+ALIASES += rstsubst{1}="@verbatim embed:rst:inline |\1| @endverbatim"
+
+# Declare an alias allowing to use the predefined Sphinx / reStructuredText
+# hyperlink given in argument.
+ALIASES += rstlnk{1}="@verbatim embed:rst:inline `\1`_ @endverbatim"
+
+# Declare an alias allowing to use the predefined Sphinx / reStructuredText
+# math equation given in argument.
+ALIASES += rstmath{1}="@verbatim embed:rst:inline :math:`\1` @endverbatim"
+
+# Declare an alias allowing to use the predefined Sphinx / reStructuredText
+# glossary term given in argument.
+ALIASES += rstterm{1}="@verbatim embed:rst:inline :term:`\1` @endverbatim"
+
+ALIASES += rsttable{1}="@verbatim embed:rst:leading-asterisk^^.. table:: \1^^"
+ALIASES += endrsttable="@endverbatim"
 
 # Set the OPTIMIZE_OUTPUT_FOR_C tag to YES if your project consists of C sources
 # only. Doxygen will then generate output that is more tailored for C. For

@@ -1,9 +1,17 @@
+/******************************************************************************
+ * SPDX-License-Identifier: LGPL-3.0-only
+ *
+ * This file is part of Enbox.
+ * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
+ ******************************************************************************/
+
 #include "common.h"
-#include <linux/securebits.h>
-#include <linux/version.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
-#include <stdlib.h>
+#include <linux/securebits.h>
+#include <linux/version.h>
 
 /* Support for Linux capability v3 only (Linux 2.6.26 and after). */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
@@ -284,7 +292,7 @@ enbox_save_amb_caps(uint64_t ambient)
 void
 enbox_clear_amb_caps(void)
 {
-	int ret;
+	int ret __unused;
 
 	ret = prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0);
 	enbox_assert(!ret);

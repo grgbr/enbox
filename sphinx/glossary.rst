@@ -66,6 +66,11 @@ Glossary
    namespaces
       see |namespaces|
       
+   no_new_privs
+      A Linux kernel flag that prevents a parent program from gaining
+      privileges through calls to |execve(2)|.
+      See `no_new_privs`_ for more informations.
+
    pathname
       a |string| that uniquely identifies a filesystem entry (see
       |path_resolution(7)|)

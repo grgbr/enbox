@@ -1,3 +1,10 @@
+/******************************************************************************
+ * SPDX-License-Identifier: LGPL-3.0-only
+ *
+ * This file is part of Enbox.
+ * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
+ ******************************************************************************/
+
 #include "common.h"
 #include <utils/path.h>
 #include <stdlib.h>
@@ -1591,6 +1598,8 @@ enbox_load_host(const config_setting_t * __restrict setting,
 static void __enbox_nonull(1)
 enbox_unload_host(struct enbox_fsset * __restrict host)
 {
+	enbox_assert(host);
+
 	enbox_unload_fsset(host);
 	free(host);
 }
@@ -1915,11 +1924,11 @@ enbox_load_ids(const config_setting_t * __restrict setting,
 {
 	enbox_assert(setting);
 	enbox_assert(data);
-	enbox_assert(!((struct enbox_cmd *)data)->ids);
+	enbox_assert(!((struct enbox_proc *)data)->ids);
 
-	struct enbox_cmd * cmd = (struct enbox_cmd *)data;
-	struct enbox_ids * ids;
-	int                err;
+	struct enbox_proc * proc = (struct enbox_proc *)data;
+	struct enbox_ids *  ids;
+	int                 err;
 
 	ids = calloc(1, sizeof(*ids));
 	if (!ids)
@@ -1931,21 +1940,21 @@ enbox_load_ids(const config_setting_t * __restrict setting,
 		return err;
 	}
 
-	cmd->ids = ids;
+	proc->ids = ids;
 
 	return 0;
 }
 
 static int __enbox_nonull(1, 2)
-enbox_load_cmd_umask(const config_setting_t * __restrict setting,
-                     void * __restrict                   data)
+enbox_load_proc_umask(const config_setting_t * __restrict setting,
+                      void * __restrict                   data)
 {
 	enbox_assert(setting);
 	enbox_assert(data);
 
-	struct enbox_cmd * cmd = (struct enbox_cmd *)data;
+	struct enbox_proc * proc = (struct enbox_proc *)data;
 
-	return enbox_load_mode_setting(setting, &cmd->umask, ACCESSPERMS);
+	return enbox_load_mode_setting(setting, &proc->umask, ACCESSPERMS);
 }
 
 static int __enbox_nonull(1, 2)
@@ -1996,16 +2005,16 @@ enbox_parse_caps_setting(const config_setting_t * __restrict setting,
 }
 
 static int __enbox_nonull(1, 2)
-enbox_load_cmd_caps(const config_setting_t * __restrict setting,
-                    void * __restrict                   data)
+enbox_load_proc_caps(const config_setting_t * __restrict setting,
+                     void * __restrict                   data)
 {
 	enbox_assert(setting);
 	enbox_assert(data);
 
-	struct enbox_cmd * cmd = (struct enbox_cmd *)data;
-	int                nr;
-	int                e;
-	uint64_t           caps = 0;
+	struct enbox_proc * proc = (struct enbox_proc *)data;
+	int                 nr;
+	int                 e;
+	uint64_t            caps = 0;
 
 	if (!config_setting_is_array(setting)) {
 		enbox_conf_err(setting, "array of strings required");
@@ -2033,21 +2042,206 @@ enbox_load_cmd_caps(const config_setting_t * __restrict setting,
 
 	enbox_assert(caps);
 	enbox_assert(!(caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-	cmd->caps = caps;
+	proc->caps = caps;
 
 	return 0;
 }
 
 static int __enbox_nonull(1, 2)
-enbox_load_cmd_cwd(const config_setting_t * __restrict setting,
-                   void * __restrict                   data)
+enbox_load_proc_cwd(const config_setting_t * __restrict setting,
+                    void * __restrict                   data)
 {
 	enbox_assert(setting);
 	enbox_assert(data);
 
-	struct enbox_cmd * cmd = (struct enbox_cmd *)data;
+	struct enbox_proc * proc = (struct enbox_proc *)data;
 
-	return enbox_load_path_setting(setting, &cmd->cwd);
+	return enbox_load_path_setting(setting, &proc->cwd);
+}
+
+static int __enbox_nonull(1, 2)
+enbox_parse_file_desc(const config_setting_t * __restrict setting,
+                      int *                               fds,
+                      unsigned int                        count)
+{
+	enbox_assert(setting);
+	enbox_assert(fds);
+
+	int          fd;
+	unsigned int c;
+
+	if (config_setting_type(setting) != CONFIG_TYPE_INT) {
+		enbox_conf_err(setting, "integer expected");
+		return -EINVAL;
+	}
+
+	fd = config_setting_get_int(setting);
+	if (fd < 0) {
+		enbox_conf_err(setting, "invalid file descriptor");
+		return -ERANGE;
+	}
+
+	for (c = 0; c < count; c++) {
+		if (fd == fds[c]) {
+			enbox_conf_info(
+				setting,
+				"duplicate '%d' file descriptor ignored",
+				fd);
+			return -EEXIST;
+		}
+	}
+
+	fds[count] = fd;
+
+	return 0;
+}
+
+static int __enbox_nonull(1, 2)
+enbox_load_proc_keep_fds(const config_setting_t * __restrict setting,
+                         void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+
+	struct enbox_proc * proc = (struct enbox_proc *)data;
+	int                 nr;
+	int                 a;
+	int *               fds;
+	unsigned int        cnt;
+
+	if (!config_setting_is_array(setting)) {
+		enbox_conf_err(setting, "array of integers required");
+		return -EINVAL;
+	}
+
+	nr = config_setting_length(setting);
+	enbox_assert(nr >= 0);
+	if (!nr) {
+		enbox_conf_err(setting, "empty list not allowed");
+		return -ENODATA;
+	}
+
+	fds = malloc(((size_t)nr + 1) * sizeof(fds[0]));
+	if (!fds)
+		return -ENOMEM;
+
+	cnt = 0;
+	for (a = 0; a < nr; a++) {
+		const config_setting_t * set;
+		int                      err;
+
+		set = config_setting_get_elem(setting, (unsigned int)a);
+		enbox_assert(set);
+
+		err = enbox_parse_file_desc(set, fds, cnt);
+		switch (err) {
+		case 0:
+			cnt++;
+			break;
+
+		case -EEXIST:
+			break;
+
+		default:
+			free(fds);
+			return err;
+		}
+	}
+
+	proc->fds_nr = (unsigned int)nr;
+	proc->fds = fds;
+
+	return 0;
+}
+
+static int __enbox_nonull(1, 2)
+enbox_do_load_proc(const config_setting_t * __restrict setting,
+                   struct enbox_proc * __restrict      proc)
+{
+	enbox_assert(setting);
+	enbox_assert(proc);
+	enbox_assert(!proc->umask);
+	enbox_assert(!proc->ids);
+	enbox_assert(!proc->caps);
+	enbox_assert(!proc->cwd);
+	enbox_assert(!proc->fds_nr);
+	enbox_assert(!proc->fds);
+
+	int                              err;
+	int                              nr;
+	static const struct enbox_loader loaders[] = {
+		{ .name = "umask",    .load = enbox_load_proc_umask },
+		{ .name = "ids",      .load = enbox_load_ids },
+		{ .name = "caps",     .load = enbox_load_proc_caps },
+		{ .name = "cwd",      .load = enbox_load_proc_cwd },
+		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds }
+	};
+
+	if (!config_setting_is_group(setting)) {
+		enbox_conf_err(setting, "dictionary required");
+		return -EINVAL;
+	}
+
+	nr = config_setting_length(setting);
+	enbox_assert(nr >= 0);
+	if (nr < 1) {
+		/* Missing field definitions:  'exec' setting is mandatory. */
+		enbox_conf_err(setting, "missing setting(s)");
+		return -ENODATA;
+	}
+
+	proc->umask = (mode_t)-1;
+
+	err = enbox_load_setting(setting,
+	                         proc,
+	                         loaders,
+	                         stroll_array_nr(loaders));
+	if (err)
+		return err;
+
+	if (proc->umask == (mode_t)-1)
+		proc->umask = 0077;
+
+	return 0;
+}
+
+static int __enbox_nonull(1, 2)
+enbox_load_proc(const config_setting_t * __restrict setting,
+                void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+	enbox_assert(!((struct enbox_conf *)data)->proc);
+
+	struct enbox_conf * conf = (struct enbox_conf *)data;
+	struct enbox_proc * proc;
+	int                 err;
+
+	proc = calloc(1, sizeof(*proc));
+	if (!proc)
+		return -errno;
+
+	err = enbox_do_load_proc(setting, proc);
+	if (err) {
+		free(proc);
+		return err;
+	}
+
+	conf->proc = proc;
+
+	return 0;
+}
+
+static void __enbox_nonull(1)
+enbox_unload_proc(struct enbox_proc * __restrict proc)
+{
+	enbox_assert(proc);
+
+STROLL_IGNORE_WARN("-Wcast-qual")
+	free((void *)proc->ids);
+	free((void *)proc->fds);
+STROLL_RESTORE_WARN
+	free(proc);
 }
 
 static int __enbox_nonull(1, 2)
@@ -2089,16 +2283,16 @@ enbox_parse_exec_arg(const config_setting_t * __restrict setting,
 }
 
 static int __enbox_nonull(1, 2)
-enbox_load_cmd_exec(const config_setting_t * __restrict setting,
-                    void * __restrict                   data)
+enbox_load_cmd(const config_setting_t * __restrict setting,
+               void * __restrict                   data)
 {
 	enbox_assert(setting);
 	enbox_assert(data);
 
-	struct enbox_cmd * cmd = (struct enbox_cmd *)data;
-	int                nr;
-	int                a;
-	const char **      exec;
+	struct enbox_conf * conf = (struct enbox_conf *)data;
+	int                 nr;
+	int                 a;
+	const char **       exec;
 
 	if (!config_setting_is_array(setting)) {
 		enbox_conf_err(setting, "array of strings required");
@@ -2137,96 +2331,17 @@ enbox_load_cmd_exec(const config_setting_t * __restrict setting,
 	exec[nr] = NULL;
 
 	enbox_assert(!enbox_validate_exec(exec));
-	cmd->exec = exec;
-
-	return 0;
-}
-
-static int __enbox_nonull(1, 2)
-enbox_do_load_cmd(const config_setting_t * __restrict setting,
-                  struct enbox_cmd * __restrict       cmd)
-{
-	enbox_assert(setting);
-	enbox_assert(cmd);
-	enbox_assert(!cmd->cwd);
-	enbox_assert(!cmd->ids);
-	enbox_assert(!cmd->exec);
-
-	int                              err;
-	int                              nr;
-	static const struct enbox_loader loaders[] = {
-		{ .name = "umask", .load = enbox_load_cmd_umask },
-		{ .name = "ids",   .load = enbox_load_ids },
-		{ .name = "caps",  .load = enbox_load_cmd_caps },
-		{ .name = "cwd",   .load = enbox_load_cmd_cwd },
-		{ .name = "exec",  .load = enbox_load_cmd_exec }
-	};
-
-	if (!config_setting_is_group(setting)) {
-		enbox_conf_err(setting, "dictionary required");
-		return -EINVAL;
-	}
-
-	nr = config_setting_length(setting);
-	enbox_assert(nr >= 0);
-	if (nr < 1) {
-		/* Missing field definitions:  'exec' setting is mandatory. */
-		enbox_conf_err(setting, "missing setting(s)");
-		return -ENODATA;
-	}
-
-	cmd->umask = (mode_t)-1;
-
-	err = enbox_load_setting(setting,
-	                         cmd,
-	                         loaders,
-	                         stroll_array_nr(loaders));
-	if (err)
-		return err;
-
-	if (cmd->umask == (mode_t)-1)
-		cmd->umask = 0077;
-
-	return 0;
-}
-
-static int __enbox_nonull(1, 2)
-enbox_load_cmd(const config_setting_t * __restrict setting,
-               void * __restrict                   data)
-{
-	enbox_assert(setting);
-	enbox_assert(data);
-	enbox_assert(!((struct enbox_conf *)data)->cmd);
-
-	struct enbox_conf * conf = (struct enbox_conf *)data;
-	struct enbox_cmd *  cmd;
-	int                 err;
-
-	cmd = calloc(1, sizeof(*cmd));
-	if (!cmd)
-		return -errno;
-
-	err = enbox_do_load_cmd(setting, cmd);
-	if (err) {
-		free(cmd);
-		return err;
-	}
-
-	conf->cmd = cmd;
+	conf->cmd = exec;
 
 	return 0;
 }
 
 static void __enbox_nonull(1)
-enbox_unload_cmd(struct enbox_cmd * __restrict cmd)
+enbox_unload_cmd(const char ** __restrict cmd)
 {
 	enbox_assert(cmd);
 
-STROLL_IGNORE_WARN("-Wcast-qual")
-	free((void *)cmd->ids);
-	free((void *)cmd->exec);
-STROLL_RESTORE_WARN
-	free(cmd);
+	free((void *)cmd);
 }
 
 static void __enbox_nonull(1)
@@ -2236,6 +2351,8 @@ enbox_unload_conf(struct enbox_conf * __restrict conf)
 
 	if (conf->cmd)
 		enbox_unload_cmd(conf->cmd);
+	if (conf->proc)
+		enbox_unload_proc(conf->proc);
 	if (conf->jail)
 		enbox_unload_jail(conf->jail);
 	if (conf->host)
@@ -2248,6 +2365,7 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 	enbox_assert(conf);
 	enbox_assert(!conf->host);
 	enbox_assert(!conf->jail);
+	enbox_assert(!conf->proc);
 	enbox_assert(!conf->cmd);
 
 	int                              err;
@@ -2255,6 +2373,7 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 	static const struct enbox_loader loaders[] = {
 		{ .name = "host", .load = enbox_load_host },
 		{ .name = "jail", .load = enbox_load_jail },
+		{ .name = "proc", .load = enbox_load_proc },
 		{ .name = "cmd",  .load = enbox_load_cmd }
 	};
 
@@ -2269,13 +2388,12 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 	if (err)
 		goto err;
 
-#warning document that ids is optional
-	if (conf->jail && !conf->cmd) {
+	if (!conf->proc && (conf->jail || conf->cmd)) {
 		/*
-		 * 'cmd' command setting is mandatory when 'jail' setting is
-		 * enabled.
+		 * 'cmd' command setting is mandatory when one of 'jail' or
+		 * 'cmd' settings is enabled.
 		 */
-		enbox_err("%s: missing 'cmd' setting",
+		enbox_err("%s: missing 'proc' setting",
 		          config_setting_source_file(root));
 		err = -ENODATA;
 		goto err;
@@ -2296,6 +2414,7 @@ enbox_load_conf_file(struct enbox_conf * __restrict conf,
 	enbox_assert(conf);
 	enbox_assert(!conf->host);
 	enbox_assert(!conf->jail);
+	enbox_assert(!conf->proc);
 	enbox_assert(!conf->cmd);
 	enbox_assert(upath_validate_path_name(path) > 0);
 
@@ -2354,28 +2473,41 @@ int
 enbox_run_conf(const struct enbox_conf * __restrict conf)
 {
 	enbox_assert_setup();
-	enbox_assert(conf);
-	enbox_assert(conf->host || conf->jail || conf->cmd);
-	enbox_assert(!conf->jail || conf->cmd);
+	enbox_assert_conf(conf);
 
-	int err;
+	int ret;
 
 	if (conf->host) {
-		err = enbox_populate_host(conf->host);
-		if (err)
-			return err;
+		ret = enbox_populate_host(conf->host);
+		if (ret)
+			goto out;
 	}
 
-	if (conf->jail) {
-		err = enbox_enter_jail(conf->jail, conf->cmd);
-		if (err)
-			return err;
+	if (conf->proc) {
+		ret = enbox_prep_proc(conf->proc, conf->jail);
+		if (ret)
+			goto out;
 	}
 
 	if (conf->cmd)
-		return enbox_run_cmd(conf->cmd);
+		ret = enbox_run_proc_cmd(conf->proc, conf->cmd);
+	else
+		ret = enbox_change_proc_ids(conf->proc);
 
-	return 0;
+out:
+	if (ret) {
+		const config_setting_t * root;
+
+		root = config_root_setting(&conf->lib);
+		enbox_assert(root);
+
+		enbox_err("%s: cannot run configuration: %s (%d)",
+		          config_setting_source_file(root),
+		          strerror(-ret),
+		          -ret);
+	}
+
+	return ret;
 }
 
 struct enbox_conf *
@@ -2408,7 +2540,7 @@ void
 enbox_destroy_conf(struct enbox_conf * __restrict conf)
 {
 	enbox_assert_setup();
-	enbox_assert(conf);
+	enbox_assert_conf(conf);
 
 	enbox_unload_conf(conf);
 	config_destroy(&conf->lib);

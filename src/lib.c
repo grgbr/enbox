@@ -1,11 +1,20 @@
+/******************************************************************************
+ * SPDX-License-Identifier: LGPL-3.0-only
+ *
+ * This file is part of Enbox.
+ * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
+ ******************************************************************************/
+
 #include "common.h"
 #include <utils/path.h>
 #include <utils/file.h>
 #include <stdlib.h>
+#include <dirent.h>
 #include <sched.h>
 #include <sys/mount.h>
 #include <sys/syscall.h>
 #include <sys/vfs.h>
+#include <sys/prctl.h>
 #include <linux/magic.h>
 #include <linux/securebits.h>
 
@@ -18,8 +27,9 @@ gid_t         enbox_gid = (gid_t)-1;
  * Raw API
  ******************************************************************************/
 
-static int __enbox_nonull(1) __enbox_nothrow
-enbox_chown(const char * path, uid_t uid, gid_t gid)
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
+enbox_chown(const char * __restrict path, uid_t uid, gid_t gid)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -39,8 +49,9 @@ enbox_chown(const char * path, uid_t uid, gid_t gid)
 	return err;
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
-enbox_chmod(const char * path, mode_t mode)
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
+enbox_chmod(const char * __restrict path, mode_t mode)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -60,7 +71,10 @@ enbox_chmod(const char * path, mode_t mode)
 }
 
 int
-enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
+enbox_change_perms(const char * __restrict path,
+                   uid_t                   uid,
+                   gid_t                   gid,
+                   mode_t                  mode)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -96,7 +110,7 @@ err:
 }
 
 int
-enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
+enbox_make_dir(const char * __restrict path, uid_t uid, gid_t gid, mode_t mode)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -255,8 +269,13 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
-enbox_make_node(const char * path, mode_t mode, dev_t dev, uid_t uid, gid_t gid)
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
+enbox_make_node(const char * __restrict path,
+                mode_t                  mode,
+                dev_t                   dev,
+                uid_t                   uid,
+                gid_t                   gid)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -321,12 +340,12 @@ err:
 }
 
 int
-enbox_make_chrdev(const char * path,
-                  uid_t        uid,
-                  gid_t        gid,
-                  mode_t       mode,
-                  unsigned int major,
-                  unsigned int minor)
+enbox_make_chrdev(const char * __restrict path,
+                  uid_t                   uid,
+                  gid_t                   gid,
+                  mode_t                  mode,
+                  unsigned int            major,
+                  unsigned int            minor)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -354,12 +373,12 @@ enbox_make_chrdev(const char * path,
 }
 
 int
-enbox_make_blkdev(const char * path,
-                  uid_t        uid,
-                  gid_t        gid,
-                  mode_t       mode,
-                  unsigned int major,
-                  unsigned int minor)
+enbox_make_blkdev(const char * __restrict path,
+                  uid_t                   uid,
+                  gid_t                   gid,
+                  mode_t                  mode,
+                  unsigned int            major,
+                  unsigned int            minor)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -387,7 +406,7 @@ enbox_make_blkdev(const char * path,
 }
 
 int
-enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
+enbox_make_fifo(const char * __restrict path, uid_t uid, gid_t gid, mode_t mode)
 {
 	enbox_assert_setup();
 	enbox_assert(upath_validate_path_name(path) > 0);
@@ -457,7 +476,8 @@ err:
  * High-level API
  ******************************************************************************/
 
-static int __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_make_dir_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_make_dir(ent->path,
@@ -466,7 +486,8 @@ enbox_make_dir_entry(const struct enbox_entry * __restrict ent)
 	                      ent->dir.mode);
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_make_slink_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_make_slink(ent->path,
@@ -475,7 +496,8 @@ enbox_make_slink_entry(const struct enbox_entry * __restrict ent)
 	                        ent->gid);
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_make_chrdev_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_make_chrdev(ent->path,
@@ -486,7 +508,8 @@ enbox_make_chrdev_entry(const struct enbox_entry * __restrict ent)
 	                         ent->dev.minor);
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_make_blkdev_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_make_blkdev(ent->path,
@@ -497,7 +520,8 @@ enbox_make_blkdev_entry(const struct enbox_entry * __restrict ent)
 	                         ent->dev.minor);
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_make_fifo_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_make_fifo(ent->path,
@@ -509,7 +533,8 @@ enbox_make_fifo_entry(const struct enbox_entry * __restrict ent)
 typedef int  (enbox_make_entry_fn)(const struct enbox_entry * __restrict entry)
 	__enbox_nonull(1);
 
-static int __enbox_nonull(1, 3) __enbox_nothrow
+static __enbox_nonull(1, 3) __enbox_nothrow __warn_result
+int
 enbox_make_entries(const struct enbox_entry    entries[__restrict_arr],
                    unsigned int                nr,
                    enbox_make_entry_fn * const makers[__restrict_arr])
@@ -561,7 +586,8 @@ enbox_populate_host(const struct enbox_fsset * __restrict fsset)
 	return 0;
 }
 
-static int __enbox_nothrow
+static __enbox_nothrow __warn_result
+int
 enbox_unshare(int flags)
 {
 	enbox_assert(flags);
@@ -616,12 +642,13 @@ enbox_validate_mount_time_flags(unsigned long flags)
 #define enbox_assert_mount_time_flags(_flags) \
 	enbox_assert(!enbox_validate_mount_time_flags(_flags))
 
-static int __enbox_nothrow
-enbox_mount(const char *  source,
-            const char *  target,
-            const char *  fstype,
-            unsigned long flags,
-            const char *  data)
+static __enbox_nonull(2) __enbox_nothrow __warn_result
+int
+enbox_mount(const char *            source,
+            const char * __restrict target,
+            const char *            fstype,
+            unsigned long           flags,
+            const char *            data)
 {
 	enbox_assert_mount_time_flags(flags);
 
@@ -634,8 +661,9 @@ enbox_mount(const char *  source,
 	return -errno;
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
-enbox_umount(const char * path, int flags)
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
+enbox_umount(const char * __restrict path, int flags)
 {
 	enbox_assert(upath_validate_path_name(path) > 0);
 	enbox_assert(!(flags & ~(MNT_FORCE | MNT_DETACH |
@@ -652,7 +680,8 @@ enbox_umount(const char * path, int flags)
 	return -errno;
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_remount(const char * __restrict path,
               unsigned long           flags,
               const char * __restrict data)
@@ -676,7 +705,8 @@ enbox_remount(const char * __restrict path,
 	return enbox_mount(NULL, path, NULL, MS_REMOUNT | flags, data);
 }
 
-static int __enbox_nonull(1, 2) __enbox_nothrow
+static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
+int
 enbox_bind_mount(const char * __restrict source, const char * __restrict target)
 {
 	enbox_assert(upath_validate_path_name(source) > 0);
@@ -711,9 +741,9 @@ enbox_bind_mount(const char * __restrict source, const char * __restrict target)
 /*
  * Must be called as root from within an empty jail creation context only.
  */
-static int __enbox_nothrow
-enbox_mount_proc(unsigned long           flags,
-                 const char * __restrict opts)
+static __enbox_nothrow __warn_result
+int
+enbox_mount_proc(unsigned long flags, const char * __restrict opts)
 {
 	enbox_assert_setup();
 	enbox_assert(!(flags & ~((unsigned long)ENBOX_PROC_VALID_FLAGS)));
@@ -755,7 +785,8 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_mount_proc_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_mount_proc(ent->mount.flags, ent->mount.opts);
@@ -763,10 +794,14 @@ enbox_mount_proc_entry(const struct enbox_entry * __restrict ent)
 
 #if defined(CONFIG_ENBOX_ASSERT)
 
-static ssize_t __enbox_nonull(1, 2)
+static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
+ssize_t
 enbox_normalize_path(const char * __restrict path,
                      char ** __restrict      normalized)
 {
+	enbox_assert(path);
+	enbox_assert(normalized);
+
 	ssize_t len;
 	char *  norm;
 
@@ -789,9 +824,12 @@ enbox_normalize_path(const char * __restrict path,
 	return len;
 }
 
-static int __enbox_nonull(1)
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_validate_bind_mntpt(const char * __restrict path)
 {
+	enbox_assert(path);
+
 	char *  norm;
 	ssize_t len;
 	int     ret = 0;
@@ -832,7 +870,8 @@ free:
 /*
  * Must be called as root from within an empty jail creation context only.
  */
-static int __enbox_nonull(1, 2) __enbox_nothrow
+static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
+int
 enbox_bind_tree(const char * __restrict path,
                 const char * __restrict orig,
                 unsigned long           flags,
@@ -897,7 +936,8 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_bind_tree_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_bind_tree(ent->path,
@@ -909,7 +949,8 @@ enbox_bind_tree_entry(const struct enbox_entry * __restrict ent)
 /*
  * Must be called as root from within an empty jail creation context only.
  */
-static int __enbox_nonull(1, 2) __enbox_nothrow
+static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
+int
 enbox_bind_file(const char * __restrict path,
                 const char * __restrict orig,
                 unsigned long           flags,
@@ -989,7 +1030,8 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_bind_file_entry(const struct enbox_entry * __restrict ent)
 {
 	return enbox_bind_file(ent->path,
@@ -998,7 +1040,8 @@ enbox_bind_file_entry(const struct enbox_entry * __restrict ent)
 	                       ent->bind.opts);
 }
 
-static int __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
 enbox_populate_jail(const struct enbox_entry entries[__restrict_arr],
                     unsigned int             nr)
 {
@@ -1024,14 +1067,17 @@ enbox_populate_jail(const struct enbox_entry entries[__restrict_arr],
 	 1 + sizeof("gid=") - 1 + 5 + \
 	 1 + sizeof("nr_inodes=") - 1 + 10)
 
-static int __enbox_nonull(1) __enbox_nothrow
-enbox_init_jail_root(const char * __restrict path,
-                     gid_t                   gid,
-                     unsigned int            inodes_nr,
-                     char                    options[__restrict_arr])
+static __enbox_nonull(1, 4) __enbox_nothrow __warn_result
+int
+enbox_init_jail_root(
+	const char * __restrict path,
+	gid_t                   gid,
+	unsigned int            inodes_nr,
+	char                    root_opts[__restrict_arr
+	                                  ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1])
 {
 	enbox_assert(upath_validate_path_name(path) > 0);
-	enbox_assert(options);
+	enbox_assert(root_opts);
 
 	int err;
 
@@ -1054,7 +1100,7 @@ enbox_init_jail_root(const char * __restrict path,
 	 * Give mount the maximum number of allowed inodes (+ 1 for the
 	 * top-level root directory).
 	 */
-	snprintf(options,
+	snprintf(root_opts,
 	         ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1,
 	         ENBOX_JAIL_ROOTFS_EXTOPTS ",gid=%hu,nr_inodes=%u",
 	         gid,
@@ -1064,7 +1110,7 @@ enbox_init_jail_root(const char * __restrict path,
 	                  path,
 	                  "tmpfs",
 	                  ENBOX_JAIL_ROOTFS_MNTOPTS,
-	                  options);
+	                  root_opts);
 	if (err)
 		return err;
 
@@ -1076,70 +1122,163 @@ enbox_init_jail_root(const char * __restrict path,
 	return 0;
 }
 
-static int
-enbox_seal_jail_root(const char * __restrict path,
-                     const char              options[__restrict_arr])
+static __enbox_nonull(2) __warn_result
+int
+enbox_close_one_fd(int          fd,
+                   const int    keep_fds[__restrict_arr],
+                   unsigned int nr)
 {
-	enbox_assert(upath_validate_path_name(path) > 0);
-	enbox_assert(options);
+	enbox_assert(fd >= 0);
+	enbox_assert(keep_fds);
+	enbox_assert(nr);
 
-	int err;
+	if (fd >= STDERR_FILENO) {
+		unsigned int k;
+		int          ret;
 
-	/*
-	 * We need to close every file descriptors opened onto root filesystem
-	 * to be allowed to remount it with the right options.
-	 */
-	err = ufd_close_fds(STDERR_FILENO + 1, ~(0U));
-	if (err)
-		return err;
+		for (k = 0; k < nr; k++) {
+			enbox_assert(keep_fds[k] >= 0);
+			if (fd == keep_fds[k])
+				return 0;
+		}
 
-	/* Remount root read-only with given options. */
-	err = enbox_remount(path,
-	                    MS_RDONLY | ENBOX_JAIL_ROOTFS_MNTOPTS,
-	                    options);
-	if (err)
-		return err;
+		enbox_assert(k == nr);
+		ret = ufd_close((int)fd);
+
+		return (ret == -EINTR) ? 0 : ret;
+	}
 
 	return 0;
 }
 
-static int __enbox_nonull(1, 3) __enbox_nothrow
-enbox_setup_jail(const char * __restrict  path,
-                 gid_t                    gid,
-                 const struct enbox_entry entries[__restrict_arr],
-                 unsigned int             nr)
+static __warn_result
+int
+enbox_close_fds(const int keep_fds[__restrict_arr], unsigned int nr)
 {
-	enbox_assert_setup();
-	enbox_assert(upath_validate_path_name(path) > 0);
-	enbox_assert(entries);
-	enbox_assert(nr);
+	int ret;
 
-	int          err;
-	const char * msg __enbox_terse_unused;
-	char         opts[ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1];
+	if (nr) {
+		enbox_assert(keep_fds);
+
+		DIR * dir;
+
+		dir = opendir("/proc/self/fd");
+		if (!dir) {
+			enbox_assert(errno != EBADF);
+			return -errno;
+		}
+
+		while (true) {
+			struct dirent * ent;
+
+			errno = 0;
+			ent = readdir(dir);
+			if (!ent) {
+				enbox_assert(errno != EBADF);
+				ret = -errno;
+				break;
+			}
+
+			if (ent->d_type == DT_LNK) {
+				unsigned long fd;
+				char *        err;
+
+				fd = strtoul(ent->d_name, &err, 10);
+				if (*err || (fd > INT_MAX)) {
+					ret = -EINVAL;
+					break;
+				}
+
+				if ((int)fd != dirfd(dir)) {
+					ret = enbox_close_one_fd((int)fd,
+					                         keep_fds,
+					                         nr);
+					if (ret)
+						break;
+				}
+			}
+		}
+
+		closedir(dir);
+	}
+	else
+		ret = ufd_close_fds(STDERR_FILENO + 1, ~(0U));
+
+	return ret;
+}
+
+static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
+int
+enbox_seal_jail_root(
+	const char * __restrict path,
+	const char              options[__restrict_arr
+	                                ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1])
+{
+	enbox_assert(upath_validate_path_name(path) > 0);
+	enbox_assert(options);
+
+	/* Remount root read-only with given options. */
+	return enbox_remount(path,
+	                     MS_RDONLY | ENBOX_JAIL_ROOTFS_MNTOPTS,
+	                     options);
+}
+
+static int __enbox_nonull(1, 2, 3) __enbox_nothrow __warn_result
+enbox_setup_jail(
+	const struct enbox_jail * __restrict jail,
+	const struct enbox_proc * __restrict proc,
+	char                                 root_opts[__restrict_arr
+	                                               ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1])
+
+{
+	enbox_assert_jail(jail);
+	enbox_assert_proc(proc);
+	enbox_assert(root_opts);
+
+	int                        err;
+	const struct enbox_fsset * fsset = &jail->fsset;
+	const char *               msg __enbox_terse_unused;
+
+	/*
+	 * Dissociate from parent process namespaces.
+	 *
+	 * Use CLONE_FS to make sure that current process no longer shares its
+	 * root directory (chroot(2)), current directory (chdir(2)), or umask
+	 * (umask(2)) attributes with any other process.
+	 *
+	 * Use CLONE_SYSVSEM to unshare System V semaphore adjustment (semadj)
+	 * values, so that the calling process has a new empty semadj list that
+	 * is not shared with any other process.
+	 *
+	 * Note:
+	 * - CLONE_FILES not needed since current file descriptor table is
+	 *   duplicated at execve() time.
+	 */
+	err = enbox_unshare(jail->namespaces | CLONE_FS | CLONE_SYSVSEM);
+	if (err) {
+		msg = "cannot dissociate from parent namespaces";
+		goto err;
+	}
 
 	/* Mount future root filesystem. */
-	err = enbox_init_jail_root(path, gid, nr, opts);
+	err = enbox_init_jail_root(
+		jail->root_path,
+		proc->ids ? proc->ids->pwd->pw_gid : enbox_gid,
+		fsset->nr,
+		root_opts);
 	if (err) {
 		msg = "cannot mount jail root filesystem";
 		goto err;
 	}
 
 	/* Change to future root filesystem top-level directory. */
-	err = upath_chdir(path);
+	err = upath_chdir(jail->root_path);
 	enbox_assert(!err);
 
 	/* Populate initial root filesystem entries. */
-	err = enbox_populate_jail(entries, nr);
+	err = enbox_populate_jail(fsset->entries, fsset->nr);
 	if (err) {
 		msg = "cannot populate jail root filesystem";
-		goto err;
-	}
-
-	/* Remount future filesystem read-only. */
-	err = enbox_seal_jail_root(path, opts);
-	if (err) {
-		msg = "cannot seal jail root filesystem";
 		goto err;
 	}
 
@@ -1151,7 +1290,8 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1, 2) __enbox_nothrow
+static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
+int
 enbox_pivot_root(const char * __restrict new_root,
                  const char * __restrict old_root)
 {
@@ -1167,7 +1307,8 @@ enbox_pivot_root(const char * __restrict new_root,
 	return -errno;
 }
 
-static int
+static __enbox_nothrow __warn_result
+int
 enbox_chroot_jail_from_realfs(void)
 {
 	int err;
@@ -1213,7 +1354,8 @@ enbox_chroot_jail_from_realfs(void)
  * initramfs documentation located into file
  * <linux>/doc/Documentation/filesystems/ramfs-rootfs-initramfs.txt
  */
-static int
+static __enbox_nothrow __warn_result
+int
 enbox_chroot_jail_from_initramfs(void)
 {
 	int err;
@@ -1237,7 +1379,8 @@ enbox_chroot_jail_from_initramfs(void)
 
 #if defined(CONFIG_ENBOX_ASSERT)
 
-static void
+static __enbox_nothrow
+void
 enbox_ensure_cwd_is_root(void)
 {
 	char * wd;
@@ -1256,11 +1399,10 @@ static inline void enbox_ensure_cwd_is_root(void) { }
 
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
 
-static int
+static __enbox_nothrow __warn_result
+int
 enbox_chroot_jail(void)
 {
-	enbox_assert_setup();
-
 	struct statfs stat;
 	int           err;
 
@@ -1287,62 +1429,39 @@ enbox_chroot_jail(void)
 	return 0;
 }
 
+static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
 int
-enbox_enter_jail(const struct enbox_jail * __restrict jail,
-                 const struct enbox_cmd * __restrict  cmd)
+enbox_enter_jail(
+	const struct enbox_jail * __restrict jail,
+	char                                 root_opts[__restrict_arr
+	                                               ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1])
 {
-	enbox_assert_setup();
-	enbox_assert(jail);
-	enbox_assert(!(jail->namespaces & ~ENBOX_VALID_NAMESPACE_FLAGS));
-	enbox_assert(upath_validate_path_name(jail->root_path) > 0);
-	enbox_assert(jail->fsset.entries);
-	enbox_assert(jail->fsset.nr);
-	enbox_assert(cmd);
-	enbox_assert(!cmd->ids || !enbox_validate_pwd(cmd->ids->pwd, true));
-	enbox_assert(!cmd->exec || !enbox_validate_exec(cmd->exec));
+	enbox_assert_jail(jail);
+	enbox_assert(root_opts);
 
-	int          err;
-	const char * msg __enbox_terse_unused;
+	int err;
 
-	err = clearenv();
+	/* Remount future filesystem read-only. */
+	err = enbox_seal_jail_root(jail->root_path, root_opts);
 	if (err) {
-		msg = "cannot clear environment";
-		goto err;
-	}
-
-	/*
-	 * Dissociate from parent process namespaces.
-	 *
-	 * Note:
-	 * - CLONE_FILES not needed since current file descriptor table is
-	 *   duplicated at execve() time.
-	 */
-	err = enbox_unshare(jail->namespaces | CLONE_FS | CLONE_SYSVSEM);
-	if (err) {
-		msg = "cannot dissociate from parent namespaces";
-		goto err;
-	}
-
-	err = enbox_setup_jail(jail->root_path,
-	                       cmd->ids ? cmd->ids->pwd->pw_gid : enbox_gid,
-	                       jail->fsset.entries,
-	                       jail->fsset.nr);
-	if (err) {
-		msg = "cannot setup jail filesystem";
+		enbox_info("cannot seal jail root filesystem: %s (%d)",
+		           strerror(-err),
+		           -err);
 		goto err;
 	}
 
 	/* Switch root filesystem to the new one created just above. */
 	err = enbox_chroot_jail();
 	if (err) {
-		msg = "cannot chroot into jail";
+		enbox_info("cannot chroot into jail: %s (%d)",
+		           strerror(-err),
+		           -err);
 		goto err;
 	}
 
 	return 0;
 
 err:
-	enbox_info("%s: %s (%d)", msg, strerror(-err), -err);
 	enbox_err("cannot enter jail: %s (%d)", strerror(-err), -err);
 
 	return err;
@@ -1429,6 +1548,96 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
 }
 
 int
+enbox_prep_proc(const struct enbox_proc * __restrict proc,
+                const struct enbox_jail * __restrict jail)
+{
+	enbox_assert_setup();
+	enbox_assert_proc(proc);
+	enbox_assert(!jail || ({ enbox_assert_jail(jail); true; }));
+
+	int err;
+
+	err = clearenv();
+	if (err) {
+		enbox_info("cannot clear environment: %s (%d)",
+		           strerror(-err),
+		           -err);
+		goto err;
+	}
+
+	if (jail) {
+		char opts[ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1];
+
+		err = enbox_setup_jail(jail, proc, opts);
+		if (err)
+			goto err;
+
+		err = enbox_close_fds(proc->fds, proc->fds_nr);
+		if (err)
+			goto err;
+
+		err = enbox_enter_jail(jail, opts);
+		if (err)
+			goto err;
+	}
+	else {
+		err = enbox_close_fds(proc->fds, proc->fds_nr);
+		if (err)
+			goto err;
+	}
+
+	/*
+	 * This *MUST* happen after entering the jail since current process
+	 * no longer shares its root directory (chroot(2)), current directory
+	 * (chdir(2)), or umask (umask(2)) attributes with any other process.
+	 */
+
+	enbox_umask = umask(proc->umask);
+
+	if (proc->cwd) {
+		err = upath_chdir(proc->cwd);
+		if (err) {
+			enbox_info("cannot change to working directory: "
+			           "%s (%d)",
+			           strerror(-err),
+			           -err);
+			goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	enbox_err("cannot setup process: %s (%d)", strerror(-err), -err);
+
+	return err;
+}
+
+int
+enbox_change_proc_ids(const struct enbox_proc * __restrict proc)
+{
+	enbox_assert_setup();
+	enbox_assert_proc(proc);
+
+	int err;
+
+	if (proc->ids) {
+		err = enbox_change_ids(proc->ids->pwd,
+		                       proc->ids->drop_supp,
+		                       proc->caps);
+		if (err)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	enbox_err("cannot change process IDs: %s (%d)", strerror(-err), -err);
+
+	return err;
+}
+
+int
 enbox_validate_exec_arg(const char * __restrict arg)
 {
 	enbox_assert(arg);
@@ -1478,63 +1687,32 @@ enbox_validate_exec(const char * const args[__restrict_arr])
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
 
 int
-enbox_run_cmd(const struct enbox_cmd * __restrict cmd)
+enbox_run_proc_cmd(const struct enbox_proc * __restrict proc,
+                   const char * const                   cmd[__restrict_arr])
 {
 	enbox_assert_setup();
-	enbox_assert(cmd);
-	enbox_assert(!(cmd->umask & ~((mode_t)ALLPERMS)));
-	enbox_assert(!cmd->cwd ||
-	             (upath_validate_path_name(cmd->cwd) > 0));
-	enbox_assert(!cmd->ids || !enbox_validate_pwd(cmd->ids->pwd, true));
-	enbox_assert(!cmd->exec || !enbox_validate_exec(cmd->exec));
+	enbox_assert_proc(proc);
+	enbox_assert(!enbox_validate_exec(cmd));
 
 	int err;
 
-	enbox_umask = umask(cmd->umask);
-
-	if (cmd->cwd) {
-		err = upath_chdir(cmd->cwd);
-		if (err) {
-			enbox_info("cannot change to working directory: "
-			           "%s (%d)",
-			           strerror(-err),
-			           -err);
-			goto err;
-		}
-	}
-
-	if (cmd->exec) {
 STROLL_IGNORE_WARN("-Wcast-qual")
-		if (cmd->ids) {
-			err = enbox_change_idsn_execve(cmd->ids->pwd,
-			                               cmd->ids->drop_supp,
-			                               cmd->exec[0],
-			                               (char * const *)
-			                               cmd->exec,
-			                               NULL,
-			                               cmd->caps);
-		}
-		else
-			err = enbox_execve(cmd->exec[0],
-			                   (char * const *)cmd->exec,
-			                   NULL,
-			                   cmd->caps);
+	if (proc->ids) {
+		err = enbox_change_idsn_execve(proc->ids->pwd,
+		                               proc->ids->drop_supp,
+		                               cmd[0],
+		                               (char * const *)cmd,
+		                               environ,
+		                               proc->caps);
+	}
+	else
+		err = enbox_execve(cmd[0],
+		                   (char * const *)cmd,
+		                   environ,
+		                   proc->caps);
 STROLL_RESTORE_WARN
-	}
-	else {
-		if (cmd->ids) {
-			err = enbox_change_ids(cmd->ids->pwd,
-			                       cmd->ids->drop_supp,
-			                       cmd->caps);
-			if (err)
-				goto err;
-		}
-		else
-			return 0;
-	}
 
-err:
-	enbox_err("cannot run command: %s (%d)", strerror(-err), -err);
+	enbox_err("cannot run process command: %s (%d)", strerror(-err), -err);
 
 	return err;
 }
@@ -1543,7 +1721,8 @@ err:
  * Initialization API
  ******************************************************************************/
 
-static mode_t
+static __nothrow __warn_result
+mode_t
 enbox_read_umask(void)
 {
 	mode_t msk;
@@ -1568,31 +1747,32 @@ enbox_read_umask(void)
  * Setup current process *dumpable* attribute.
  *
  * Enable or disable generation of coredumps for current process.
- * In addition, attaching to the process via [ptrace(2)] PTRACE_ATTACH is
+ * In addition, attaching to the process via @man{ptrace(2)} PTRACE_ATTACH is
  * restricted according to multiple logics introduced below.
  *
- * As stated into section «PR_SET_DUMPABLE» of [prctl(2)], the *dumpable*
+ * As stated into section «PR_SET_DUMPABLE» of @man{prctl(2)}, the *dumpable*
  * attribute is normally set to 1. However, it is reset to the current value
  * contained in the file `/proc/sys/fs/suid_dumpable` (which defaults to value
  * 0), in the following circumstances:
  * - current process EUID or EGID is changed ;
  * - current process FSUID or FSGID is changed ;
- * - current process [execve(2)] a SUID / SGID program incurring a EUID / EGID
- *   change ;
- * - current process [execve(2)] a program that has file capabilities exceeding
- *   those already permitted.
- * The `/proc/sys/fs/suid_dumpable` file is documented into [proc(5)].
+ * - current process @man{execve(2)} a SUID / SGID program incurring a EUID /
+ *   EGID change ;
+ * - current process @man{execve(2)} a program that has file capabilities
+ *   exceeding those already permitted.
+ * The `/proc/sys/fs/suid_dumpable` file is documented into @man{proc(5)}.
  *
- * As stated in [ptrace(2)], Linux kernel performs so-called "ptrace access
- * mode" checks whose outcome determines whether [ptrace(2)] operations are
+ * As stated in @man{ptrace(2)}, Linux kernel performs so-called "ptrace access
+ * mode" checks whose outcome determines whether @man{ptrace(2)} operations are
  * permitted in addition to `CAP_SYS_PTRACE` capability and Linux Security
  * Module ptrace access checks.
- * See section «Ptrace access mode checking» of [ptrace(2)] for more
+ * See section «Ptrace access mode checking» of @man{ptrace(2)} for more
  * informations.
  *
- * Finally, the [Yama] Linux Security Module may further restrict [ptrace(2)]
- * operations thanks to the runtime controllable sysctl `/proc/sys/kernel/yama`.
- * See «PR_SET_PTRACER» section in [prctl(2)] and [Yama] section in
+ * Finally, the [Yama] Linux Security Module may further restrict
+ * @man{ptrace(2)} operations thanks to the runtime controllable sysctl
+ * `/proc/sys/kernel/yama`.
+ * See «PR_SET_PTRACER» section in @man{prctl(2)} and [Yama] section in
  * [The Linux kernel user’s and administrator’s guide].
  *
  * @param[in] on Enable coredumps generation if `true`, disable it otherwise.
@@ -1602,14 +1782,8 @@ enbox_read_umask(void)
  * - #ENBOX_DISABLE_DUMP
  * - enbox_setup()
  *
- * @ingroup utils
- *
  * [The Linux kernel user’s and administrator’s guide]: https://www.kernel.org/doc/html/latest/admin-guide/index.html
  * [Yama]:                                              https://www.kernel.org/doc/html/latest/admin-guide/LSM/Yama.html
- * [execve(2)]:                                         https://man7.org/linux/man-pages/man2/execve.2.html
- * [prctl(2)]:                                          https://man7.org/linux/man-pages/man2/prctl.2.html
- * [proc(5)]:                                           https://man7.org/linux/man-pages/man5/proc.5.html
- * [ptrace(2)]:                                         https://man7.org/linux/man-pages/man2/ptrace.2.html
  */
 static __enbox_nothrow
 void
@@ -1629,8 +1803,6 @@ enbox_setup_dump(bool on)
  * Enable process *dumpable* attribute.
  *
  * @see enbox_setup_dump()
- *
- * @ingroup utils
  */
 #define ENBOX_ENABLE_DUMP  (1)
 
@@ -1640,8 +1812,6 @@ enbox_setup_dump(bool on)
  * Disable process *dumpable* attribute.
  *
  * @see enbox_setup_dump()
- *
- * @ingroup utils
  */
 #define ENBOX_DISABLE_DUMP (0)
 
@@ -1655,6 +1825,7 @@ enbox_setup_dump(bool on __unused)
 }
 
 #endif /* !defined(CONFIG_ENBOX_DISABLE_DUMP) */
+
 void
 enbox_setup(struct elog * __restrict logger)
 {

@@ -1,3 +1,10 @@
+/******************************************************************************
+ * SPDX-License-Identifier: LGPL-3.0-only
+ *
+ * This file is part of Enbox.
+ * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
+ ******************************************************************************/
+
 #include "common.h"
 #include <utils/path.h>
 #include <stdio.h>
@@ -600,56 +607,67 @@ enbox_build_caps_string(uint64_t caps)
 }
 
 static void __enbox_nonull(1)
-enbox_show_cmd_conf(const struct enbox_cmd * __restrict cmd)
+enbox_show_proc_conf(const struct enbox_proc * __restrict proc)
 {
-	enbox_assert(cmd);
-	enbox_assert(!(cmd->umask & ~((mode_t)ACCESSPERMS)));
-	enbox_assert(!(cmd->caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-	enbox_assert(!cmd->cwd || (upath_validate_path_name(cmd->cwd) > 0));
-	enbox_assert(!cmd->ids || !enbox_validate_pwd(cmd->ids->pwd, true));
-	enbox_assert(!cmd->exec || !enbox_validate_exec(cmd->exec));
+	enbox_assert_proc(proc);
 
-	unsigned int a = 0;
+	unsigned int a;
 
-	puts("\n### Command ###\n");
+	puts("\n### Process ###\n");
 
-	printf("Umask            : %04o\n", cmd->umask);
+	printf("Umask            : %04o\n", proc->umask);
 
-	if (cmd->ids)
-		enbox_show_ids_conf(cmd->ids);
+	if (proc->ids)
+		enbox_show_ids_conf(proc->ids);
 
-	if (cmd->caps) {
+	if (proc->caps) {
 		char * str;
 
-		str = enbox_build_caps_string(cmd->caps);
+		str = enbox_build_caps_string(proc->caps);
 		printf("Capabilities     : %s\n", str);
 		free(str);
 	}
 	else
 		fputs("Capabilities     : none\n", stdout);
 
-	printf("Working directory: %s\n", cmd->cwd ? cmd->cwd : "/");
+	printf("Working directory: %s\n", proc->cwd ? proc->cwd : "/");
 
-	if (cmd->exec) {
-		fputs("Exec arguments   :", stdout);
-		do {
-			printf(" %s", cmd->exec[a]);
-		} while (cmd->exec[++a]);
+	if (proc->fds_nr) {
+		printf("Keep file descs  : %d", proc->fds[0]);
+		for (a = 1; a < proc->fds_nr; a++)
+			printf(", %d", proc->fds[a]);
+		putchar('\n');
 	}
 	else
-		fputs("Exec arguments   : none", stdout);
+		fputs("Keep file descs  : none", stdout);
+}
+
+static void __enbox_nonull(1)
+enbox_show_cmd_conf(const char * const cmd[__restrict_arr])
+{
+	enbox_assert_cmd(cmd);
+
+	unsigned int a = 0;
+
+	puts("\n### Command ###\n");
+
+	fputs(cmd[0], stdout);
+	while (cmd[++a])
+		printf(" %s", cmd[a]);
 	putchar('\n');
 }
 
 static void __enbox_nonull(1)
-enbox_show_conf(const struct enbox_conf * conf)
+enbox_show_conf(const struct enbox_conf * __restrict conf)
 {
-	enbox_assert(conf);
+	enbox_assert_conf(conf);
 
 	if (conf->host)
 		enbox_show_host_conf(conf->host);
 	if (conf->jail)
 		enbox_show_jail_conf(conf->jail);
+	if (conf->proc)
+		enbox_show_proc_conf(conf->proc);
 	if (conf->cmd)
 		enbox_show_cmd_conf(conf->cmd);
 }
@@ -1132,6 +1150,12 @@ main(int argc, char * const argv[])
 	if (!conf)
 		goto out;
 
+	if (!conf->cmd) {
+		enbox_err("%s: invalid configuration: missing 'cmd' setting",
+		          argv[optind]);
+		goto destroy;
+	}
+
 	switch (cmd) {
 	case RUN_CMD:
 		if (!enbox_run_conf(conf))
@@ -1149,6 +1173,7 @@ main(int argc, char * const argv[])
 		enbox_assert(0);
 	}
 
+destroy:
 #if defined(CONFIG_ENBOX_DEBUG)
 	enbox_destroy_conf(conf);
 #endif /* defined(CONFIG_ENBOX_DEBUG) */

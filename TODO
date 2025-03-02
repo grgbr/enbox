@@ -1,10 +1,10 @@
 Various:
 * check documentation links (run sphinx-build -b linkcheck...)
+* license all files
 
 Rationalize:
 * get passwd / group entry checking (assert vs runtime checking)
 * label setting checking
-* generalize struct user usage (for host / jail entries)
 * error vs info logging review
 
 Features:
@@ -13,9 +13,7 @@ Features:
 * forbid ld_preload / ld_audit
 * rlimits
 * scheduling
-* close unwanted fds
 * environment variables
-* umask
 * keyring
 * seccomp
 
@@ -67,3 +65,119 @@ cmd = {
 
 }
 </code>
+
+
+Old documentation bits
+======================
+
+/**
+ * @mainpage Enbox API
+ *
+ * What follows here provides a thorough description of how to use Enbox's
+ * library.
+ *
+ * About {#about-sec}
+ * ==================
+ *
+ * Basically, Enbox library is a C framework meant to instantiate a Linux
+ * process from within a «runtime container», providing the ability to control
+ * the process accesses to system resources according to a predefined
+ * configuration.
+ * The container logic implementation is based upon Linux's namespaces. As
+ * stated into [namespaces(7)] man page :
+ * > A namespace wraps a global system resource in an abstraction that makes it
+ * > appear to the processes within the namespace that they have their own
+ * > isolated instance of the global resource. Changes to the global resource
+ * > are visible to other processes that are members of the namespace, but are
+ * > invisible to other processes.
+ *
+ * The library also comes with additional utility functions allowing to
+ * manipulate Linux system objects in a limited way. These are :
+ * - [capabilities(7)],
+ * - [namespaces(7)],
+ * - filesystem objects,
+ * - process [credentials(7)].
+ *
+ * Usage {#usage-sec}
+ * ==================
+ *
+ * Enbox library API is organized around the following functional areas which
+ * you can refer to for further details :
+ * - [initialization](@ref init),
+ * - [configuration](@ref conf),
+ * - [instantiation](@ref instance),
+ * - and [utilities](@ref utils).
+ *
+ * The typical sequence of operations involves using the first 3 functional
+ * areas mentioned above. Most of the time, you use Enbox library in one of the
+ * 2 following ways :
+ * - [run an Enbox configuration from filesystem](#run-from-fs)
+ * - or [run an Enbox configuration from pre-defined hard-coded values](#run-from-struct).
+ *
+ * Run a configuration from filesystem {#run-from-fs}
+ * --------------------------------------------------
+ *
+ * This mode of operation is meant to apply and execute an Enbox configuration
+ * stored into a file. This file must be formatted according to the
+ * configuration syntax detailed into the [configuration syntax section](#conf-syntax).
+ *
+ * Additional usage details may be found into section @ref conf. This is the
+ * most straightforward way to use the Enbox library.
+ *
+ * Run a configuration from hard-coded values {#run-from-struct}
+ * -------------------------------------------------------------
+ *
+ * This mode of operation is meant to apply and execute an Enbox configuration
+ * from pre-defined hard-coded values found into multiple binary structures
+ * built at compile-time.
+ *
+ * Additional usage details may be found into section @ref instance. This is the
+ * most complex way to use the Enbox library.
+ *
+ * Configuration syntax {#conf-syntax} 
+ * ===================================
+ *
+ * Enbox parses configuration using the [libconfig library]. Configuration
+ * follows syntax rules described in the [libconfig manual]. Please take a look
+ * at the [libconfig manual] for an explanation of basic types.
+ *
+ * COMPLETE ME !!!
+ *
+ * [namespaces(7)]:     https://man7.org/linux/man-pages/man7/namespaces.7.html
+ * [capabilities(7)]:   https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * [credentials(7)]:    https://man7.org/linux/man-pages/man7/credentials.7.html
+ * [execve(2)]:         https://man7.org/linux/man-pages/man2/execve.2.html
+ * [libconfig library]: https://hyperrealm.github.io/libconfig
+ * [libconfig manual]:  http://www.hyperrealm.com/libconfig/libconfig_manual.html
+ */
+
+
+/**
+ * @defgroup instance Instantiation
+ *
+ * This involves the following sequence of operations :
+ * -# initialize Enbox library using enbox_setup(),
+ * -# optionally populate the «host» filesystem using enbox_populate_host(),
+ * -# optionally load user and group membership informations required for later
+ *  processing using enbox_load_ids_byid() or enbox_load_ids_byname(),
+ * -# optionally run either of the following sequence of operations :
+ *    - run a command onto the «host» system using enbox_run_cmd(),
+ *    - or run a «jail'ed» command :
+ *      -# instantiate a runtime container, i.e. the so-called jail, using
+ *      enbox_enter_jail()
+ *      -# run a command from within this jail using enbox_run_cmd().
+ *
+ */
+
+/**
+ * @defgroup conf Configuration
+ *
+ * This involves the following sequence of operations :
+ * -# initialize Enbox library using enbox_setup(),
+ * -# load and parse an Enbox configuration from the content of a file using
+ *  enbox_create_conf_from_file(),
+ * -# apply and execute the configuration loaded above using enbox_run_conf().
+ *
+ */
+
+

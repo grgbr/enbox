@@ -1,98 +1,28 @@
-/**
- * @file enbox.h
- * Enbox API interface.
- */
+/******************************************************************************
+ * SPDX-License-Identifier: LGPL-3.0-only
+ *
+ * This file is part of Enbox.
+ * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
+ ******************************************************************************/
 
 /**
- * @mainpage Enbox API
+ * @file
+ * Enbox interface
  *
- * What follows here provides a thorough description of how to use Enbox's
- * library.
- *
- * About {#about-sec}
- * ==================
- *
- * Basically, Enbox library is a C framework meant to instantiate a Linux
- * process from within a «runtime container», providing the ability to control
- * the process accesses to system resources according to a predefined
- * configuration.
- * The container logic implementation is based upon Linux's namespaces. As
- * stated into [namespaces(7)] man page :
- * > A namespace wraps a global system resource in an abstraction that makes it
- * > appear to the processes within the namespace that they have their own
- * > isolated instance of the global resource. Changes to the global resource
- * > are visible to other processes that are members of the namespace, but are
- * > invisible to other processes.
- *
- * The library also comes with additional utility functions allowing to
- * manipulate Linux system objects in a limited way. These are :
- * - [capabilities(7)],
- * - [namespaces(7)],
- * - filesystem objects,
- * - process [credentials(7)].
- *
- * Usage {#usage-sec}
- * ==================
- *
- * Enbox library API is organized around the following functional areas which
- * you can refer to for further details :
- * - [initialization](@ref init),
- * - [configuration](@ref conf),
- * - [instantiation](@ref instance),
- * - and [utilities](@ref utils).
- *
- * The typical sequence of operations involves using the first 3 functional
- * areas mentioned above. Most of the time, you use Enbox library in one of the
- * 2 following ways :
- * - [run an Enbox configuration from filesystem](#run-from-fs)
- * - or [run an Enbox configuration from pre-defined hard-coded values](#run-from-struct).
- *
- * Run a configuration from filesystem {#run-from-fs}
- * --------------------------------------------------
- *
- * This mode of operation is meant to apply and execute an Enbox configuration
- * stored into a file. This file must be formatted according to the
- * configuration syntax detailed into the [configuration syntax section](#conf-syntax).
- *
- * Additional usage details may be found into section @ref conf. This is the
- * most straightforward way to use the Enbox library.
- *
- * Run a configuration from hard-coded values {#run-from-struct}
- * -------------------------------------------------------------
- *
- * This mode of operation is meant to apply and execute an Enbox configuration
- * from pre-defined hard-coded values found into multiple binary structures
- * built at compile-time.
- *
- * Additional usage details may be found into section @ref instance. This is the
- * most complex way to use the Enbox library.
- *
- * Configuration syntax {#conf-syntax} 
- * ===================================
- *
- * Enbox parses configuration using the [libconfig library]. Configuration
- * follows syntax rules described in the [libconfig manual]. Please take a look
- * at the [libconfig manual] for an explanation of basic types.
- *
- * COMPLETE ME !!!
- *
- * [namespaces(7)]:     https://man7.org/linux/man-pages/man7/namespaces.7.html
- * [capabilities(7)]:   https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [credentials(7)]:    https://man7.org/linux/man-pages/man7/credentials.7.html
- * [execve(2)]:         https://man7.org/linux/man-pages/man2/execve.2.html
- * [libconfig library]: https://hyperrealm.github.io/libconfig
- * [libconfig manual]:  http://www.hyperrealm.com/libconfig/libconfig_manual.html
+ * @author    Grégor Boirie <gregor.boirie@free.fr>
+ * @date      02 Feb 2022
+ * @copyright Copyright (C) 2022-2025 Grégor Boirie.
+ * @license   [GNU Lesser General Public License (LGPL) v3]
+ *            (https://www.gnu.org/licenses/lgpl+gpl-3.0.txt)
  */
+
 #ifndef _ENBOX_H
 #define _ENBOX_H
 
 #include <enbox/config.h>
 #include <utils/pwd.h>
 #include <linux/capability.h>
-#include <unistd.h>
-#include <sys/mount.h>
 #include <sys/stat.h>
-#include <sys/prctl.h>
 
 /*
  * Depending on glibc version, this definition may be missing although handled
@@ -102,19 +32,6 @@
 #define MS_NOSYMFOLLOW (1UL << 8)
 #endif
 
-/**
- * @def __enbox_nonull(_arg_index, ...)
- *
- * Declare function arguments as non-null pointers.
- *
- * When applied to a function, tell compiler that the specified arguments must
- * be non-null pointers.
- * @param[in] _arg_index index of first non-null pointer argument
- * @param[in] ...        subsequent non-null pointer argument indices
- *
- * @see [GCC common function attributes]
- *      (https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#Common-Function-Attributes)
- */
 #if defined(CONFIG_ENBOX_ASSERT)
 
 #include <stroll/assert.h>
@@ -134,20 +51,16 @@
 
 #else  /* !defined(CONFIG_ENBOX_ASSERT) */
 
+#define enbox_assert(_expr)
+
+#define enbox_assert_setup()
+
 #define __enbox_nonull(_arg_index, ...) __nonull(_arg_index, ## __VA_ARGS__)
 #define __enbox_const                   __const
 #define __enbox_pure                    __pure
 #define __enbox_nothrow                 __nothrow
 
-#define enbox_assert(_expr)
-
-#define enbox_assert_setup()
-
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
-
-/**
- * @defgroup utils Utilities
- */
 
 /**
  * @internal
@@ -158,11 +71,9 @@
  *          enbox_get_umask() and / or enbox_set_umask() instead.
  *
  * @see
- * - [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
+ * - @man{umask(2)}
  * - enbox_get_umask()
  * - enbox_set_umask()
- *
- * @ingroup utils
  */
 extern mode_t enbox_umask;
 
@@ -175,11 +86,9 @@ extern mode_t enbox_umask;
  *          enbox_get_uid() instead.
  *
  * @see
- * - [getuid(2)](https://man7.org/linux/man-pages/man2/getuid.2.html)
- * - [setuid(2)](https://man7.org/linux/man-pages/man2/setuid.2.html)
+ * - @man{getuid(2)}
+ * - @man{setuid(2)}
  * - enbox_get_uid()
- *
- * @ingroup utils
  */
 extern uid_t enbox_uid;
 
@@ -192,11 +101,9 @@ extern uid_t enbox_uid;
  *          enbox_get_gid() instead.
  *
  * @see
- * - [getgid(2)](https://man7.org/linux/man-pages/man2/getgid.2.html)
- * - [setgid(2)](https://man7.org/linux/man-pages/man2/setgid.2.html)
+ * - @man{getgid(2)}
+ * - @man{setgid(2)}
  * - enbox_get_gid()
- *
- * @ingroup utils
  */
 extern gid_t enbox_gid;
 
@@ -206,12 +113,10 @@ extern gid_t enbox_gid;
  * @return file creation mode mask.
  *
  * @see
- * - [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
+ * - @man{umask(2)}
  * - enbox_set_umask().
- *
- * @ingroup utils
  */
-static inline mode_t __enbox_pure __enbox_nothrow
+static inline mode_t __enbox_pure __enbox_nothrow __warn_result
 enbox_get_umask(void)
 {
 	enbox_assert_setup();
@@ -225,10 +130,8 @@ enbox_get_umask(void)
  * @return file creation mode mask value prior to this function call.
  *
  * @see
- * - [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
+ * - @man{umask(2)}
  * - enbox_get_umask()
- *
- * @ingroup utils
  */
 static inline mode_t __enbox_nothrow
 enbox_set_umask(mode_t mask)
@@ -251,13 +154,11 @@ enbox_set_umask(mode_t mask)
  * @return user ID.
  *
  * @see
- * - [getuid(2)](https://man7.org/linux/man-pages/man2/getuid.2.html)
- * - [geteuid(2)](https://man7.org/linux/man-pages/man2/geteuid.2.html)
+ * - @man{getuid(2)}
+ * - @man{geteuid(2)}
  * - enbox_get_gid().
- *
- * @ingroup utils
  */
-static inline uid_t __enbox_pure __enbox_nothrow
+static inline uid_t __enbox_pure __enbox_nothrow __warn_result
 enbox_get_uid(void)
 {
 	enbox_assert_setup();
@@ -271,13 +172,11 @@ enbox_get_uid(void)
  * @return group ID.
  *
  * @see
- * - [getgid(2)](https://man7.org/linux/man-pages/man2/getgid.2.html)
- * - [getegid(2)](https://man7.org/linux/man-pages/man2/getegid.2.html)
+ * - @man{getgid(2)}
+ * - @man{getegid(2)}
  * - enbox_get_uid().
- *
- * @ingroup utils
  */
-static inline gid_t __enbox_pure __enbox_nothrow
+static inline gid_t __enbox_pure __enbox_nothrow __warn_result
 enbox_get_gid(void)
 {
 	enbox_assert_setup();
@@ -289,8 +188,6 @@ enbox_get_gid(void)
  * Keep filesystem entry owner UID unchanged.
  *
  * @see enbox_change_perms()
- *
- * @ingroup utils
  */
 #define ENBOX_KEEP_UID  ((uid_t)-1)
 
@@ -298,8 +195,6 @@ enbox_get_gid(void)
  * Keep filesystem entry group GID unchanged.
  *
  * @see enbox_change_perms()
- *
- * @ingroup utils
  */
 #define ENBOX_KEEP_GID  ((gid_t)-1)
 
@@ -307,16 +202,14 @@ enbox_get_gid(void)
  * Keep filesystem entry permissions unchanged.
  *
  * @see enbox_change_perms()
- *
- * @ingroup utils
  */
 #define ENBOX_KEEP_MODE ((mode_t)-1)
 
 /**
  * Change ownership, group membership and permissions of a filesystem entry.
  *
- * Basically calls [chown(2)] then [chmod(2)] onto filesystem entry pointed to
- * by @p path.
+ * Basically calls @man{chown(2)} then @man{chmod(2)} onto filesystem entry
+ * pointed to by @p path.
  * Ownership is modified according to user ID @p uid or left untouched in case
  * @p uid equals #ENBOX_KEEP_UID.
  * Group membership is modified according to group ID @p gid passed in argument
@@ -338,22 +231,20 @@ enbox_get_gid(void)
  * - #ENBOX_KEEP_UID
  * - #ENBOX_KEEP_GID
  * - #ENBOX_KEEP_MODE
- * - [chown(2)]
- * - [chmod(2)]
- *
- * @ingroup utils
- *
- * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
- * [chmod(2)]: https://man7.org/linux/man-pages/man2/chmod.2.html
+ * - @man{chown(2)}
+ * - @man{chmod(2)}
  */
 extern int
-enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
-	__enbox_nonull(1) __enbox_nothrow;
+enbox_change_perms(const char * __restrict path,
+                   uid_t                   uid,
+                   gid_t                   gid,
+                   mode_t                  mode)
+	__enbox_nonull(1) __enbox_nothrow __warn_result;
 
 /**
  * Ensure a filesystem directory is properly created.
  *
- * Basically calls [mkdir(2)] to create a directory pointed to by @p path
+ * Basically calls @man{mkdir(2)} to create a directory pointed to by @p path
  * according to @p uid user ID, @p gid group ID and @p mode permissions.
  * In case the directory already exists, ensure it is consistent with @p uid
  * user ID, @p gid group ID and @p mode permissions passed in arguments.
@@ -363,7 +254,8 @@ enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
  *   being a directory will be left untouched ;
  * - a directory matching @p path pathname existing prior to this call will be
  *   left in an unpredictable state ;
- * - otherwise, the new directory just created will be deleted using [rmdir(2)]
+ * - otherwise, the new directory just created will be deleted using
+ *   @man{rmdir(2)}
  *   before returning to the caller.
  *
  * @param[in] path Pathname to filesystem directory
@@ -374,27 +266,20 @@ enbox_change_perms(const char * path, uid_t uid, gid_t gid, mode_t mode)
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
- * - [mkdir(2)]
- * - [chown(2)]
- * - [chmod(2)]
- * - [rmdir(2)]
- *
- * @ingroup utils
- *
- * [mkdir(2)]: https://man7.org/linux/man-pages/man2/mkdir.2.html
- * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
- * [chmod(2)]: https://man7.org/linux/man-pages/man2/chmod.2.html
- * [rmdir(2)]: https://man7.org/linux/man-pages/man2/rmdir.2.html
+ * - @man{mkdir(2)}
+ * - @man{chown(2)}
+ * - @man{chmod(2)}
+ * - @man{rmdir(2)}
  */
 extern int
-enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
-	__enbox_nonull(1) __enbox_nothrow;
+enbox_make_dir(const char * __restrict path, uid_t uid, gid_t gid, mode_t mode)
+	__enbox_nonull(1) __enbox_nothrow __warn_result;
 
 /**
  * Ensure a filesystem symbolic link is properly created.
  *
- * Basically calls [symlink(2)] to create a symbolic link @p path targeting @p
- * target according to @p uid user ID and @p gid group ID.
+ * Basically calls @man{symlink(2)} to create a symbolic link @p path targeting
+ * @p target according to @p uid user ID and @p gid group ID.
  * In case the symbolic link already exists, ensure it is consistent with @p
  * uid user ID, @p gid group ID and @p target passed in arguments.
  *
@@ -407,8 +292,8 @@ enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
  *   being a symbolic link will be left untouched ;
  * - a symbolic link existing and matching @p path pathname prior to this call
  *   will be left in an unpredictable state ;
- * - otherwise, the new symbolic link will be deleted using [unlink(2)] before
- *   returning to the caller.
+ * - otherwise, the new symbolic link will be deleted using @man{unlink(2)}
+ *   before returning to the caller.
  *
  * @param[in] path   Pathname to filesystem symbolic link
  * @param[in] target Target pathname which @p path will point to
@@ -418,30 +303,23 @@ enbox_make_dir(const char * path, uid_t uid, gid_t gid, mode_t mode)
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
- * - [symlink(2)]
- * - [readlink(2)]
- * - [chown(2)]
- * - [unlink(2)]
- *
- * @ingroup utils
- *
- * [symlink(2)]: https://man7.org/linux/man-pages/man2/symlink.2.html
- * [readlink(2)]: https://man7.org/linux/man-pages/man2/readlink.2.html
- * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
- * [unlink(2)]: https://man7.org/linux/man-pages/man2/unlink.2.html
+ * - @man{symlink(2)}
+ * - @man{readlink(2)}
+ * - @man{chown(2)}
+ * - @man{unlink(2)}
  */
 extern int
 enbox_make_slink(const char * __restrict path,
                  const char * __restrict target,
                  uid_t                   uid,
                  gid_t                   gid)
-	__enbox_nonull(1, 2) __enbox_nothrow;
+	__enbox_nonull(1, 2) __enbox_nothrow __warn_result;
 
 /**
  * Ensure a filesystem character devide node is properly created.
  *
- * Basically calls [mknod(2)] to create a character device node pointed to by
- * @p path according to @p uid user ID, @p gid group ID, @p mode permissions,
+ * Basically calls @man{mknod(2)} to create a character device node pointed to
+ * by @p path according to @p uid user ID, @p gid group ID, @p mode permissions,
  * @p major and @p minor numbers.
  * In case the character device node already exists, ensure it is consistent
  * with @p uid user ID, @p gid group ID, @p mode permissions, @p major and @p
@@ -455,8 +333,8 @@ enbox_make_slink(const char * __restrict path,
  *   being a character device node will be left untouched ;
  * - a character device node existing and matching @p path pathname prior to
  *   this call will be left in an unpredictable state ;
- * - otherwise, the new character device node will be deleted using [unlink(2)]
- *   before returning to the caller.
+ * - otherwise, the new character device node will be deleted using
+ *   @man{unlink(2)} before returning to the caller.
  *
  * @param[in] path   Pathname to filesystem device node
  * @param[in] uid    Device node owner UID
@@ -468,33 +346,25 @@ enbox_make_slink(const char * __restrict path,
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
- * - [mknod(2)]
- * - [makedev(3)]
- * - [chown(2)]
- * - [chmod(2)]
- * - [unlink(2)]
- *
- * @ingroup utils
- *
- * [mknod(2)]: https://man7.org/linux/man-pages/man2/mknod.2.html
- * [makedev(3)]: https://man7.org/linux/man-pages/man3/makedev.3.html
- * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
- * [chmod(2)]: https://man7.org/linux/man-pages/man2/chmod.2.html
- * [unlink(2)]: https://man7.org/linux/man-pages/man2/unlink.2.html
+ * - @man{mknod(2)}
+ * - @man{makedev(3)}
+ * - @man{chown(2)}
+ * - @man{chmod(2)}
+ * - @man{unlink(2)}
  */
 extern int
-enbox_make_chrdev(const char * path,
-                  uid_t        uid,
-                  gid_t        gid,
-                  mode_t       mode,
-                  unsigned int major,
-                  unsigned int minor)
-	__enbox_nonull(1) __enbox_nothrow;
+enbox_make_chrdev(const char * __restrict path,
+                  uid_t                   uid,
+                  gid_t                   gid,
+                  mode_t                  mode,
+                  unsigned int            major,
+                  unsigned int            minor)
+	__enbox_nonull(1) __enbox_nothrow __warn_result;
 
 /**
  * Ensure a filesystem block devide node is properly created.
  *
- * Basically calls [mknod(2)] to create a block device node pointed to by
+ * Basically calls @man{mknod(2)} to create a block device node pointed to by
  * @p path according to @p uid user ID, @p gid group ID, @p mode permissions,
  * @p major and @p minor numbers.
  * In case the block device node already exists, ensure it is consistent
@@ -509,7 +379,7 @@ enbox_make_chrdev(const char * path,
  *   being a block device node will be left untouched ;
  * - a block device node existing and matching @p path pathname prior to this
  *   call will be left in an unpredictable state ;
- * - otherwise, the new block device node will be deleted using [unlink(2)]
+ * - otherwise, the new block device node will be deleted using @man{unlink(2)}
  *   before returning to the caller.
  *
  * @param[in] path   Pathname to filesystem device node
@@ -522,33 +392,25 @@ enbox_make_chrdev(const char * path,
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
- * - [mknod(2)]
- * - [makedev(3)]
- * - [chown(2)]
- * - [chmod(2)]
- * - [unlink(2)]
- *
- * @ingroup utils
- *
- * [mknod(2)]: https://man7.org/linux/man-pages/man2/mknod.2.html
- * [makedev(3)]: https://man7.org/linux/man-pages/man3/makedev.3.html
- * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
- * [chmod(2)]: https://man7.org/linux/man-pages/man2/chmod.2.html
- * [unlink(2)]: https://man7.org/linux/man-pages/man2/unlink.2.html
+ * - @man{mknod(2)}
+ * - @man{makedev(3)}
+ * - @man{chown(2)}
+ * - @man{chmod(2)}
+ * - @man{unlink(2)}
  */
 extern int
-enbox_make_blkdev(const char * path,
-                  uid_t        uid,
-                  gid_t        gid,
-                  mode_t       mode,
-                  unsigned int major,
-                  unsigned int minor)
-	__enbox_nonull(1) __enbox_nothrow;
+enbox_make_blkdev(const char * __restrict path,
+                  uid_t                   uid,
+                  gid_t                   gid,
+                  mode_t                  mode,
+                  unsigned int            major,
+                  unsigned int            minor)
+	__enbox_nonull(1) __enbox_nothrow __warn_result;
 
 /**
  * Ensure a filesystem named pipe is properly created.
  *
- * Basically calls [mkfifo(3)] to create a named pipe (FIFO) pointed to by
+ * Basically calls @man{mkfifo(3)} to create a named pipe (FIFO) pointed to by
  * @p path according to @p uid user ID, @p gid group ID and @p mode permissions.
  * In case the named pipe already exists, ensure it is consistent
  * with @p uid user ID, @p gid group ID and @p mode permissions passed in
@@ -561,7 +423,7 @@ enbox_make_blkdev(const char * path,
  *   being a named pipe will be left untouched ;
  * - a named pipe existing and matching @p path pathname prior to this call will
  *   be left in an unpredictable state ;
- * - otherwise, the new named pipe will be deleted using [unlink(2)] before
+ * - otherwise, the new named pipe will be deleted using @man{unlink(2)} before
  *   returning to the caller.
  *
  * @param[in] path   Pathname to filesystem named pipe
@@ -572,23 +434,15 @@ enbox_make_blkdev(const char * path,
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
- * - [mkfifo(3)]
- * - [pipe(7)]
- * - [chown(2)]
- * - [chmod(2)]
- * - [unlink(2)]
- *
- * @ingroup utils
- *
- * [mkfifo(3)]: https://man7.org/linux/man-pages/man3/mkfifo.3.html
- * [chown(2)]: https://man7.org/linux/man-pages/man2/chown.2.html
- * [chmod(2)]: https://man7.org/linux/man-pages/man2/chmod.2.html
- * [unlink(2)]: https://man7.org/linux/man-pages/man2/unlink.2.html
- * [pipe(7)]: https://man7.org/linux/man-pages/man7/pipe.7.html
+ * - @man{mkfifo(3)}
+ * - @man{pipe(7)}
+ * - @man{chown(2)}
+ * - @man{chmod(2)}
+ * - @man{unlink(2)}
  */
 extern int
-enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
-	__enbox_nonull(1) __enbox_nothrow;
+enbox_make_fifo(const char * __restrict path, uid_t uid, gid_t gid, mode_t mode)
+	__enbox_nonull(1) __enbox_nothrow __warn_result;
 
 /**
  * Make a capability mask out of a constant capability index.
@@ -605,11 +459,7 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
  * @see
  * - enbox_cap()
  * - ENBOX_CAPS_NR
- * - [capabilities(7)]
- *
- * @ingroup utils
- *
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * - @man{capabilities(7)}
  */
 #define ENBOX_CAP(_cap) \
 	({ \
@@ -629,13 +479,9 @@ enbox_make_fifo(const char * path, uid_t uid, gid_t gid, mode_t mode)
  *
  * @return A system capability bitmask.
  *
- * @ingroup utils
- *
  * @see
  * - ENBOX_CAP
- * - [capabilities(7)]
- *
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * - @man{capabilities(7)}
  */
 static inline __enbox_const __enbox_nothrow __warn_result
 uint64_t
@@ -653,16 +499,13 @@ enbox_cap(int cap)
  * inheritable sets.
  *
  * For more informations about Linux capability sets, refer to section `Thread
- * capability sets` of [capabilities(7)].
+ * capability sets` of @man{capabilities(7)}.
  *
  * No particular privileges is required to perform this operation.
  *
  * @see
- * - sections `Thread capability sets` of [capabilities(7)]
- * - [capget(2)]
- *
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [capget(2)]:       https://man7.org/linux/man-pages/man2/capset.2.html
+ * - sections `Thread capability sets` of @man{capabilities(7)}
+ * - @man{capget(2)}
  */
 extern void
 enbox_clear_epi_caps(void) __enbox_nothrow;
@@ -673,20 +516,15 @@ enbox_clear_epi_caps(void) __enbox_nothrow;
  * Remove all capabilities from current thread's ambient set.
  *
  * For more informations about Linux capability sets, refer to section `Thread
- * capability sets` of [capabilities(7)].
+ * capability sets` of @man{capabilities(7)}.
  *
  * No particular privileges is required to perform this operation.
  *
  * @see
- * - sections `Thread capability sets` of [capabilities(7)]
- * - section `PR_CAP_AMBIENT_CLEAR_ALL` of [prctl(2)]
- * - [PR_CAP_AMBIENT_CLEAR_ALL(2const)]
- * - [PR_CAP_AMBIENT(2const)]
- *
- * [capabilities(7)]:                  https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [prctl(2)]:                         https://man7.org/linux/man-pages/man2/prctl.2.html
- * [PR_CAP_AMBIENT_CLEAR_ALL(2const)]: https://man7.org/linux/man-pages/man2/PR_CAP_AMBIENT_CLEAR_ALL.2const.html
- * [PR_CAP_AMBIENT(2const)]:           https://man7.org/linux/man-pages/man2/PR_CAP_AMBIENT.2const.html
+ * - sections `Thread capability sets` of @man{capabilities(7)}
+ * - section `PR_CAP_AMBIENT_CLEAR_ALL` of @man{prctl(2)}
+ * - @man{PR_CAP_AMBIENT_CLEAR_ALL(2const)}
+ * - @man{PR_CAP_AMBIENT(2const)}
  */
 extern void
 enbox_clear_amb_caps(void) __enbox_nothrow;
@@ -697,22 +535,17 @@ enbox_clear_amb_caps(void) __enbox_nothrow;
  * Remove all capabilities from current thread's bounding set.
  *
  * For more informations about Linux capability sets, refer to section `Thread
- * capability sets` of [capabilities(7)].
+ * capability sets` of @man{capabilities(7)}.
  *
  * @warning Requires CAP_SETPCAP capability.
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
- * - sections `Thread capability sets` and `CAP_SETPCAP` of [capabilities(7)]
- * - section `PR_CAPBSET_DROP` of [prctl(2)]
- * - [PR_CAPBSET_DROP(2const)]
- *
- * @ingroup utils
- *
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [prctl(2)]:        https://man7.org/linux/man-pages/man2/prctl.2.html
- * [PR_CAPBSET_DROP(2const)]: https://man7.org/linux/man-pages/man2/pr_capbset_drop.2const.html
+ * - sections `Thread capability sets` and `CAP_SETPCAP` of
+ *   @man{capabilities(7)}
+ * - section `PR_CAPBSET_DROP` of @man{prctl(2)}
+ * - @man{PR_CAPBSET_DROP(2const)}
  */
 extern int
 enbox_clear_bound_caps(void)
@@ -724,8 +557,6 @@ enbox_clear_bound_caps(void)
  * @see
  * - enbox_change_ids()
  * - enbox_switch_ids()
- *
- * @ingroup utils
  */
 #define ENBOX_RAISE_SUPP_GROUPS (false)
 
@@ -735,8 +566,6 @@ enbox_clear_bound_caps(void)
  * @see
  * - enbox_change_ids()
  * - enbox_switch_ids()
- *
- * @ingroup utils
  */
 #define ENBOX_DROP_SUPP_GROUPS (true)
 
@@ -745,7 +574,7 @@ enbox_clear_bound_caps(void)
  *
  * Change current process's real, effective and saved user ID to UID matching
  * @p pwd_entry entry passed in argument. This pointer may be retrieved using
- * one of the system primitives documented into [getpwent(3)].
+ * one of the system primitives documented into @man{getpwent(3)}.
  *
  * In addition, change current process's real, effective and saved group ID to
  * primary GID of @p user and setup current process's list of supplementary
@@ -769,19 +598,11 @@ enbox_clear_bound_caps(void)
  * - #ENBOX_RAISE_SUPP_GROUPS
  * - #ENBOX_DROP_SUPP_GROUPS
  * - enbox_change_ids()
- * - [getpwent(3)]
- * - [setresuid(2)]
- * - [initgroups(3)]
- * - [setgroups(2)]
- * - [capabilities(7)]
- *
- * @ingroup utils
- *
- * [getpwent(3)]:     https://man7.org/linux/man-pages/man3/getpwent.3.html
- * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
- * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
- * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
+ * - @man{getpwent(3)}
+ * - @man{setresuid(2)}
+ * - @man{initgroups(3)}
+ * - @man{setgroups(2)}
+ * - @man{capabilities(7)}
  */
 extern int
 enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
@@ -792,7 +613,7 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  *
  * Change current process's real, effective and saved user ID to UID matching
  * @p pwd_entry entry passed in argument. This pointer may be retrieved using
- * one of the system primitives documented into [getpwent(3)].
+ * one of the system primitives documented into @man{getpwent(3)}.
  *
  * In addition, change current process's real, effective and saved group ID to
  * primary GID matching the @p pwd_entry and setup current process's list of
@@ -808,8 +629,8 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  *
  * Upon return, current thread permitted and effective capability sets reflect
  * the mask given by @p kept_caps. Bounding and ambient capabilitiy sets are
- * cleared. The [no_new_privs] attribute is set to 1 and securebits are also
- * modified and locked so that the following bits are set:
+ * cleared. The @rstterm{no_new_privs} attribute is set to 1 and securebits are
+ * also modified and locked so that the following bits are set:
  * - `SECBIT_NOROOT`,
  * - `SECBIT_NOROOT_LOCKED`,
  * - `SECBIT_NO_SETUID_FIXUP_LOCKED`,
@@ -840,20 +661,11 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  * - #ENBOX_DROP_SUPP_GROUPS
  * - enbox_switch_ids()
  * - enbox_change_idsn_execve()
- * - [getpwent(3)]
- * - [setresuid(2)]
- * - [initgroups(3)]
- * - [setgroups(2)]
- * - [capabilities(7)]
- *
- * @ingroup utils
- *
- * [getpwent(3)]:     https://man7.org/linux/man-pages/man3/getpwent.3.html
- * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
- * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
- * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
+ * - @man{getpwent(3)}
+ * - @man{setresuid(2)}
+ * - @man{initgroups(3)}
+ * - @man{setgroups(2)}
+ * - @man{capabilities(7)}
  */
 extern int
 enbox_change_ids(const struct passwd * __restrict pwd_entry,
@@ -872,12 +684,12 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
  * The @p kept_caps argument configures the mask of capabilities to keep enabled
  * when returning from call to enbox_execve().
  * Capabilities referred to by @p kept_caps *MUST* also be enabled within the
- * bounding capability set. An error is returned otherwise.
+ * bounding capability set. An error is returned otherwise.
  *
  * Upon return, current thread permitted, effective, inheritable and ambient
  * capability sets reflect the mask given by @p kept_caps. Bounding capabilitiy
- * set is cleared. The [no_new_privs] attribute is set to 1 and securebits are
- * also modified and locked so that the following bits are set:
+ * set is cleared. The @rstterm{no_new_privs} attribute is set to 1 and
+ * securebits are also modified and locked so that the following bits are set:
  * - `SECBIT_NOROOT`,
  * - `SECBIT_NOROOT_LOCKED`,
  * - `SECBIT_NO_SETUID_FIXUP_LOCKED`,
@@ -896,28 +708,23 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
  *
  * @warning
  * - Requires the ability to enable the CAP_SETPCAP capabilities.
- * - @p argv *MUST* contain an arbitrary program name as first argument. Failing
+ * - @p argv *MUST* contain an arbitrary program name as first argument. Failing
  *   to do will lead to unpredictable results.
  * - Does not preserve `CAP_SYS_ADMIN` and `CAP_SETPCAP` capabilities across
- *   [execve(2)] operation. Trying to do so will lead to unpredictable results.
+ *   @man{execve(2)} operation. Trying to do so will lead to unpredictable
+ *   results.
  *
- * @param[in]    path      Pathname to program to [execve(2)]
- * @param[in]    argv      Program command-line arguments
- * @param[in]    envp      Optional program environment variable set
- * @param[in]    kept_caps Capabilities to preserve after [execve(2)]
+ * @param[in] path      Pathname to program to @man{execve(2)}
+ * @param[in] argv      Program command-line arguments
+ * @param[in] envp      Optional program environment variable set
+ * @param[in] kept_caps Capabilities to preserve after @man{execve(2)}
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
  * - enbox_change_idsn_execve()
- * - [execve(2)]
- * - [capabilities(7)]
- *
- * @ingroup utils
- *
- * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
+ * - @man{execve(2)}
+ * - @man{capabilities(7)}
  */
 extern int
 enbox_execve(const char * __restrict path,
@@ -953,12 +760,12 @@ enbox_execve(const char * __restrict path,
  * The @p kept_caps argument configures the mask of capabilities to keep enabled
  * when returning from call to enbox_change_idsn_execve().
  * Capabilities referred to by @p kept_caps *MUST* also be enabled within the
- * bounding capability set. An error is returned otherwise.
+ * bounding capability set. An error is returned otherwise.
  *
  * Upon return, current thread permitted, effective, inheritable and ambient
  * capability sets reflect the mask given by @p kept_caps. Bounding capabilitiy
- * set is cleared. The [no_new_privs] attribute is set to 1 and securebits are
- * also modified and locked so that the following bits are set:
+ * set is cleared. The @rstterm{no_new_privs} attribute is set to 1 and
+ * securebits are also modified and locked so that the following bits are set:
  * - `SECBIT_NOROOT`,
  * - `SECBIT_NOROOT_LOCKED`,
  * - `SECBIT_NO_SETUID_FIXUP_LOCKED`,
@@ -967,7 +774,7 @@ enbox_execve(const char * __restrict path,
  * - `SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED`.
  *
  * The @p pwd_entry should point to a `struct passwd` entry retrieved using one
- * of the system primitives documented into [getpwent(3)].
+ * of the system primitives documented into @man{getpwent(3)}.
  *
  * The @p argv is a `NULL` terminated array of pointers to strings passed to the
  * new program as its command-line arguments. By convention, the first of these
@@ -985,7 +792,7 @@ enbox_execve(const char * __restrict path,
  * @warning
  * - Requires the ability to enable the CAP_SETPCAP, CAP_SETUID and CAP_SETUID
  *   capabilities.
- * - @p argv *MUST* contain an arbitrary program name as first argument. Failing
+ * - @p argv *MUST* contain an arbitrary program name as first argument. Failing
  *   to do will lead to unpredictable results.
  * - Does not preserve `CAP_SYS_ADMIN` and `CAP_SETPCAP` capabilities across
  *   operations. Trying to do so will lead to unpredictable results.
@@ -994,7 +801,7 @@ enbox_execve(const char * __restrict path,
  *                         to
  * @param[in]    drop_supp Load or clear supplementary groups list (see
  *                         #ENBOX_RAISE_SUPP_GROUPS and #ENBOX_DROP_SUPP_GROUPS)
- * @param[in]    path      Pathname to program to [execve(2)]
+ * @param[in]    path      Pathname to program to @man{execve(2)}
  * @param[in]    argv      Program command-line arguments
  * @param[in]    envp      Optional program environment variable set
  * @param[in]    kept_caps Capabilities to preserve after change IDs and
@@ -1007,22 +814,12 @@ enbox_execve(const char * __restrict path,
  * - #ENBOX_DROP_SUPP_GROUPS
  * - enbox_change_ids()
  * - enbox_execve()
- * - [getpwent(3)]
- * - [setresuid(2)]
- * - [initgroups(3)]
- * - [setgroups(2)]
- * - [execve(2)]
- * - [capabilities(7)]
- *
- * @ingroup utils
- *
- * [getpwent(3)]:     https://man7.org/linux/man-pages/man3/getpwent.3.html
- * [setresuid(2)]:    https://man7.org/linux/man-pages/man2/setresuid.2.html
- * [initgroups(3)]:   https://man7.org/linux/man-pages/man3/initgroups.3.html
- * [setgroups(2)]:    https://man7.org/linux/man-pages/man2/setgroups.2.html
- * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
+ * - @man{getpwent(3)}
+ * - @man{setresuid(2)}
+ * - @man{initgroups(3)}
+ * - @man{setgroups(2)}
+ * - @man{execve(2)}
+ * - @man{capabilities(7)}
  */
 extern int
 enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
@@ -1039,7 +836,7 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
  * Given the current system privilege context, this function enables the
  * most restricted environment possible for the current thread.
  *
- * Basically, it sets [no_new_privs] attribute to 1.
+ * Basically, it sets @rstterm{no_new_privs} attribute to 1.
  *
  * If the CAP_SETPCAP capabilitiy is enabled into the permitted set, it clears
  * all bounding set capabilities. In addition, securebits are modified and
@@ -1062,13 +859,8 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
  *                      sets.
  *
  * @see
- * - [capabilities(7)]
- * - [no_new_privs]
- *
- * @ingroup utils
- *
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
+ * - @man{capabilities(7)}
+ * - @rstterm{no_new_privs}
  */
 extern void
 enbox_ensure_safe(uint64_t kept_caps);
@@ -1087,15 +879,9 @@ enbox_ensure_safe(uint64_t kept_caps);
  * @param[in] stdio The standard I/O stream onto which to print the report.
  *
  * @see
- * - [capabilities(7)]
- * - [no_new_privs]
- * - [credentials(7)]
- *
- * @ingroup utils
- *
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [no_new_privs]:    https://docs.kernel.org/userspace-api/no_new_privs.html
- * [credentials(7)]:  https://man7.org/linux/man-pages/man7/credentials.7.html
+ * - @man{capabilities(7)}
+ * - @rstterm{no_new_privs}
+ * - @man{credentials(7)}
  */
 #if defined(CONFIG_ENBOX_VERBOSE)
 
@@ -1114,29 +900,10 @@ enbox_print_priv(FILE * __restrict stdio __unused)
 #endif /* defined(CONFIG_ENBOX_VERBOSE) */
 
 /**
- * @defgroup instance Instantiation
- *
- * This involves the following sequence of operations :
- * -# initialize Enbox library using enbox_setup(),
- * -# optionally populate the «host» filesystem using enbox_populate_host(),
- * -# optionally load user and group membership informations required for later
- *  processing using enbox_load_ids_byid() or enbox_load_ids_byname(),
- * -# optionally run either of the following sequence of operations :
- *    - run a command onto the «host» system using enbox_run_cmd(),
- *    - or run a «jail'ed» command :
- *      -# instantiate a runtime container, i.e. the so-called jail, using
- *      enbox_enter_jail()
- *      -# run a command from within this jail using enbox_run_cmd().
- *
- */
-
-/**
  * File system entry type identifier.
  *
  * Identifies types of filesystem entries that Enbox may create when populating
  * jail and / or host filesystems.
- *
- * @ingroup instance
  */
 enum enbox_entry_type {
 	/** Directory entry. @see enbox_dir_entry */
@@ -1163,25 +930,21 @@ enum enbox_entry_type {
  * Directory entry descriptor.
  *
  * Depicts how to create a directory entry when :
- * - populating jail filesystem using enbox_enter_jail(),
+ * - populating jail filesystem using enbox_prep_proc(),
  * - or populating host filesystem using enbox_populate_host().
  *
  * Embedded within a #enbox_entry structure and used in combination with
  * #ENBOX_DIR_ENTRY_TYPE identifier to instruct enbox_populate_host() and / or
- * enbox_enter_jail() to create a directory entry.
+ * enbox_prep_proc() to create a directory entry.
  *
  * @see
  * - #enbox_entry_type
  * - #ENBOX_DIR_ENTRY_TYPE
  * - #enbox_entry
  * - enbox_populate_host()
- * - enbox_enter_jail()
+ * - enbox_prep_proc()
  * - enbox_make_dir()
- * - section «The file type and mode» of [inode(7)]
- *
- * @ingroup instance
- *
- * [inode(7)]: https://man7.org/linux/man-pages/man7/inode.7.html
+ * - section «The file type and mode» of @man{inode(7)}
  */
 struct enbox_dir_entry {
 	/** Mode, i.e., permission bits for the directory. */
@@ -1192,22 +955,20 @@ struct enbox_dir_entry {
  * Symbolic link entry descriptor.
  *
  * Depicts how to create a symbolic link entry when :
- * - populating jail filesystem using enbox_enter_jail(),
+ * - populating jail filesystem using enbox_prep_proc(),
  * - or populating host filesystem using enbox_populate_host().
  *
  * Embedded within a #enbox_entry structure and used in combination with
  * #ENBOX_SLINK_ENTRY_TYPE identifier to instruct enbox_populate_host() and / or
- * enbox_enter_jail() to create a symbolic link entry.
+ * enbox_prep_proc() to create a symbolic link entry.
  *
  * @see
  * - #enbox_entry_type
  * - #ENBOX_SLINK_ENTRY_TYPE
  * - #enbox_entry
  * - enbox_populate_host()
- * - enbox_enter_jail()
+ * - enbox_prep_proc()
  * - enbox_make_slink()
- *
- * @ingroup instance
  */
 struct enbox_slink_entry {
 	/** Symbolic link target, i.e., pathname this symlink will point to. */
@@ -1218,12 +979,12 @@ struct enbox_slink_entry {
  * Device node entry descriptor.
  *
  * Depicts how to create a device node entry (wether character or block) when :
- * - populating jail filesystem using enbox_enter_jail(),
+ * - populating jail filesystem using enbox_prep_proc(),
  * - or populating host filesystem using enbox_populate_host().
  *
  * Embedded within a #enbox_entry structure and used in combination with
  * #ENBOX_CHRDEV_ENTRY_TYPE or #ENBOX_BLKDEV_ENTRY_TYPE identifiers to instruct
- * enbox_populate_host() and / or enbox_enter_jail() to create a character
+ * enbox_populate_host() and / or enbox_prep_proc() to create a character
  * or a block device node entry respectively.
  *
  * @see
@@ -1232,14 +993,10 @@ struct enbox_slink_entry {
  * - #ENBOX_BLKDEV_ENTRY_TYPE
  * - #enbox_entry
  * - enbox_populate_host()
- * - enbox_enter_jail()
+ * - enbox_prep_proc()
  * - enbox_make_chrdev()
  * - enbox_make_blkdev()
- * - [makedev(3)]
- *
- * @ingroup instance
- *
- * [makedev(3)]: https://man7.org/linux/man-pages/man3/makedev.3.html
+ * - @man{makedev(3)}
  */
 struct enbox_dev_entry {
 	/**
@@ -1257,25 +1014,21 @@ struct enbox_dev_entry {
  * FIFO, i.e., (filesystem backed) named pipe, entry descriptor.
  *
  * Depicts how to create a named pipe entry when :
- * - populating jail filesystem using enbox_enter_jail(),
+ * - populating jail filesystem using enbox_prep_proc(),
  * - or populating host filesystem using enbox_populate_host().
  *
  * Embedded within a #enbox_entry structure and used in combination with
  * #ENBOX_FIFO_ENTRY_TYPE identifier to instruct enbox_populate_host() and / or
- * enbox_enter_jail() to create a named pipe entry.
+ * enbox_prep_proc() to create a named pipe entry.
  *
  * @see
  * - #enbox_entry_type
  * - #ENBOX_FIFO_ENTRY_TYPE
  * - #enbox_entry
  * - enbox_populate_host()
- * - enbox_enter_jail()
+ * - enbox_prep_proc()
  * - enbox_make_fifo()
- * - [pipe(7)]
- *
- * @ingroup instance
- *
- * [pipe(7)]: https://man7.org/linux/man-pages/man7/pipe.7.html
+ * - @man{pipe(7)}
  */
 struct enbox_fifo_entry {
 	/**
@@ -1289,17 +1042,17 @@ struct enbox_fifo_entry {
  * Mount entry descriptor.
  *
  * Depicts how to initially mount a filesystem when populating jail
- * filesystem using enbox_enter_jail().
+ * filesystem using enbox_prep_proc().
  *
  * The filesystem will be mounted from within the jail's own mount namespace
  * using unbindable propagation properties (see «SHARED SUBTREE» section of
- * [mount_namespaces(7)]).
+ * @man{mount_namespaces(7)}).
  * Mount point directory will be implicitly created if not existing with
  * permissions, ownership and membership inherited from the original filesystem
  * root directory.
  *
  * Embedded within a #enbox_entry structure and used in combination with
- * #ENBOX_PROC_ENTRY_TYPE identifier to instruct enbox_enter_jail() to create a
+ * #ENBOX_PROC_ENTRY_TYPE identifier to instruct enbox_prep_proc() to create a
  * mount entry.
  *
  * @warning Do not use if you want to bind mount a filesystem, use
@@ -1310,18 +1063,13 @@ struct enbox_fifo_entry {
  * - #ENBOX_PROC_ENTRY_TYPE
  * - #enbox_entry
  * - #enbox_bind_entry
- * - enbox_enter_jail()
- * - [mount(2)]
- * - [mount_namespaces(7)]
- *
- * @ingroup instance
- *
- * [mount(2)]: https://man7.org/linux/man-pages/man2/mount.2.html
- * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
+ * - enbox_prep_proc()
+ * - @man{mount(2)}
+ * - @man{mount_namespaces(7)}
  */
 struct enbox_mount_entry {
 	/**
-	 * Mounting flags passed as 4th argument to [mount(2)]
+	 * Mounting flags passed as 4th argument to @man{mount(2)}
 	 * (https://man7.org/linux/man-pages/man2/mount.2.html) when mounting
 	 * filesystem.
 	 *
@@ -1344,8 +1092,7 @@ struct enbox_mount_entry {
 	 */
 	unsigned long flags;
 	/**
-	 * Mounting options passed as 5th argument to
-	 * [mount(2)](https://man7.org/linux/man-pages/man2/mount.2.html) when
+	 * Mounting options passed as 5th argument to @man{mount(2)} when
 	 * mounting filesystem.
 	 *
 	 * This is a string of comma-separated options specific to the type of
@@ -1358,20 +1105,20 @@ struct enbox_mount_entry {
  * Bind mount entry descriptor.
  *
  * Depicts how to bind mount a file or a filesystem (sub-)tree when populating
- * jail filesystem using enbox_enter_jail(). See section «Bind mounts» of
- * [mount(8)] and section «Creating a bind mount» of [mount(2)] for more
+ * jail filesystem using enbox_prep_proc(). See section «Bind mounts» of
+ * @man{mount(8)} and section «Creating a bind mount» of @man{mount(2)} for more
  * informations about what a bind mount is.
  *
  * The bind mount will be performed from within the jail's own mount namespace
  * using unbindable propagation properties (see «SHARED SUBTREE» section of
- * [mount_namespaces(7)]).
+ * @man{mount_namespaces(7)}).
  * Mount point directory will be implicitly created if not existing with
  * permissions, ownership and membership inherited from the source filesystem
  * mount point entry.
  *
  * Embedded within a #enbox_entry structure and used in combination with
  * #ENBOX_FILE_ENTRY_TYPE or #ENBOX_TREE_ENTRY_TYPE identifiers to instruct
- * enbox_enter_jail() to create file or (sub-)tree bind mount mount entry
+ * enbox_prep_proc() to create file or (sub-)tree bind mount mount entry
  * respectively.
  *
  * @warning Do not use if you want to initially mount a filesystem, use
@@ -1383,21 +1130,15 @@ struct enbox_mount_entry {
  * - #ENBOX_TREE_ENTRY_TYPE
  * - #enbox_entry
  * - #enbox_bind_entry
- * - enbox_enter_jail()
- * - [mount(2)]
- * - [mount_namespaces(7)]
- *
- * @ingroup instance
- *
- * [mount(2)]: https://man7.org/linux/man-pages/man2/mount.2.html
- * [mount(8)]: https://man7.org/linux/man-pages/man8/mount.8.html
- * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
+ * - enbox_prep_proc()
+ * - @man{mount(2)}
+ * - @man{mount_namespaces(7)}
  */
 struct enbox_bind_entry {
 	/** Pathname to source filesystem entry to bind mount. */
 	const char *  orig;
 	/**
-	 * Mounting flags passed as 4th argument to [mount(2)]
+	 * Mounting flags passed as 4th argument to @man{mount(2)}
 	 * (https://man7.org/linux/man-pages/man2/mount.2.html) when bind
 	 * mounting a file or a filesystem (sub-)tree.
 	 *
@@ -1437,9 +1178,8 @@ struct enbox_bind_entry {
 	 */
 	unsigned long flags;
 	/**
-	 * Mounting options passed as 5th argument to
-	 * [mount(2)](https://man7.org/linux/man-pages/man2/mount.2.html) when
-	 * bind mounting a file or a filesystem (sub-)tree.
+	 * Mounting options passed as 5th argument to @man{mount(2)} when bind
+	 * mounting a file or a filesystem (sub-)tree.
 	 *
 	 * This is a string of comma-separated options specific to the type of
 	 * the mounted source filesystem.
@@ -1452,21 +1192,17 @@ struct enbox_bind_entry {
  *
  * This depicts how to ensure the filesystem entry identified by @p path is
  * properly created when:
- * - populating jail filesystem using enbox_enter_jail(),
+ * - populating jail filesystem using enbox_prep_proc(),
  * - or populating host filesystem using enbox_populate_host().
  *
  * @note Populating jail's filesystem(s) will be performed from within the
  *       jail's own mount namespace using unbindable propagation properties (see
- *       «SHARED SUBTREE» section of [mount_namespaces(7)]).
+ *       «SHARED SUBTREE» section of @man{mount_namespaces(7)}).
  *
  * @see
  * - enbox_populate_host()
- * - enbox_enter_jail()
- * - [mount_namespaces(7)]
- *
- * @ingroup instance
- *
- * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
+ * - enbox_prep_proc()
+ * - @man{mount_namespaces(7)}
  */
 struct enbox_entry {
 	/**
@@ -1531,22 +1267,18 @@ struct enbox_entry {
  *
  * Aggregate multiple #enbox_entry filesystem entry descriptors. This is used
  * to ensure that the contained filesystem entries are properly created when:
- * - populating jail filesystem using enbox_enter_jail(),
+ * - populating jail filesystem using enbox_prep_proc(),
  * - or populating host filesystem using enbox_populate_host().
  *
  * @note Populating jail's filesystem(s) will be performed from within the
  *       jail's own mount namespace using unbindable propagation properties (see
- *       «SHARED SUBTREE» section of [mount_namespaces(7)]).
+ *       «SHARED SUBTREE» section of @man{mount_namespaces(7)}).
  *
  * @see
  * - #enbox_entry
  * - enbox_populate_host()
- * - enbox_enter_jail()
- * - [mount_namespaces(7)]
- *
- * @ingroup instance
- *
- * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
+ * - enbox_prep_proc()
+ * - @man{mount_namespaces(7)}
  */
 struct enbox_fsset {
 	/**
@@ -1569,7 +1301,7 @@ struct enbox_fsset {
  *
  * @note Populating jail's filesystem(s) will be performed from within the
  *       jail's own mount namespace using unbindable propagation properties (see
- *       «SHARED SUBTREE» section of [mount_namespaces(7)]).
+ *       «SHARED SUBTREE» section of @man{mount_namespaces(7)}).
  *
  * @param[in] fsset Set of filesystem entries to create
  *
@@ -1578,16 +1310,11 @@ struct enbox_fsset {
  * @see
  * - #enbox_entry
  * - enbox_populate_host()
- * - enbox_enter_jail()
- * - [mount_namespaces(7)]
- *
- * @ingroup instance
- *
- * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
+ * - @man{mount_namespaces(7)}
  */
 extern int
 enbox_populate_host(const struct enbox_fsset * __restrict fsset)
-	__enbox_nonull(1);
+	__enbox_nonull(1) __warn_result;
 
 /**
  * @struct enbox_ids
@@ -1601,15 +1328,10 @@ enbox_populate_host(const struct enbox_fsset * __restrict fsset)
  * @see
  * - enbox_load_ids_byid()
  * - enbox_load_ids_byname()
- * - enbox_enter_jail()
+ * - enbox_prep_proc()
  * - enbox_run_cmd()
- * - [getpwent(3)]
- * - [credentials(7)]
- *
- * @ingroup instance
- *
- * [getpwent(3)]:     https://man7.org/linux/man-pages/man3/getpwent.3.html
- * [credentials(7)]:  https://man7.org/linux/man-pages/man7/credentials.7.html
+ * - @man{getpwent(3)}
+ * - @man{credentials(7)}
  */
 struct enbox_ids {
 	/**
@@ -1631,8 +1353,8 @@ struct enbox_ids {
  *
  * Given the UID @p id argument, load the related ownership and group membership
  * informations and store them into @p ids. It may then be used as input to
- * enbox_enter_jail() and / or enbox_run_cmd() to switch to the stored user and
- * group(s).
+ * enbox_prep_proc(), enbox_change_proc_ids(), enbox_run_proc_cmd() or
+ * enbox_change_ids() to switch to the stored user and group(s).
  *
  * Depending on @p drop_supp argument, group membership informations will be set
  * to the following :
@@ -1649,30 +1371,28 @@ struct enbox_ids {
  * @see
  * - #ENBOX_DROP_SUPP_GROUPS
  * - #ENBOX_RAISE_SUPP_GROUPS
- * - enbox_enter_jail()
- * - enbox_run_cmd()
- * - enbox_change_ids()
  * - enbox_load_ids_byname()
- * - [getpwent(3)]
- * - [credentials(7)]
- *
- * @ingroup instance
- *
- * [getpwent(3)]:     https://man7.org/linux/man-pages/man2/getpwent.3.html
- * [credentials(7)]:  https://man7.org/linux/man-pages/man7/credentials.7.html
+ * - #enbox_proc::ids
+ * - enbox_prep_proc()
+ * - enbox_run_proc_cmd()
+ * - enbox_change_proc_ids()
+ * - enbox_change_ids()
+ * - @man{getpwent(3)}
+ * - @man{credentials(7)}
  */
 extern int
 enbox_load_ids_byid(struct enbox_ids * __restrict ids,
                     uid_t                         id,
-                    bool                          drop_supp) __enbox_nonull(1);
+                    bool                          drop_supp)
+	__enbox_nonull(1) __warn_result;
 
 /**
  * Load user and group membership identifiers by user name.
  *
  * Given the user name @p name argument, load the related ownership and group
  * membership informations and store them into @p ids. It may then be used as
- * input to enbox_enter_jail() and / or enbox_run_cmd() to switch to the stored
- * user and group(s).
+ * input to enbox_prep_proc(), enbox_change_proc_ids(), enbox_run_proc_cmd() or
+ * enbox_change_ids() to switch to the stored user and group(s).
  *
  * Depending on @p drop_supp argument, group membership informations will be set
  * to the following :
@@ -1689,147 +1409,20 @@ enbox_load_ids_byid(struct enbox_ids * __restrict ids,
  * @see
  * - #ENBOX_DROP_SUPP_GROUPS
  * - #ENBOX_RAISE_SUPP_GROUPS
- * - enbox_enter_jail()
- * - enbox_run_cmd()
- * - enbox_change_ids()
  * - enbox_load_ids_byid()
- * - [getpwent(3)]
- * - [credentials(7)]
- *
- * @ingroup instance
- *
- * [getpwent(3)]:     https://man7.org/linux/man-pages/man2/getpwent.3.html
- * [credentials(7)]:  https://man7.org/linux/man-pages/man7/credentials.7.html
+ * - #enbox_proc::ids
+ * - enbox_prep_proc()
+ * - enbox_run_proc_cmd()
+ * - enbox_change_proc_ids()
+ * - enbox_change_ids()
+ * - @man{getpwent(3)}
+ * - @man{credentials(7)}
  */
 extern int
 enbox_load_ids_byname(struct enbox_ids * __restrict ids,
                       const char * __restrict       user,
                       bool                          drop_supp)
-	__enbox_nonull(1, 2);
-
-/**
- * Command descriptor.
- *
- * This structure holds properties used to setup runtime context of an
- * optional [execve(2)]'ed program given to enbox_run_cmd().
- *
- * @see
- * - enbox_run_cmd()
- * - enbox_enter_jail()
- * - enbox_populate_host()
- *
- * @ingroup instance
- */
-struct enbox_cmd {
-	/**
-	 * File creation mode mask of current process.
-	 *
-	 * @see [umask(2)](https://man7.org/linux/man-pages/man2/umask.2.html)
-	 */
-	mode_t               umask;
-	/**
-	 * Optional pointer to a structure holding user and group membership
-	 * identifiers to change to for current process.
-	 *
-	 * @see
-	 * - enbox_load_ids_byid()
-	 * - enbox_load_ids_byname()
-	 * - [credentials(7)](https://man7.org/linux/man-pages/man7/credentials.7.html)
-	 */
-	struct enbox_ids *   ids;
-	/**
-	 * Optional mask of system capabilities enabled for current process.
-	 *
-	 * @see [capabilities(7)](https://man7.org/linux/man-pages/man7/capabilities.7.html)
-	 */
-	uint64_t             caps;
-	/**
-	 * Optional current working directory of current process.
-	 *
-	 * @see [chdir(2)](https://man7.org/linux/man-pages/man2/chdir.2.html)
-	 */
-	const char *         cwd;
-	/**
-	 * An optional array of arguments used to execute a program by current
-	 * process.
-	 *
-	 * First array entry will be passed to [execve(2)] as first argument.
-	 * The whole array will be passed to [execve(2)] as second argument.
-	 * This array must be `NULL` terminated.
-	 *
-	 * Command will be executed with an empty environment.
-	 *
-	 * @warning The maximum number of array entries is restricted to 1024
-	 *          excluding the terminating `NULL` entry.
-	 *
-	 * @see [execve(2)]
-	 *
-	 * [execve(2)]: https://man7.org/linux/man-pages/man2/execve.2.html
-	 */
-	const char * const * exec;
-};
-
-/**
- * Run a command.
- *
- * Setup runtime context for further program execution and optionally
- * [execve(2)] a program according to properties stored into @p cmd argument.
- *
- * enbox_run_cmd() carries out the following sequence of actions:
- * 1. setup current process file creation mode mask according to
- *    #enbox_cmd::umask value ;
- * 2. optionally change to directory pointed to by #enbox_cmd::cwd if not
- *    `NULL`;
- * 3. change current process's real, effective and saved user ID and setup
- *    current process's list of supplementary group IDs according to
- *    #enbox_cmd::ids content if present ;
- * 4. adjust [capabilities(7)] according to #enbox_cmd::caps ;
- * 5. finally call [execve(2)] using arguments found into #enbox_cmd::exec
- *    array.
- *
- * See #enbox_cmd for further details about properties used to setup
- * runtime context and optional program of current process.
- *
- * enbox_populate_host() and / or enbox_enter_jail() may be called prior to
- * enbox_run_cmd() to setup the «host» mount namespace or the jail container
- * respectively.
- *
- * @warning
- * Should an error occur, current program state will be left as-is, i.e. in an
- * unpredictable state. Caller should exit(3) as soon as possible.
- *
- * @param[in] cmd Properties used to [execve(2)] this command
- *
- * @return 0 if successful, an errno-like error code otherwise.
- *
- * @see
- * - #enbox_cmd
- * - enbox_set_umask()
- * - enbox_load_ids_byid()
- * - enbox_load_ids_byname()
- * - enbox_change_ids()
- * - enbox_populate_host()
- * - enbox_enter_jail()
- * - [execve(2)]
- * - [chdir(2)]
- * - [umask(2)]
- * - [capabilities(7)]
- * - [credentials(7)]
- * - [exit(3)]
- *
- * @ingroup instance
- *
- * [execve(2)]:       https://man7.org/linux/man-pages/man2/execve.2.html
- * [chdir(2)]:        https://man7.org/linux/man-pages/man2/chdir.2.html
- * [umask(2)]:        https://man7.org/linux/man-pages/man2/umask.2.html
- * [exit(3)]:         https://man7.org/linux/man-pages/man3/exit.3.html
- * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
- * [credentials(7)]:  https://man7.org/linux/man-pages/man7/credentials.7.html
- */
-extern int
-enbox_run_cmd(const struct enbox_cmd * __restrict cmd)
-	__enbox_nonull(1) __enbox_nothrow;
-
+	__enbox_nonull(1, 2) __warn_result;
 
 /**
  * Default list of new namespaces a jail is made a member of.
@@ -1843,12 +1436,8 @@ enbox_run_cmd(const struct enbox_cmd * __restrict cmd)
  *
  * @see
  * - #enbox_jail::namespaces
- * - enbox_enter_jail()
- * - [mount_namespaces(7)]
- *
- * @ingroup instance
- *
- * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
+ * - enbox_prep_proc()
+ * - @man{mount_namespaces(7)}
  */
 #define ENBOX_NAMESPACE_FLAGS \
 	(CLONE_NEWNS | \
@@ -1861,23 +1450,22 @@ enbox_run_cmd(const struct enbox_cmd * __restrict cmd)
  * Jail descriptor.
  *
  * This structure holds properties used to create a jail using
- * enbox_enter_jail().
+ * enbox_prep_proc().
  *
- * @note Populating jail's filesystem(s) will be performed from within the
- *       jail's own mount namespace using unbindable propagation properties (see
- *       «SHARED SUBTREE» section of [mount_namespaces(7)]).
+ * @note
+ * Populating jail's filesystem(s) will be performed from within the jail's own
+ * mount namespace using unbindable propagation properties (see «SHARED SUBTREE»
+ * section of @man{mount_namespaces(7)}).
  *
- * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
- *
- * @see enbox_enter_jail()
- *
- * @ingroup instance
+ * @see enbox_prep_proc()
  */
 struct enbox_jail {
 	/**
-	 * List of namespaces this jail will be a member of.
+	 * List of @rstsubst{namespaces} this jail will be a member of.
 	 *
-	 * @see #ENBOX_NAMESPACE_FLAGS
+	 * @see
+	 * - #ENBOX_NAMESPACE_FLAGS
+	 * - @man{namespaces(7)}
 	 */
 	int                namespaces;
 	/**
@@ -1892,30 +1480,116 @@ struct enbox_jail {
 };
 
 /**
- * Create and enter a jailed runtime context.
+ * Process context descriptor.
  *
- * Allows to create and enter a jail. This jail may be used to further
- * [execve(2)] a program from within a runtime context isolated from the main
- * system-wide runtime using enbox_run_cmd().
- * Jail will be created according to properties passed as @p jail argument.
- * In addition, @p cmd argument must point to a command descriptor and should be
- * passed to the next enbox_run_cmd() call if needed.
+ * This structure holds properties used to prepare runtime context for further
+ * secure operations such as enbox_run_proc_cmd() or enbox_change_proc_ids().
  *
- * enbox_enter_jail() carries out the following sequence of actions:
- * 1. clear the whole environment using [clearenv(3)] ;
- * 2. lock capability sets using enbox_lock_caps() ;
- * 3. clear the capability *bounding* set using enbox_clear_bounding_caps() ;
- *    note that *effective*, *permitted*, *inheritable* and *ambient* sets will
- *    be cleared at [execve(2)] time ;
- * 4. isolate from global system namespaces using [unshare(2)] and
+ * You are encouraged to use enbox_load_ids_byid() or enbox_load_ids_byname() to
+ * setup user / group @rstsubst{credentials} pointed to by the #enbox_proc::ids
+ * field of this structure.
+ *
+ * @see
+ * - enbox_prep_proc()
+ * - enbox_run_proc_cmd()
+ * - enbox_change_proc_ids()
+ * - enbox_load_ids_byid()
+ * - enbox_load_ids_byname()
+ */
+struct enbox_proc {
+	/**
+	 * File creation mode mask of current process.
+	 *
+	 * @see @man{umask(2)}
+	 */
+	mode_t               umask;
+	/**
+	 * Optional pointer to a structure holding user and group membership
+	 * identifiers to change to for current process.
+	 *
+	 * @see
+	 * - enbox_load_ids_byid()
+	 * - enbox_load_ids_byname()
+	 * - @man{credentials(7)}
+	 */
+	struct enbox_ids *   ids;
+	/**
+	 * Optional mask of system capabilities enabled for current process.
+	 *
+	 * @see @man{capabilities(7)}
+	 */
+	uint64_t             caps;
+	/**
+	 * Optional current working directory of current process.
+	 *
+	 * When unspecified, current working directory is set to the root of the
+	 * @rstsubst{jail} if any. It is left untouched otherwise.
+	 *
+	 * @see
+	 * - @man{chdir(2)}
+	 * - @man{getcwd(2)}
+	 */
+	const char *         cwd;
+	/**
+	 * Number of file descriptors to keep opened before running the final
+	 * program.
+	 *
+	 * @see #enbox_proc::fds
+	 */
+	unsigned int         fds_nr;
+	/**
+	 * Optional list of file descriptors to keep opened before running the
+	 * final program.
+	 *
+	 * @see #enbox_proc::fds_nr
+	 */
+	int *                fds;
+};
+
+/**
+ * Secure current process runtime context.
+ *
+ * Enforce system runtime properties for the current process according to the @p
+ * proc argument.
+ * Optionally, when the @p jail is given as a non `NULL' argument, current
+ * process is made to enter a @rstsubst{jail} created according to @p jail
+ * argument.
+ *
+ * When returning from this function, current process may be considered secure
+ * enough and ready to perform further call to enbox_run_proc_cmd(),
+ * enbox_change_proc_ids(), or eventually hand-crafted @man{setresuid(2)} /
+ * @man{execve(2)} to run an arbitrary program isolated from the main
+ * system-wide runtime.
+ *
+ * @note
+ * This function does not configure system @rstsubst{capabilities} at all. For
+ * additional restricted system privileges, a subsequent call to
+ * enbox_run_proc_cmd() or enbox_change_proc_ids() *should* be performed.
+ *
+ * Basically, the following sequence of actions are carried out:
+ * -# clear the whole environment using @man{clearenv(3)} ;
+ * -# if @p jail is given as a non `NULL` argument, setup and enter the jail ;
+ * -# otherwise, close all unwanted file descriptors according to
+ *    #enbox_proc::fds_nr and #enbox_proc::fds content ;
+ * -# setup the requested @man{umask(2)} attribute according to
+ *    #enbox_proc::umask ;
+ * -# change to the requested current working directory according to
+ *    #enbox_proc::cwd.
+ *
+ * Optionally, when the @p jail argument is non `NULL`, step *b.* above performs
+ * the following actions:
+ * -# isolate from global system namespaces using @man{unshare(2)} according to
  *    #enbox_jail::namespaces value;
- * 5. create jail's futur root filesystem (TMPFS) and populate it using
+ * -# populate jail's root filesystem (TMPFS) according to
  *    #enbox_jail::root_path and #enbox_jail::fsset content;
- * 6. switch the new jail's root filesystem.
+ * -# close all unwanted file descriptors according to #enbox_proc::fds_nr and
+ *    #enbox_proc::fds content ;
+ * -# @man{chroot(2)} / @man{pivot_root(2)} to the new jail's root filesystem
+ *    mounted as read-only.
  *
  * Isolation from global system resources is provided through the Linux kernel
- * [namespaces(7)] / [unshare(2)] machinery. More specifically, the following
- * types of namespaces may be created:
+ * @man{namespaces(7)} / @man{unshare(2)} machinery. More specifically, the
+ * following types of namespaces may be created:
  * - mount namespace (`CLONE_NEWNS`),
  * - cgroup namespace (`CLONE_NEWCGROUP`),
  * - UTS namespace (`CLONE_NEWUTS`),
@@ -1923,15 +1597,15 @@ struct enbox_jail {
  * - network namespace (`CLONE_NEWNET`).
  *
  * In addition, the jail will be implicitly isolated from the global system-wide
- * filesystem attributes by giving [unshare(2)] the `CLONE_FS` flag in order to
- * prevent from sharing with any other process :
- * - the root directory ([chroot(2)]),
- * - the current working directory ([chdir(2)]),
- * - and [umask(2)] attributes.
+ * filesystem attributes by giving @man{unshare(2)} the `CLONE_FS` flag in order
+ * to prevent from sharing with any other process :
+ * - the root directory (@man{chroot(2)}),
+ * - the current working directory (@man{chdir(2)}),
+ * - and @man{umask(2)} attributes.
  *
  * Finally, the jail will be implicitly isolated from the global system-wide
- * System V semaphore adjustment values by giving [unshare(2)] the
- * `CLONE_SYSVSEM` flag (see [semop(2)]).
+ * System V semaphore adjustment values by giving @man{unshare(2)} the
+ * `CLONE_SYSVSEM` flag (see @man{semop(2)}).
  *
  * @warning
  * Should an error occur, current program state will be left as-is, i.e. in an
@@ -1939,7 +1613,7 @@ struct enbox_jail {
  *
  * @note
  * Enbox is meant to run onto embedded systems, i.e., from within a controlled
- * software runtime. That is the reason why Enbox is a [execve(2)] based
+ * software runtime. That is the reason why Enbox is a @man{execve(2)} based
  * containment system to keep things simple. As a consequence, this comes with a
  * few limitations with respect to namespace isolation handling:
  * 1. don't support CLONE_NEWPID since we don't want to handle fork / init
@@ -1952,53 +1626,123 @@ struct enbox_jail {
  *    we may however need to investigate possible implications related to kernel
  *    keyrings isolation...
  *
+ * @param[in] proc Process runtime properties to enforce
  * @param[in] jail Properties of jail to create
- * @param[in] cmd  Command descriptor used to prepare the jail for
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
- * - enbox_run_cmd()
- * - enbox_lock_caps()
- * - enbox_clear_bounding_caps()
- * - [clearenv(3)]
- * - [namespaces(7)]
- * - [unshare(2)]
- * - [execve(2)]
- * - [chroot(2)]
- * - [pivot_root(2)]
- * - [chdir(2)]
- * - [umask(2)]
- * - [semop(2)]
- *
- * @ingroup instance
- *
- * [clearenv(3)]:   https://man7.org/linux/man-pages/man3/clearenv.3.html
- * [namespaces(7)]: https://man7.org/linux/man-pages/man7/namespaces.7.html
- * [unshare(2)]:    https://man7.org/linux/man-pages/man2/unshare.2.html
- * [execve(2)]:     https://man7.org/linux/man-pages/man2/execve.2.html
- * [chroot(2)]:     https://man7.org/linux/man-pages/man2/chroot.2.html
- * [pivot_root(2)]: https://man7.org/linux/man-pages/man2/pivot_root.2.html
- * [chdir(2)]:      https://man7.org/linux/man-pages/man2/chdir.2.html
- * [umask(2)]:      https://man7.org/linux/man-pages/man2/umask.2.html
- * [semop(2)]:      https://man7.org/linux/man-pages/man2/semop.2.html
- * [exit(3)]:       https://man7.org/linux/man-pages/man3/exit.3.html
+ * - enbox_run_proc_cmd()
+ * - enbox_change_proc_ids()
+ * - @man{clearenv(3)}
+ * - @man{namespaces(7)}
+ * - @man{unshare(2)}
+ * - @man{execve(2)}
+ * - @man{chroot(2)}
+ * - @man{pivot_root(2)}
+ * - @man{chdir(2)}
+ * - @man{umask(2)}
+ * - @man{semop(2)}
  */
 extern int
-enbox_enter_jail(const struct enbox_jail * __restrict jail,
-                 const struct enbox_cmd * __restrict  cmd)
-	__enbox_nonull(1, 2) __enbox_nothrow;
+enbox_prep_proc(const struct enbox_proc * __restrict proc,
+                const struct enbox_jail * __restrict jail)
+	__enbox_nonull(1) __warn_result;
 
 /**
- * @defgroup conf Configuration
+ * Change user / group IDs according to a process runtime context.
  *
- * This involves the following sequence of operations :
- * -# initialize Enbox library using enbox_setup(),
- * -# load and parse an Enbox configuration from the content of a file using
- *  enbox_create_conf_from_file(),
- * -# apply and execute the configuration loaded above using enbox_run_conf().
+ * Perform a change of user / group @rstsubst{credentials} for the current
+ * process according to the @p proc argument.
+ * This function is typically called after enbox_prep_proc() to complete the
+ * process of securing the current runtime context for further operations.
  *
+ * The @p proc argument *should* have been previously given to enbox_prep_proc()
+ * and is used to perform the user / group IDs change for the current process
+ * according to the #enbox_proc::ids field.
+ *
+ * Basically, this function performs the following:
+ * * configures system @rstsubst{capabilities} to further restrict system
+ *   privileges according to #enbox_proc::caps content ;
+ * * optionally switch to user / group IDs according to #enbox_proc::ids.
+ *
+ * When returning from this function, current process may be considered ready to
+ * perform operations on a completly secure and isolated basis.
+ *
+ * @warning
+ * Should an error occur, current program state will be left as-is, i.e. in an
+ * unpredictable state. Caller should exit(3) as soon as possible.
+ *
+ * @param[in] proc Process runtime properties to enforce
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - enbox_run_proc_cmd()
+ * - enbox_prep_proc()
+ * - @man{capabilities(7)}
+ * - @man{setresuid(2)}
  */
+extern int
+enbox_change_proc_ids(const struct enbox_proc * __restrict proc)
+	__enbox_nonull(1) __warn_result;
+
+/**
+ * Change user / group IDs and execute arbitrary program according to a process
+ * runtime context.
+ *
+ * Perform an optional change of user / group @rstsubst{credentials} for the
+ * current process according to the @p proc argument, then @man{exeve(2)} the
+ * program given as @p cmd argument.
+ * This function is typically called after enbox_prep_proc() to complete the
+ * process of securing the current runtime context in order to run the program
+ * given as argument.
+ *
+ * The @p proc argument *should* have been previously given to enbox_prep_proc()
+ * and is used to perform a change of user / group @rstsubst{credentials} for
+ * the current process according to the #enbox_proc::ids field.
+ *
+ * @p cmd is an array of arguments that specifies the program to be executed by
+ * the current process.
+ * First @p cmd array entry will be passed to @man{execve(2)} as first argument.
+ * The whole array will be passed to @man{execve(2)} as second argument.
+ * This array must be `NULL` terminated.
+ *
+ * This function basically performs the following operations:
+ * - optionally change user / group IDs according to #enbox_proc::ids if
+ *   present ;
+ * - restrict system @man{capabilities(7)} according to #enbox_proc::caps ;
+ * - and finally @man{exeve(2)} the program passed as @p cmd.
+ *
+ * See #enbox_proc for further details about properties used to setup
+ * runtime context and optional program of current process.
+ *
+ * @warning
+ * - The maximum number of @p cmd array entries is restricted to 1024 excluding
+ *   the terminating `NULL` entry.
+ * - Should an error occur, current program state will be left as-is, i.e. in an
+ *   unpredictable state. Caller should exit(3) as soon as possible.
+ *
+ * @param[in] proc Process runtime properties to enforce
+ * @param[in] cmd  Program and arguments used to @man{execve(2)} this command
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - #enbox_proc
+ * - enbox_prep_proc()
+ * - enbox_change_proc_ids()
+ * - enbox_change_idsn_execve()
+ * - @man{setresuid(2)}
+ * - @man{execve(2)}
+ * - @man{exit(3)}
+ * - @man{capabilities(7)}
+ * - @man{credentials(7)}
+ */
+extern int
+enbox_run_proc_cmd(const struct enbox_proc * __restrict proc,
+                   const char * const                   cmd[__restrict_arr])
+	__enbox_nonull(1, 2) __warn_result;
 
 /**
  * @struct enbox_conf
@@ -2011,8 +1755,6 @@ enbox_enter_jail(const struct enbox_jail * __restrict jail,
  * - enbox_create_conf_from_file()
  * - enbox_run_conf()
  * - enbox_destroy_conf()
- *
- * @ingroup conf
  */
 struct enbox_conf;
 
@@ -2024,12 +1766,12 @@ struct enbox_conf;
  *
  * @warning
  * Should an error occur, current program state will be left as-is, i.e. in an
- * unpredictable state. Caller should call [exit(3)] as soon as possible.
+ * unpredictable state. Caller should call @man{exit(3)} as soon as possible.
  *
  * @note
  * In case of error, for debugging purpose and to ensure all resources allocated
  * by enbox_create_conf_from_file() are properly released, caller may
- * additionally call enbox_destroy_conf() prior to running [exit(3)].
+ * additionally call enbox_destroy_conf() prior to running @man{exit(3)}.
  *
  * @param[in] conf Pointer to configuration to apply
  *
@@ -2039,14 +1781,11 @@ struct enbox_conf;
  * - #enbox_conf
  * - enbox_create_conf_from_file()
  * - enbox_destroy_conf()
- * - [exit(3)]
- *
- * @ingroup conf
- *
- * [exit(3)]: https://man7.org/linux/man-pages/man3/exit.3.html
+ * - @man{exit(3)}
  */
 extern int
-enbox_run_conf(const struct enbox_conf * __restrict conf) __enbox_nonull(1);
+enbox_run_conf(const struct enbox_conf * __restrict conf)
+	__enbox_nonull(1) __warn_result;
 
 /**
  * Load and instantiate an Enbox configuration from file content.
@@ -2055,10 +1794,11 @@ enbox_run_conf(const struct enbox_conf * __restrict conf) __enbox_nonull(1);
  * pointer to an allocated Enbox configuration which may be later given to
  * enbox_run_conf() to apply the loaded configuration.
  *
- * File content syntax is detailed into FINISH ME!!
+ * Refer to @rstsubst{configuration} section for detailed informations about
+ * configuration file syntax.
  *
  * Resources allocated for the instantiated Enbox configuration should be
- * released using enbox_destroy_conf() and / or [exit(3)].
+ * released using enbox_destroy_conf() and / or @man{exit(3)}.
  *
  * @param[in] path Pathname to configuration file
  *
@@ -2069,14 +1809,11 @@ enbox_run_conf(const struct enbox_conf * __restrict conf) __enbox_nonull(1);
  * - #enbox_conf
  * - enbox_run_conf()
  * - enbox_destroy_conf()
- * - [exit(3)]
- *
- * @ingroup conf
- *
- * [exit(3)]: https://man7.org/linux/man-pages/man3/exit.3.html
+ * - @man{exit(3)}
  */
 extern struct enbox_conf *
-enbox_create_conf_from_file(const char * __restrict path) __enbox_nonull(1);
+enbox_create_conf_from_file(const char * __restrict path)
+	__enbox_nonull(1) __warn_result;
 
 /**
  * Release configuration resources.
@@ -2085,7 +1822,7 @@ enbox_create_conf_from_file(const char * __restrict path) __enbox_nonull(1);
  * enbox_create_conf_from_file().
  *
  * @note
- * May safely be called just before [exit(3)] in case a previous call to
+ * May safely be called just before @man{exit(3)} in case a previous call to
  * enbox_run_conf() has failed.
  *
  * @param[in] conf Pointer to configuration to destroy.
@@ -2094,20 +1831,10 @@ enbox_create_conf_from_file(const char * __restrict path) __enbox_nonull(1);
  * - #enbox_conf
  * - enbox_create_conf_from_file()
  * - enbox_run_conf()
- * - [exit(3)]
- *
- * @ingroup conf
- *
- * [exit(3)]: https://man7.org/linux/man-pages/man3/exit.3.html
+ * - @man{exit(3)}
  */
 void
 enbox_destroy_conf(struct enbox_conf * __restrict conf) __enbox_nonull(1);
-
-/**
- * @defgroup init Initialization
- *
- * This module gather all definitions required to initialize the Enbox library.
- */
 
 struct elog;
 
@@ -2125,8 +1852,6 @@ struct elog;
  * MUST be called prior to every other Enbox library function calls.
  *
  * @param[in] logger an optional initialized Elog logger instance.
- *
- * @ingroup init
  */
 extern void
 enbox_setup(struct elog * __restrict logger)

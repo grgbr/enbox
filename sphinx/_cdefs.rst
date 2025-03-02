@@ -1,3 +1,8 @@
+.. SPDX-License-Identifier: GPL-3.0-only
+   
+   This file is part of Enbox.
+   Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
+
 ..
    Replacement macros to reference libconfig types.
    
@@ -10,11 +15,12 @@
 ..
    Replacement macros to reference terminology and definitions
 
-.. |credentials|  replace:: :ref:`credentials <sect-main-credentials>`
-.. |host|         replace:: :ref:`host <sect-main-host>`
-.. |jail|         replace:: :ref:`jail <sect-main-jail>`
-.. |namespaces|   replace:: :ref:`namespaces <sect-main-namespaces>`
-.. |capabilities| replace:: :ref:`capabilities <sect-main-capabilities>`
+.. |credentials|   replace:: :ref:`credentials <sect-main-credentials>`
+.. |host|          replace:: :ref:`host <sect-main-host>`
+.. |jail|          replace:: :ref:`jail <sect-main-jail>`
+.. |namespaces|    replace:: :ref:`namespaces <sect-main-namespaces>`
+.. |capabilities|  replace:: :ref:`capabilities <sect-main-capabilities>`
+.. |configuration| replace:: :ref:`capabilities <sect-main-configuration>`
 
 
 ..
@@ -91,6 +97,7 @@
 .. _breathe:             https://github.com/michaeljones/breathe/
 .. _gcc:                 https://gcc.gnu.org/
 .. _enbox:               https://github.com/grgbr/enbox/
+.. _no_new_privs:        https://docs.kernel.org/userspace-api/no_new_privs.html
 
 
 ..

@@ -1,3 +1,10 @@
+/******************************************************************************
+ * SPDX-License-Identifier: LGPL-3.0-only
+ *
+ * This file is part of Enbox.
+ * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
+ ******************************************************************************/
+
 #ifndef _ENBOX_COMMON_H
 #define _ENBOX_COMMON_H
 
@@ -9,6 +16,7 @@
 #include <stroll/cdefs.h>
 #include <elog/elog.h>
 #include <libconfig.h>
+#include <sys/mount.h>
 #include <linux/sched.h>
 
 #define ENBOX_MAKE_LIBCONFIG_VERS(_maj, _min, _rev) \
@@ -88,15 +96,7 @@ extern const struct enbox_flag_desc enbox_namespace_descs[];
 
 extern int
 enbox_validate_mount_time_flags(unsigned long flags)
-	__enbox_const __enbox_nothrow __leaf __export_intern;
-
-#define enbox_assert_jail(_jail) \
-	enbox_assert(_jail); \
-	enbox_assert((_jail)->namespaces); \
-	enbox_assert(!((_jail)->namespaces & ~ENBOX_VALID_NAMESPACE_FLAGS)); \
-	enbox_assert(upath_validate_path_name((_jail)->root_path) > 0); \
-	enbox_assert((_jail)->fsset.nr); \
-	enbox_assert((_jail)->fsset.entries)
+	__enbox_const __enbox_nothrow __leaf __warn_result __export_intern;
 
 #define ENBOX_VALID_NAMESPACE_FLAGS \
 	(CLONE_NEWNS | \
@@ -154,10 +154,49 @@ extern struct elog * enbox_logger;
 
 #endif /* defined(CONFIG_ENBOX_VERBOSE) */
 
+#define enbox_assert_fsset(_fsset) \
+	enbox_assert(_fsset); \
+	enbox_assert((_fsset)->nr); \
+	enbox_assert((_fsset)->entries); \
+
+#define enbox_assert_jail(_jail) \
+	enbox_assert(_jail); \
+	enbox_assert(!((_jail)->namespaces & ~ENBOX_VALID_NAMESPACE_FLAGS)); \
+	enbox_assert(upath_validate_path_name((_jail)->root_path) > 0); \
+	enbox_assert_fsset(&(_jail)->fsset)
+
+#define enbox_assert_proc(_proc) \
+	enbox_assert(_proc); \
+	enbox_assert(!((_proc)->umask & ~((mode_t)ALLPERMS))); \
+	enbox_assert(!(_proc)->ids || \
+	             !enbox_validate_pwd((_proc)->ids->pwd, true)); \
+	enbox_assert(!((_proc)->caps & \
+	               ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1))); \
+	enbox_assert(!(_proc)->cwd || \
+	             (upath_validate_path_name((_proc)->cwd) > 0)); \
+	enbox_assert(!(_proc)->fds_nr || (_proc)->fds)
+
+#define enbox_assert_cmd(_cmd) \
+	enbox_assert(!enbox_validate_exec(_cmd))
+
+#define enbox_assert_conf(_conf) \
+	enbox_assert(_conf); \
+	enbox_assert(!(_conf)->jail || (_conf)->proc); \
+	enbox_assert(!(_conf)->cmd || (_conf)->proc); \
+	enbox_assert(!(_conf)->host || \
+	             ({ enbox_assert_fsset((_conf)->host); true; })); \
+	enbox_assert(!(_conf)->jail || \
+	             ({ enbox_assert_jail((_conf)->jail); true; })); \
+	enbox_assert(!(_conf)->proc || \
+	             ({ enbox_assert_proc((_conf)->proc); true; })); \
+	enbox_assert(!(_conf)->cmd || \
+	             ({ enbox_assert_cmd((_conf)->cmd); true; }))
+
 struct enbox_conf {
 	struct enbox_fsset * host;
 	struct enbox_jail *  jail;
-	struct enbox_cmd *   cmd;
+	struct enbox_proc *  proc;
+        const char **        cmd;
 	config_t             lib;
 };
 
