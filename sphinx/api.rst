@@ -499,11 +499,6 @@ enbox_ensure_safe()
 
 .. doxygenfunction:: enbox_ensure_safe
 
-enbox_enter_jail()
-******************
-
-.. doxygenfunction:: enbox_enter_jail
-
 enbox_execve()
 **************
 
