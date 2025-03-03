@@ -16,7 +16,6 @@
 #include <stroll/cdefs.h>
 #include <elog/elog.h>
 #include <libconfig.h>
-#include <sys/mount.h>
 #include <linux/sched.h>
 
 #define ENBOX_MAKE_LIBCONFIG_VERS(_maj, _min, _rev) \
@@ -157,13 +156,14 @@ extern struct elog * enbox_logger;
 #define enbox_assert_fsset(_fsset) \
 	enbox_assert(_fsset); \
 	enbox_assert((_fsset)->nr); \
-	enbox_assert((_fsset)->entries); \
+	enbox_assert((_fsset)->entries)
 
 #define enbox_assert_jail(_jail) \
 	enbox_assert(_jail); \
 	enbox_assert(!((_jail)->namespaces & ~ENBOX_VALID_NAMESPACE_FLAGS)); \
 	enbox_assert(upath_validate_path_name((_jail)->root_path) > 0); \
-	enbox_assert_fsset(&(_jail)->fsset)
+	enbox_assert(!(_jail)->fsset.nr || \
+	             ({ enbox_assert_fsset(&(_jail)->fsset); true; }))
 
 #define enbox_assert_proc(_proc) \
 	enbox_assert(_proc); \

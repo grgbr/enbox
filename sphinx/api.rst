@@ -36,7 +36,9 @@ may eventually refer to the corresponding C macros listed below:
 * :c:macro:`CONFIG_ENBOX_INCLUDE_DIR`
 * :c:macro:`CONFIG_ENBOX_DISABLE_DUMP`
 * :c:macro:`CONFIG_ENBOX_TOOL`
-* :c:macro:`CONFIG_ENBOX_STDLOG_SEVERITY`
+* :c:macro:`CONFIG_ENBOX_TOOL_LOG_SEVERITY`
+* :c:macro:`CONFIG_ENBOX_TOOL_LOG_FACILITY`
+* :c:macro:`CONFIG_ENBOX_TOOL_MQLOG_NAME`
 * :c:macro:`CONFIG_ENBOX_TOOL_SHOW`
   
 Usage
@@ -125,8 +127,9 @@ Support for the following tasks is implemented :
 
 * :ref:`sect-populate_host_fs`,
 * :ref:`sect-usr_grp_ids`,
+* :ref:`sect-setup_proc`,
 * :ref:`sect-spawn_jail`,
-* :ref:`sect-run_cmd`.
+* :ref:`sect-subseq_ops`.
 
 These tasks may be combined to implement multiple `Use cases`_ described below.
 
@@ -140,7 +143,7 @@ Populate host filesystem
 ------------------------
 
 A «host» filesystem hierarchy may be required to exist prior to
-:ref:`running a command <sect-run_cmd>`.
+:ref:`performing subsequent operations <sect-subseq_ops>`.
 
 The host may be populated with filesystem entries thanks to
 :c:func:`enbox_populate_host` allowing to create any arbitrary hierarchy.
@@ -157,11 +160,32 @@ to :
 
 * initialize the root filesystem of a :ref:`spawned jail <sect-spawn_jail>` ;
 * switch to user and group identifiers before
-  :ref:`running a command <sect-run_cmd>`.
+  :ref:`performing subsequent operations <sect-subseq_ops>`.
 
 :c:func:`enbox_load_ids_byid` and :c:func:`enbox_load_ids_byname` load user and
 group informations into an opaque :c:type:`enbox_ids` structure which is
 further required to achieve the 2 tasks mentioned above.
+
+.. _sect-setup_proc:
+
+Setup process
+-------------
+
+To secure further operations, Enbox_ provides the ability to restrict system
+privileges for the current process thanks to the :c:func:`enbox_prep_proc`
+function.
+
+The caller may enforce the following properties for the current process thanks
+to the :c:type:`enbox_proc` structure:
+
+* |umask|,
+* |capabilities|,
+* |cwd|,
+* and the closing of unwanted file descriptors.
+
+In addition, the :c:func:`enbox_prep_proc` function may also spawn and enter a
+|jail| to further restrict accesses of current proces to global system
+resources.
 
 .. _sect-spawn_jail:
 
@@ -175,16 +199,13 @@ global system resources in a configurable way.
 As stated into section `Overview`_, isolation implementation is based upon Linux
 |namespaces(7)| and |capabilities(7)|.
 
-The :c:func:`enbox_enter_jail` function creates a new jail and jumps into it.
-Once entered, there is no more way to escape it apart from calling |exit(2)|,
+When given a non `NULL` :c:type:`enbox_jail` argument, the
+c:func:`enbox_prep_proc` function creates a new jail and jumps into it.
+Once entered, there is no more way to escape it apart from calling |exit(3)|,
 which will implictly destroy the jail.
-All priviledges, i.e. |capabilities(7)|, inherited from parent process will be
-dropped when running the program to isolate from «host», at next call to
-|execve(2)|. See section :ref:`sect-run_cmd` for additional informations about
-running a command with Enbox_.
 
-Jail is instantiated according to properties set into a :c:type:`enbox_jail`
-structure allowing to specify among other things :
+Jail is instantiated according to properties set into the :c:type:`enbox_jail`
+structure allowing to specify :
 
 * set of new |namespaces(7)| to make the jail a member of,
 * and jail's root filesystem content.
@@ -194,26 +215,28 @@ Note that filesystem content specification mechanism provides the ability to
 mechanism. See :c:type:`enbox_bind_entry` structure for additional informations
 about this.
 
-.. _sect-run_cmd:
+.. _sect-subseq_ops:
 
-Run a command
--------------
+Subsequent operations
+---------------------
 
-Basically |execve(2)| a command under specified system user / groups
-identifiers. It also provides the ability to set additional runtime context
-properties such as process file mode creation mask, current working directory,
-program arguments, etc...
+Once the current :ref:`process privileges <sect-setup_proc>` have been
+restricted (and eventually :ref:`jailed <sect-spawn_jail>`), one can proceed to
+further operations in a secure manner thanks to one of the following functions:
 
-The :c:func:`enbox_run_cmd` function `execve(2)_` a command specified by the
-content of a :c:type:`enbox_cmd` structure.
+* :c:func:`enbox_run_proc_cmd`
+* :c:func:`enbox_change_proc_ids`.
 
-Eventually, the program will run under the system user and groups given into a
-:c:type:`enbox_ids` structure previously loaded as explained into
+If requested, :c:func:`enbox_change_proc_ids` changes current user / group IDs
+and hands back controll to the caller. :c:func:`enbox_run_proc_cmd` may in
+addition |execve(2)| an arbitrary program.
+
+When requested, subsequent operations will run under the system user and groups
+given into a :c:type:`enbox_ids` structure previously loaded as explained into
 `sect-usr_grp_ids` section.
-
-Although not mandatory, the command may optionally be executed from within a
-:ref:`jail <sect-spawn_jail>`, in which case system priviledges are dropped at
-|execve(2)| time.
+In addition, both functions drop |capabilities(7)| inherited from parent process
+according to the :c:type:`enbox_proc` structure to complete isolation from
+«host».
 
 Utilities
 =========
@@ -228,8 +251,10 @@ mentioned above. These are :
       * :c:func:`enbox_change_idsn_execve`,
       * :c:func:`enbox_execve`,
       * :c:func:`enbox_get_umask`,
+      * :c:type:`enbox_jail`,
       * :c:func:`enbox_prep_proc`,
       * :c:type:`enbox_proc`,
+      * :c:func:`enbox_run_proc_cmd`,
       * :c:func:`enbox_set_umask`,
 
    * User / group IDs :
@@ -237,12 +262,12 @@ mentioned above. These are :
       * :c:func:`enbox_change_ids`,
       * :c:func:`enbox_change_idsn_execve`,
       * :c:func:`enbox_change_proc_ids`,
-      * :c:func:`enbox_execve`,
       * :c:func:`enbox_get_uid`,
       * :c:func:`enbox_get_gid`,
+      * :c:type:`enbox_ids`,
       * :c:func:`enbox_switch_ids`,
 
-   * Privileges :
+   * Capabilities :
 
       * :c:macro:`ENBOX_CAP`,
       * :c:func:`enbox_cap`,
@@ -304,11 +329,21 @@ CONFIG_ENBOX_TOOL
 
 .. doxygendefine:: CONFIG_ENBOX_TOOL
 
-CONFIG_ENBOX_STDLOG_SEVERITY
+CONFIG_ENBOX_TOOL_LOG_FACILITY
+******************************
+
+.. doxygendefine:: CONFIG_ENBOX_TOOL_LOG_FACILITY
+
+CONFIG_ENBOX_TOOL_LOG_SEVERITY
+******************************
+
+.. doxygendefine:: CONFIG_ENBOX_TOOL_LOG_SEVERITY
+
+CONFIG_ENBOX_TOOL_MQLOG_NAME
 ****************************
 
-.. doxygendefine:: CONFIG_ENBOX_STDLOG_SEVERITY
-
+.. doxygendefine:: CONFIG_ENBOX_TOOL_MQLOG_NAME
+   
 CONFIG_ENBOX_TOOL_SHOW
 **********************
 
@@ -326,11 +361,6 @@ ENBOX_DROP_SUPP_GROUPS
 **********************
 
 .. doxygendefine:: ENBOX_DROP_SUPP_GROUPS
-
-ENBOX_ENABLE_DUMP
-*****************
-
-.. doxygendefine:: ENBOX_ENABLE_DUMP
 
 ENBOX_KEEP_GID
 **************
@@ -382,20 +412,6 @@ enbox_conf
 
 .. doxygenstruct:: enbox_conf
 
-enbox_jail
-**********
-
-.. doxygenstruct:: enbox_jail
-
-enbox_proc
-**********
-
-.. doxygenstruct:: enbox_proc
-
-.. todo::
-
-   Hide struct enbox_conf internal fields
-
 enbox_dev_entry
 ***************
 
@@ -426,6 +442,10 @@ enbox_ids
 
 .. doxygenstruct:: enbox_ids
 
+.. todo::
+
+   Hide struct enbox_conf internal fields
+
 enbox_jail
 **********
 
@@ -435,6 +455,11 @@ enbox_mount_entry
 *****************
 
 .. doxygenstruct:: enbox_mount_entry
+
+enbox_proc
+**********
+
+.. doxygenstruct:: enbox_proc
 
 enbox_slink_entry
 *****************
@@ -573,6 +598,11 @@ enbox_run_conf()
 ****************
 
 .. doxygenfunction:: enbox_run_conf
+
+enbox_run_proc_cmd
+******************
+
+.. doxygenfunction:: enbox_run_proc_cmd
 
 enbox_set_umask()
 *****************

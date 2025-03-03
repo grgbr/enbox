@@ -1040,7 +1040,7 @@ enbox_bind_file_entry(const struct enbox_entry * __restrict ent)
 	                       ent->bind.opts);
 }
 
-static __enbox_nonull(1) __enbox_nothrow __warn_result
+static __enbox_nothrow __warn_result
 int
 enbox_populate_jail(const struct enbox_entry entries[__restrict_arr],
                     unsigned int             nr)

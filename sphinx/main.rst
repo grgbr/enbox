@@ -41,7 +41,7 @@ Jail
 
 A runtime container from within which a process runs isolated from all other
 processes on the |host| machine. Once all jail'ed (possibly child) processes
-have |exit(2)|'ed, the container is destroyed and all its allocated resources
+have |exit(3)|'ed, the container is destroyed and all its allocated resources
 are released by the kernel.
 
 Enbox_ allows you to control how isolated a jail is from global system
@@ -211,6 +211,7 @@ into the `IEEE Std 1003.1`_ POSIX specification:
    are:
 
    * the *boolean* type <`BOOL <libconfig-bool_>`_>,
+   * the *integer* type <`INT <libconfig-int_>`_>,
    * the *string* type <`STRING <libconfig-string_>`_>.
 
 .. _syntax-sep:
@@ -238,14 +239,15 @@ at least one of the top-level statements according to the following syntax.
 .. parsed-literal::
    :class: highlight
 
-   <**config**> ::= [<`top-host`_>] [<`top-jail`_>] <`top-cmd`_>]
+   <**config**> ::= [<`top-host`_>] [<`top-jail`_>] [<`top-proc`_>] [<'top-cmd`_>]
 
 Each top-level statement configures a subset of the Enbox_ behavior as described
 below:
 
 * `top-host`_ statement relates to host filesystem content ;
 * `top-jail`_ statement relates to containment logic ;
-* `top-cmd`_: statement relates to program execution.
+* `top-proc`_ statement relates to process logic ;
+* `top-cmd`_ statement relates to program execution.
 
 .. rubric:: Example
 
@@ -261,10 +263,13 @@ below:
         ...
    }
 
-   # Program execution settings
-   cmd = {
+   # Process settings
+   proc = {
         ...
    }
+
+   # Command settings
+   cmd = [ ... ]
 
 Reference
 ---------
@@ -272,7 +277,7 @@ Reference
 caps-attr
 *********
 
-Within the context of a `top-cmd`_ statement, specify the list of system
+Within the context of a `top-proc`_ statement, specify the list of system
 |capabilities(7)| to run the command process with.
 
 .. rubric:: Syntax
@@ -334,7 +339,7 @@ This attribute is *optional*.
 
    # Run command process with CAP_NET_BIND_SERVICE and CAP_NET_RAW
    # capabilities(7)
-   cmd = {
+   proc = {
            ...
            caps = [ "net_bind_service", "net_raw" ]
    }
@@ -342,7 +347,7 @@ This attribute is *optional*.
 cwd-attr
 ********
 
-Within the context of a `top-cmd`_ statement, specify the |cwd| to run the
+Within the context of a `top-proc`_ statement, specify the |cwd| to run the
 command process with.
 
 .. rubric:: Syntax
@@ -359,7 +364,7 @@ This attribute is optional and *defaults* to ``"/"`` when unspecified.
 .. code-block::
 
    # Load system user and groups
-   cmd = {
+   proc = {
            ...
            cwd = "/var/lib/mydaemon"
    }
@@ -394,30 +399,36 @@ Note that group access list will always contain the user's primary group.
            drop_supp = false
    }
 
-exec-attr
-*********
+fds-attr
+********
 
-Within the context of a `top-cmd`_ statement, specify the command program and
-arguments to |execve(2)|.
+Within the context of a `top-proc`_ statement, specify an array of file
+descriptors to keep opened once the current process has been completely secured.
 
 .. rubric:: Syntax
 
 .. parsed-literal::
    :class: highlight
 
-   <**exec-attr**> ::= 'exec = [' <|pathname|> [|LSEP| <exec-arg> ]... ']'
-   <**exec-arg**>  ::= '"' |STRING| '"'
+   <**fds-attr**>  ::= 'keep_fds = [' <fds-array> ']
+   <**fds-array**> ::= |INT| [',' |INT|]...
 
-This attribute is *mandatory*.
+This must be a array of *comma-separated integers* referring to files opened for
+the current process.
+
+This attribute is optional and *defaults* to keep `stdin`, `stdout` and `stderr`
+opened when unspecified.
 
 .. rubric:: Example
 
 .. code-block::
+   :emphasize-lines: 4
 
-   # Load system user and groups
-   cmd = {
+   # Define process properties
+   proc = {
            ...
-           exec = [ "/sbin/mydaemon", "--opt", "value" ]
+           keep_fds = [ 5, 8 ]
+           ...
    }
 
 fs-bind-opts
@@ -972,7 +983,7 @@ The fs-bind-opts_ attribute is *optional* and defaults to the |STRING|
                    ...
            )
    }
-   
+
 fs-proc-flags
 *************
 
@@ -1220,13 +1231,11 @@ As shown above, <**group**> may be specified as either a |gid| or a |groupname|.
 ids-attr
 ********
 
-From within a `top-cmd`_ statement, define system user and groups used to :
-
-* spawn a jail via the `top-jail`_ statement ;
-* run a command via the `top-cmd`_ statement.
+From within a `top-proc`_ statement, define system user and groups used to
+change current process user / group |credentials|.
 
 This setting is *optional*. If not defined, no user / group IDs change will
-happend before running the command specified by a `top-cmd`_ statement, i.e., it
+happen before running the command specified by a `top-cmd`_ statement, i.e., it
 will run using the current process user / group |credentials|.
 
 .. rubric:: Syntax
@@ -1269,7 +1278,7 @@ Specify how to populate the content of a |jail|'s filesystem.
    <**jail-fsent**> ::= '{' <`fs-file`_> | <`fs-dir`_> | <`fs-slink`_> | <`fs-tree`_> | <`fs-proc`_> '}'
 
 `jail-fsset`_ is *optional*. If not defined, the |jail|'s root filesystem is
-mounted empty at *command* execution time (see the `top-cmd`_ statement).
+mounted empty at *process* configuration time.
 
 |jail|'s filesystem entries are created according to a list of <**jail-fsent**>
 statements. Entry definitions must be provided in order so that all leading path
@@ -1345,48 +1354,27 @@ when unspecified.
    }
 
 top-cmd
-*******
+********
 
-Specify an optional external program to |execve(2)| with tunable runtime context
-settings.
+Specify the command program and arguments to |execve(2)|.
 
 .. rubric:: Syntax
 
 .. parsed-literal::
    :class: highlight
 
-   <**top-cmd**> ::= 'cmd = {' <`exec-attr`_> [|SSEP| <`umask-attr`_>] [|SSEP| <`ids-attr`_>] [|SSEP| <`caps-attr`_>] [|SSEP| <`cwd-attr`_>] '}'
+   <**top-cmd**> ::= 'cmd = [' <|pathname|> [|LSEP| <cmd-arg> ]... ']'
+   <**cmd-arg**> ::= '"' |STRING| '"'
 
-`top-cmd`_ is *mandatory* if and only if the `top-jail`_ statement has been
-specified. Indeed, spawning a jail without running a command from within it
-would be useless.
-
-Use `exec-attr`_ to specify how to run the command program.
-Use `umask-attr`_ to specify the |umask| to run the command process with.
-Use `ids-attr`_ to specify the user / group |credentials| to run the command
-process with.
-Use `caps-attr`_ to specify the |capabilities| to run the command process with.
-Use `cwd-attr`_ to specify the |cwd| to run the command process with.
+This attribute is *optional*. However, specifying a `top-cmd`_ *requires* a
+valid `top-proc`_ statement.
 
 .. rubric:: Example
 
 .. code-block::
 
-   # Specify a command to run
-   cmd = {
-           # List of command arguments given to execve(2)
-           exec = [ "/sbin/mydaemon", "--opt", "value" ]
-           # Command process's file mode creation mask
-           umask = 0137
-           # Command process will run with this user / group credentials
-           ids = {
-                    ...
-           }
-           # Command process will run with these system capabilities(7)
-           caps = [ "net_bind_service", "net_raw" ]
-           # Command process's current working directory
-           cwd = "/var/lib/mydaemon"
-   }
+   # Command / program to execve(2)
+   cmd = [ "/sbin/mydaemon", "--opt", "value" ]
 
 top-host
 ********
@@ -1446,15 +1434,16 @@ Specify an optional jail to spawn with tunable settings.
    <**top-jail**>   ::= 'jail = {' [<**jail-attr**> [|SSEP| <**jail-attr**>]... '}'
    <**jail-attr**>  ::= <`ns-attr`_> | <`fs-path-attr`_> | <`jail-fsset`_>
 
-`top-jail`_ is *optional*. If not defined, no jail will be spawned before
-running a command specified by a `top-cmd`_ statement.
+`top-jail`_ is *optional*. If not defined, no jail will be spawned at process
+configuration time and therefore, before running a command specified by a
+`top-cmd`_ statement.
 
-Specifying a `top-jail`_ *requires* a valid `top-cmd`_ statement so that a
-*command* may be run from inside the jail.
+Specifying a `top-jail`_ *requires* a valid `top-proc`_ statement so that a
+the |jail| may be spawned according to `top-proc`_ statement.
 
 Also note that the |jail| build logic assigns its root filesystem entries group
 membership according to the `ids-attr`_ attribute when specified from
-within the `top-cmd`_ statement.
+within the `top-proc`_ statement.
 When unspecified, current process primary group membership is assigned instead
 (see |credentials| for more informations).
 
@@ -1479,10 +1468,57 @@ content.
            )
    }
 
+top-proc
+********
+
+Specify current process system runtime properties.
+
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**top-proc**>   ::= 'proc = {' <**proc-umask**> <**proc-ids**> <**proc-caps**> <**proc-cwd**> <**proc-fds**> '}'
+   <**proc-umask**> ::= [|SSEP| <`umask-attr`_>]
+   <**proc-ids**>   ::= [|SSEP| <`ids-attr`_>]
+   <**proc-caps**>  ::= [|SSEP| <`caps-attr`_>]
+   <**proc-cwd**>   ::= [|SSEP| <`cwd-attr`_>]
+   <**proc-fds**>   ::= [|SSEP| <`fds-attr`_>]
+
+`top-proc`_ is *mandatory* if and only if the `top-jail`_ statement or the
+`top-cmd`_ have been specified.
+
+Use `umask-attr`_ to specify the |umask| to run the command process with.
+Use `ids-attr`_ to specify the user / group |credentials| to run the command
+process with.
+Use `caps-attr`_ to specify the |capabilities| to run the command process with.
+Use `cwd-attr`_ to specify the |cwd| to run the command process with.
+Use `fds-attr`_ to specify the which unwanted file descriptors to close.
+
+.. rubric:: Example
+
+.. code-block::
+
+   # Specify a command to run
+   proc = {
+           # Command process's file mode creation mask
+           umask = 0137
+           # Command process will run with this user / group credentials
+           ids = {
+                    ...
+           }
+           # Command process will run with these system capabilities(7)
+           caps = [ "net_bind_service", "net_raw" ]
+           # Command process's current working directory
+           cwd = "/var/lib/mydaemon"
+           # Leave these file descriptors opened
+           keep_fds = [ 5, 8 ]
+   }
+
 umask-attr
 **********
 
-Within the context of a `top-cmd`_ statement, specify the |umask| to run
+Within the context of a `top-proc`_ statement, specify the |umask| to run
 the command process with.
 
 .. rubric:: Syntax
@@ -1499,9 +1535,10 @@ This attribute is optional and *defaults* to ``0077`` when unspecified.
 .. code-block::
 
    # Load system user and groups
-   cmd = {
+   proc = {
            ...
            umask = 0022
+           ...
    }
 
 user-attr

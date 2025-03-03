@@ -7,6 +7,7 @@
    Replacement macros to reference libconfig types.
    
 .. |BOOL|   replace:: <:ref:`BOOL <libconfig-types>`>
+.. |INT|    replace:: <:ref:`INT <libconfig-types>`>
 .. |STRING| replace:: <:ref:`STRING <libconfig-types>`>
 .. |LSEP|   replace:: <:ref:`LSEP <syntax-sep>`>
 .. |SSEP|   replace:: <:ref:`SSEP <syntax-sep>`>
@@ -58,7 +59,7 @@
 .. |cgroup_namespaces(7)|  replace:: :manpage:`cgroup_namespaces(7)`
 .. |credentials(7)|        replace:: :manpage:`credentials(7)`
 .. |execve(2)|             replace:: :manpage:`execve(2)`
-.. |exit(2)|               replace:: :manpage:`exit(2)`
+.. |exit(3)|               replace:: :manpage:`exit(3)`
 .. |fifo(7)|               replace:: :manpage:`fifo(7)`
 .. |fork(2)|               replace:: :manpage:`fork(2)`
 .. |getcwd(3)|             replace:: :manpage:`getcwd(3)`
@@ -87,6 +88,7 @@
    External hyperlinks definitions
 
 .. _libconfig-bool:      https://hyperrealm.github.io/libconfig/libconfig_manual.html#Boolean-Values
+.. _libconfig-int:       https://hyperrealm.github.io/libconfig/libconfig_manual.html#Integer-Values
 .. _libconfig-string:    https://hyperrealm.github.io/libconfig/libconfig_manual.html#String-Values
 .. _libconfig library:   https://hyperrealm.github.io/libconfig
 .. _libconfig manual:    http://www.hyperrealm.com/libconfig/libconfig_manual.html

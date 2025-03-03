@@ -694,14 +694,20 @@ enbox_show_conf(const struct enbox_conf * __restrict conf)
 
 #if defined(CONFIG_ENBOX_TOOL_SHOW)
 #define SHOW_USAGE \
-"    show        -- show configuration settings loaded from CONFIG\n"
+"\n" \
+"    %1$s [OPTIONS] show <CONFIG>\n" \
+"    Show configuration settings loaded from CONFIG\n"
 #else  /* defined(CONFIG_ENBOX_TOOL_SHOW) */
 #define SHOW_USAGE
 #endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
 
 #define USAGE \
-"Usage: %1$s [OPTIONS] <CONFIG> <CMD>\n" \
+"Usage:\n" \
 "Enbox sandboxing tool.\n" \
+SHOW_USAGE \
+"\n" \
+"    %1$s [OPTIONS] run <CONFIG>\n" \
+"    Run / execute configuration loaded from CONFIG\n" \
 "\n" \
 "With OPTIONS:\n" \
 "    --log-tag=TAG              -- log message using tag TAG\n" \
@@ -719,10 +725,6 @@ enbox_show_conf(const struct enbox_conf * __restrict conf)
 "    --mqlog-name=NAME          -- use NAME as logging message queue name\n" \
 "                                  (defaults to `" CONFIG_ENBOX_TOOL_MQLOG_NAME "')\n" \
 "    -h | --help                -- this help message\n" \
-"\n" \
-"With CMD:\n" \
-SHOW_USAGE \
-"    run         -- run / execute configuration loaded from CONFIG\n" \
 "\n" \
 "Where:\n" \
 "    CONFIG   -- pathname to an Enbox configuration file\n" \
@@ -1100,21 +1102,21 @@ enbox_parse_cmdln(int                           argc,
 		goto usage;
 	}
 
-	if (!upath_validate_path_name(argv[optind])) {
-		show_error("'%s': invalid configuration file pathname.\n",
-		           argv[optind]);
-		return INVALID_CMD;
-	}
-
-	if (!strcmp(argv[optind + 1], "run"))
+	if (!strcmp(argv[optind], "run"))
 		ret = RUN_CMD;
 #if defined(CONFIG_ENBOX_TOOL_SHOW)
-	else if (!strcmp(argv[optind + 1], "show"))
+	else if (!strcmp(argv[optind], "show"))
 		ret = SHOW_CMD;
 #endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
 	else {
-		show_error("'%s': unknown command.\n", argv[optind + 1]);
+		show_error("'%s': unknown command.\n", argv[optind]);
 		goto usage;
+	}
+
+	if (!upath_validate_path_name(argv[optind + 1])) {
+		show_error("'%s': invalid configuration file pathname.\n",
+		           argv[optind + 1]);
+		return INVALID_CMD;
 	}
 
 	if (enbox_log_enable(log, tag, &conf))
@@ -1146,7 +1148,7 @@ main(int argc, char * const argv[])
 
 	enbox_setup(log.top);
 
-	conf = enbox_create_conf_from_file(argv[optind]);
+	conf = enbox_create_conf_from_file(argv[optind + 1]);
 	if (!conf)
 		goto out;
 

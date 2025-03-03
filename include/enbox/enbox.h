@@ -21,8 +21,9 @@
 
 #include <enbox/config.h>
 #include <utils/pwd.h>
-#include <linux/capability.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
+#include <linux/capability.h>
 
 /*
  * Depending on glibc version, this definition may be missing although handled
@@ -1475,7 +1476,13 @@ struct enbox_jail {
 	 * will be mounted.
 	 */
 	const char *       root_path;
-	/** Set of filesystem entries to create for this jail. */
+	/**
+	 * Set of filesystem entries to create for this jail.
+	 *
+	 * This field may be empty, i.e., thanks to a zero #enbox_fsset::nr
+	 * field. In this case, the @rstsubst{jail} will be created with an
+	 * empty root filesystem.
+	 */
 	struct enbox_fsset fsset;
 };
 
