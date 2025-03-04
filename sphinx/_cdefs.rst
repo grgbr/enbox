@@ -21,7 +21,8 @@
 .. |jail|          replace:: :ref:`jail <sect-main-jail>`
 .. |namespaces|    replace:: :ref:`namespaces <sect-main-namespaces>`
 .. |capabilities|  replace:: :ref:`capabilities <sect-main-capabilities>`
-.. |configuration| replace:: :ref:`capabilities <sect-main-configuration>`
+.. |configuration| replace:: :ref:`configuration <sect-main-configuration>`
+.. |cmd|           replace:: :ref:`cmd <sect-main-top_cmd>`
 
 
 ..
@@ -82,6 +83,8 @@
 .. |setresuid(2)|          replace:: :manpage:`setresuid(2)`
 .. |umask(2)|              replace:: :manpage:`umask(2)`
 .. |user_namespaces(7)|    replace:: :manpage:`user_namespaces(7)`
+.. |syslog(3)|             replace:: :manpage:`syslog(3)`
+.. |mq_overview(7)|        replace:: :manpage:`mq_overview(7)`
 
 
 ..
@@ -95,6 +98,7 @@
 .. _utility conventions: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html
 .. _IEEE Std 1003.1:     https://pubs.opengroup.org/onlinepubs/9699919799/mindex.html
 .. _elog:                https://github.com/grgbr/elog/
+.. _elogd:               https://github.com/grgbr/elogd/
 .. _utils:               https://github.com/grgbr/utils/
 .. _breathe:             https://github.com/michaeljones/breathe/
 .. _gcc:                 https://gcc.gnu.org/

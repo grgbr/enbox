@@ -1,3 +1,8 @@
+.. SPDX-License-Identifier: GPL-3.0-only
+   
+   This file is part of Enbox.
+   Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
+
 .. include:: _cdefs.rst
 
 .. _sect-main-overview:
@@ -168,9 +173,9 @@ Features
 Usage
 =====
 
-.. todo::
-
-   Document enbox tool usage
+Enbox_ comes with the :program:`enbox` tool to load and run arbitray
+|configuration|\s. Refer to :doc:`/man/enbox` manual page to for more
+informations.
 
 .. _sect-main-configuration:
 
@@ -1352,6 +1357,8 @@ when unspecified.
            namespaces = [ "mount", "uts", "ipc", "net" ]
            ...
    }
+
+.. _sect-main-top_cmd:
 
 top-cmd
 ********

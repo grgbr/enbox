@@ -1,3 +1,9 @@
+################################################################################
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# This file is part of Enbox.
+# Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
+################################################################################
 # -*- coding: utf-8 -*-
 #
 # Enbox documentation build configuration file, created by sphinx-quickstart
@@ -50,7 +56,7 @@ master_title = u'Enbox Documentation'
 
 # General information about the project.
 project = u'Enbox'
-copyright = u"2022, Interface Concept"
+copyright = u"2022, Grégor Boirie"
 author = u"Grégor Boirie"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -156,7 +162,7 @@ latex_documents = [
 # entries into generated document.
 # See comments into latex.rst for more informations.
 latex_toplevel_sectioning = 'chapter'
-latex_appendices = ['glossary', 'todo']
+latex_appendices = ['glossary', 'license', 'todo']
 latex_show_urls = 'footnote'
 latex_show_pagerefs = False
 
@@ -164,9 +170,11 @@ latex_show_pagerefs = False
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-#man_pages = [
-#    (root_doc, 'enbox', master_title, author, 1)
-#]
+man_pages = [
+    ('man/enbox',    'enbox',    '', author, 1)
+]
+
+man_show_urls = False
 
 # -- Options for Texinfo output -------------------------------------------
 
@@ -199,7 +207,7 @@ texinfo_documents = [
 
 # Request texinfo backend to generate the following appendix entries to benefit
 # from its appendix section numbering scheme.
-texinfo_appendices = ['glossary', 'todo' ]
+texinfo_appendices = ['glossary', 'license', 'todo' ]
 texinfo_domain_indices = True
 texinfo_show_urls = 'footnote'
 texinfo_no_detailmenu = True
