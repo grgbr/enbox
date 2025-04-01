@@ -24,7 +24,8 @@ common-ldflags      := $(filter-out -DNDEBUG,$(common-ldflags))
 endif # ($(filter y,$(CONFIG_ENBOX_ASSERT_API)),)
 
 solibs              := libenbox.so
-libenbox.so-objs     = lib.o priv.o conf.o
+libenbox.so-objs     = lib.o conf.o priv.o caps.o
+libenbox.so-objs    += $(call kconf_enabled,ENBOX_SHOW,show.o)
 libenbox.so-cflags   = $(common-cflags) -DPIC -fpic
 libenbox.so-ldflags  = $(EXTRA_LDFLAGS) \
                        -shared -Bsymbolic -fpic -Wl,-soname,libenbox.so
@@ -48,7 +49,7 @@ $(SRCDIR)/common.h: $(BUILDDIR)/mount_flags.h \
 $(BUILDDIR)/conf.o: $(BUILDDIR)/mount_flags.i \
                     $(BUILDDIR)/namespaces.i
 
-$(BUILDDIR)/priv.o: $(BUILDDIR)/capabilities.i
+$(BUILDDIR)/caps.o: $(BUILDDIR)/capabilities.i
 
 # Generate mounting flags header
 $(BUILDDIR)/mount_flags.h: $(TOPDIR)/scripts/gen_flag_descs_header \

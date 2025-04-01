@@ -8,6 +8,7 @@ Rationalize:
 * error vs info logging review
 
 Features:
+* implement display of mountpoint informations (/proc/self/mountinfo) ??
 * fix signal disposition ?
 * forbid strace
 * forbid ld_preload / ld_audit

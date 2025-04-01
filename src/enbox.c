@@ -5,7 +5,7 @@
  * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
  ******************************************************************************/
 
-#include "common.h"
+#include "conf.h"
 #include <utils/path.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +20,7 @@
  * Display logic
  ******************************************************************************/
 
-#if defined(CONFIG_ENBOX_TOOL_SHOW)
+#if defined(CONFIG_ENBOX_SHOW)
 
 #include "namespaces.h"
 #include "mount_flags.h"
@@ -29,7 +29,8 @@
 
 #define ENBOX_MODE_STRING_SZ (10U)
 
-static const char * __returns_nonull __nothrow
+static __returns_nonull __nothrow
+const char *
 enbox_build_mode_string(char str[ENBOX_MODE_STRING_SZ], mode_t mode)
 {
 	str[0] = (mode & S_IRUSR) ? 'r' : '-';
@@ -85,7 +86,8 @@ enbox_build_mode_string(char str[ENBOX_MODE_STRING_SZ], mode_t mode)
 	return str;
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_dir_entry(const struct enbox_entry * __restrict ent)
 {
 	enbox_assert(ent->uid != (uid_t)-1);
@@ -102,7 +104,8 @@ enbox_show_dir_entry(const struct enbox_entry * __restrict ent)
 	       ent->path);
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_slink_entry(const struct enbox_entry * __restrict ent)
 {
 	printf("lrwxrwxrwx %u(%s) %u(%s) %s -> %s\n",
@@ -114,7 +117,8 @@ enbox_show_slink_entry(const struct enbox_entry * __restrict ent)
 	       ent->slink.target);
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_chrdev_entry(const struct enbox_entry * __restrict ent)
 {
 	enbox_assert(ent->uid != (uid_t)-1);
@@ -131,7 +135,8 @@ enbox_show_chrdev_entry(const struct enbox_entry * __restrict ent)
 	       ent->path);
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_blkdev_entry(const struct enbox_entry * __restrict ent)
 {
 	enbox_assert(ent->uid != (uid_t)-1);
@@ -148,7 +153,8 @@ enbox_show_blkdev_entry(const struct enbox_entry * __restrict ent)
 	       ent->path);
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_fifo_entry(const struct enbox_entry * __restrict ent)
 {
 	enbox_assert(ent->uid != (uid_t)-1);
@@ -165,7 +171,8 @@ enbox_show_fifo_entry(const struct enbox_entry * __restrict ent)
 	       ent->path);
 }
 
-static size_t __enbox_nonull(2, 4) __enbox_nothrow
+static __enbox_nonull(2, 4) __enbox_nothrow __warn_result
+size_t
 enbox_fill_flag_descs_string(unsigned long                  flags,
                              char *                         string,
                              size_t                         size __unused,
@@ -195,7 +202,8 @@ enbox_fill_flag_descs_string(unsigned long                  flags,
 	return len;
 }
 
-static void * __nothrow __warn_result
+static __nothrow __returns_nonull __warn_result
+void *
 xalloc(size_t size)
 {
 	void * ptr;
@@ -207,7 +215,8 @@ xalloc(size_t size)
 	return ptr;
 }
 
-static char * __nothrow
+static __nothrow __returns_nonull __warn_result
+char *
 enbox_build_mount_flags_string(unsigned long flags, const char * opts)
 {
 	size_t olen = opts ? strlen(opts) : 0;
@@ -248,7 +257,8 @@ enbox_build_mount_flags_string(unsigned long flags, const char * opts)
 	return str;
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_proc_entry(const struct enbox_entry * __restrict ent)
 {
 	enbox_assert(ent);
@@ -265,7 +275,8 @@ enbox_show_proc_entry(const struct enbox_entry * __restrict ent)
 	free(flags);
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_bind_entry(const struct enbox_entry * __restrict ent,
                       mode_t                                type)
 {
@@ -329,13 +340,15 @@ enbox_show_bind_entry(const struct enbox_entry * __restrict ent,
 	free(flags);
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_tree_entry(const struct enbox_entry * __restrict ent)
 {
 	enbox_show_bind_entry(ent, S_IFDIR);
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_file_entry(const struct enbox_entry * __restrict ent)
 {
 	enbox_show_bind_entry(ent, S_IFREG | S_IFIFO);
@@ -344,7 +357,8 @@ enbox_show_file_entry(const struct enbox_entry * __restrict ent)
 typedef void (enbox_show_entry_fn)(const struct enbox_entry * __restrict entry)
 	__enbox_nonull(1);
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_fsset(const struct enbox_fsset * __restrict fsset,
                  enbox_show_entry_fn * const            showers[__restrict_arr])
 {
@@ -367,7 +381,8 @@ enbox_show_fsset(const struct enbox_fsset * __restrict fsset,
 		puts("No entry found");
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_host_conf(const struct enbox_fsset * __restrict host)
 {
 	enbox_assert(host);
@@ -389,7 +404,8 @@ enbox_show_host_conf(const struct enbox_fsset * __restrict host)
 	enbox_show_fsset(host, showers);
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_jail_conf(const struct enbox_jail * __restrict jail)
 {
 	enbox_assert_jail(jail);
@@ -429,7 +445,8 @@ enbox_show_jail_conf(const struct enbox_jail * __restrict jail)
 	free(ns);
 }
 
-static ssize_t __enbox_nonull(2) __enbox_nothrow
+static __enbox_nonull(2) __enbox_nothrow __warn_result
+ssize_t
 enbox_fill_group_name(gid_t gid, char * string, size_t size)
 {
 	enbox_assert(string);
@@ -469,7 +486,8 @@ enbox_fill_group_name(gid_t gid, char * string, size_t size)
 	 NGROUPS_MAX + \
 	 1)
 
-static int __enbox_nonull(1, 2) __enbox_nothrow
+static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
+int
 enbox_fill_user_groups(char                             string[__restrict_arr],
                        const struct passwd * __restrict pwd,
                        bool                             drop_supp)
@@ -547,7 +565,8 @@ free:
 	return (int)ret;
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_ids_conf(const struct enbox_ids * __restrict ids)
 {
 	enbox_assert(ids);
@@ -576,7 +595,8 @@ free:
 	free(grps);
 }
 
-static char * __enbox_nothrow
+static __enbox_nothrow __returns_nonull __warn_result
+char *
 enbox_build_caps_string(uint64_t caps)
 {
 	enbox_assert(caps);
@@ -606,7 +626,8 @@ enbox_build_caps_string(uint64_t caps)
 	return str;
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_proc_conf(const struct enbox_proc * __restrict proc)
 {
 	enbox_assert_proc(proc);
@@ -642,7 +663,8 @@ enbox_show_proc_conf(const struct enbox_proc * __restrict proc)
 		fputs("Keep file descs  : none", stdout);
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_cmd_conf(const char * const cmd[__restrict_arr])
 {
 	enbox_assert_cmd(cmd);
@@ -657,7 +679,8 @@ enbox_show_cmd_conf(const char * const cmd[__restrict_arr])
 	putchar('\n');
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_show_conf(const struct enbox_conf * __restrict conf)
 {
 	enbox_assert_conf(conf);
@@ -672,7 +695,7 @@ enbox_show_conf(const struct enbox_conf * __restrict conf)
 		enbox_show_cmd_conf(conf->cmd);
 }
 
-#endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
+#endif /* defined(CONFIG_ENBOX_SHOW) */
 
 /******************************************************************************
  * Main logic
@@ -692,18 +715,20 @@ enbox_show_conf(const struct enbox_conf * __restrict conf)
 #define ENBOX_TOOL_LOG_FACILITY \
 	(CONFIG_ENBOX_TOOL_LOG_FACILITY << 3)
 
-#if defined(CONFIG_ENBOX_TOOL_SHOW)
+#if defined(CONFIG_ENBOX_SHOW)
 #define SHOW_USAGE \
 "\n" \
 "    %1$s [OPTIONS] show <CONFIG>\n" \
-"    Show configuration settings loaded from CONFIG\n"
-#else  /* defined(CONFIG_ENBOX_TOOL_SHOW) */
+"    Show configuration settings loaded from CONFIG\n" \
+"\n" \
+"    %1$s [OPTIONS] status\n" \
+"    Show status\n"
+#else  /* defined(CONFIG_ENBOX_SHOW) */
 #define SHOW_USAGE
-#endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
+#endif /* defined(CONFIG_ENBOX_SHOW) */
 
 #define USAGE \
-"Usage:\n" \
-"Enbox sandboxing tool.\n" \
+"Usage: Enbox sandboxing tool.\n" \
 SHOW_USAGE \
 "\n" \
 "    %1$s [OPTIONS] run <CONFIG>\n" \
@@ -734,7 +759,8 @@ SHOW_USAGE \
 "    FACILITY := dflt|auth|authpriv|cron|daemon|ftp|lpr|mail|news|syslog|user\n" \
 "                |local0|local1|local2|local3|local4|local5|local6|local7\n" \
 
-static void
+static
+void
 show_usage(void)
 {
 	fprintf(stderr,
@@ -763,7 +789,8 @@ struct enbox_log_conf {
 	struct elog_mqueue_conf mq;
 };
 
-static int __enbox_nonull(1, 2, 4) __enbox_nothrow
+static __enbox_nonull(1, 2, 4) __enbox_nothrow
+int
 enbox_log_parse_level(struct enbox_log_parse * __restrict parse,
                       struct enbox_log_conf * __restrict  config,
                       enum enbox_log_kind                 kind,
@@ -811,7 +838,8 @@ enbox_log_parse_level(struct enbox_log_parse * __restrict parse,
 	return EXIT_SUCCESS;
 }
 
-static int __enbox_nonull(1, 2)
+static __enbox_nonull(1, 2)
+int
 enbox_log_realize_parse(struct enbox_log_parse * __restrict parse,
                         struct enbox_log_conf * __restrict  config)
 {
@@ -842,7 +870,8 @@ enbox_log_realize_parse(struct enbox_log_parse * __restrict parse,
 	return EXIT_SUCCESS;
 }
 
-static void __enbox_nonull(1, 2) __enbox_nothrow
+static __enbox_nonull(1, 2) __enbox_nothrow
+void
 enbox_log_init_parse(struct enbox_log_parse * __restrict parse,
                      struct enbox_log_conf * __restrict  config)
 {
@@ -870,7 +899,8 @@ enbox_log_init_parse(struct enbox_log_parse * __restrict parse,
 	elog_init_mqueue_parse(&parse->mq, &config->mq, &mq_dflt);
 }
 
-static void __enbox_nonull(1) __enbox_nothrow
+static __enbox_nonull(1) __enbox_nothrow
+void
 enbox_log_fini_parse(struct enbox_log_parse * __restrict parse)
 {
 	enbox_assert(parse);
@@ -888,7 +918,8 @@ struct enbox_log {
 	struct elog_mqueue mq;
 };
 
-static int __enbox_nonull(1, 3)
+static __enbox_nonull(1, 3)
+int
 enbox_log_enable(struct enbox_log * __restrict      log,
                  const char * __restrict            tag,
                  struct enbox_log_conf * __restrict config)
@@ -944,7 +975,8 @@ fini:
 	return err;
 }
 
-static void __enbox_nonull(1)
+static __enbox_nonull(1)
+void
 enbox_log_fini(struct enbox_log * __restrict log)
 {
 	enbox_assert(log);
@@ -957,10 +989,32 @@ enum {
 	INVALID_CMD = -1,
 	NONE_CMD,
 	RUN_CMD,
-#if defined(CONFIG_ENBOX_TOOL_SHOW)
-	SHOW_CMD
-#endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
+#if defined(CONFIG_ENBOX_SHOW)
+	SHOW_CMD,
+	STAT_CMD
+#endif /* defined(CONFIG_ENBOX_SHOW) */
 };
+
+static __enbox_nonull(2)
+int
+enbox_validate_conf_cmd(int argc, char * const argv[])
+{
+	enbox_assert(argv);
+
+	if (argc != 2) {
+		show_error("invalid number of arguments.\n\n");
+		return EXIT_FAILURE;
+	}
+
+	if (upath_validate_path_name(argv[1]) < 0) {
+		show_error("'%s': "
+		           "invalid configuration file pathname.\n",
+		           argv[1]);
+		return EXIT_FAILURE;
+	}
+
+	return EXIT_SUCCESS;
+}
 
 static __enbox_nonull(2, 3)
 int
@@ -1097,26 +1151,34 @@ enbox_parse_cmdln(int                           argc,
 	if (ret)
 		return INVALID_CMD;
 
-	if ((argc - optind) != 2) {
-		show_error("invalid number of arguments.\n\n");
+	argc -= optind;
+	if (argc < 1) {
+		show_error("missing arguments.\n\n");
 		goto usage;
 	}
 
-	if (!strcmp(argv[optind], "run"))
+	if (!strcmp(argv[optind], "run")) {
+		if (enbox_validate_conf_cmd(argc, &argv[optind]))
+			goto usage;
 		ret = RUN_CMD;
-#if defined(CONFIG_ENBOX_TOOL_SHOW)
-	else if (!strcmp(argv[optind], "show"))
+	}
+#if defined(CONFIG_ENBOX_SHOW)
+	else if (!strcmp(argv[optind], "show")) {
+		if (enbox_validate_conf_cmd(argc, &argv[optind]))
+			goto usage;
 		ret = SHOW_CMD;
-#endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
+	}
+	else if (!strcmp(argv[optind], "status")) {
+		if (argc != 1) {
+			show_error("invalid number of arguments.\n\n");
+			goto usage;
+		}
+		ret = STAT_CMD;
+	}
+#endif /* defined(CONFIG_ENBOX_SHOW) */
 	else {
 		show_error("'%s': unknown command.\n", argv[optind]);
 		goto usage;
-	}
-
-	if (!upath_validate_path_name(argv[optind + 1])) {
-		show_error("'%s': invalid configuration file pathname.\n",
-		           argv[optind + 1]);
-		return INVALID_CMD;
 	}
 
 	if (enbox_log_enable(log, tag, &conf))
@@ -1130,6 +1192,54 @@ usage:
 	show_usage();
 
 	return ret;
+}
+
+#if defined(CONFIG_ENBOX_DEBUG)
+
+static __enbox_nonull(1)
+void
+enbox_destroy_file_conf(struct enbox_conf * __restrict conf)
+{
+	enbox_assert(conf);
+
+	enbox_destroy_conf(conf);
+}
+
+#else  /* !defined(CONFIG_ENBOX_DEBUG) */
+
+static __enbox_nonull(1)
+void
+enbox_destroy_file_conf(struct enbox_conf * __restrict conf __unused)
+{
+	enbox_assert(conf);
+}
+
+#endif /* !defined(CONFIG_ENBOX_DEBUG) */
+
+static __enbox_nonull(1)
+struct enbox_conf *
+enbox_load_from_file(const char * __restrict path)
+{
+	enbox_assert(upath_validate_path_name(path) > 0);
+
+	struct enbox_conf * conf;
+
+	conf = enbox_create_conf_from_file(path);
+	if (!conf)
+		return NULL;
+
+	if (!conf->cmd) {
+		enbox_err("%s: invalid configuration: missing 'cmd' setting",
+		          path);
+		goto destroy;
+	}
+
+	return conf;
+
+destroy:
+	enbox_destroy_file_conf(conf);
+
+	return NULL;
 }
 
 int
@@ -1148,39 +1258,36 @@ main(int argc, char * const argv[])
 
 	enbox_setup(log.top);
 
-	conf = enbox_create_conf_from_file(argv[optind + 1]);
-	if (!conf)
-		goto out;
-
-	if (!conf->cmd) {
-		enbox_err("%s: invalid configuration: missing 'cmd' setting",
-		          argv[optind]);
-		goto destroy;
-	}
-
 	switch (cmd) {
 	case RUN_CMD:
+		conf = enbox_load_from_file(argv[optind + 1]);
+		if (!conf)
+			break;
 		if (!enbox_run_conf(conf))
 			ret = EXIT_SUCCESS;
+		enbox_destroy_file_conf(conf);
 		break;
 
-#if defined(CONFIG_ENBOX_TOOL_SHOW)
+#if defined(CONFIG_ENBOX_SHOW)
 	case SHOW_CMD:
+		conf = enbox_load_from_file(argv[optind + 1]);
+		if (!conf)
+			break;
 		enbox_show_conf(conf);
+		enbox_destroy_file_conf(conf);
 		ret = EXIT_SUCCESS;
 		break;
-#endif /* defined(CONFIG_ENBOX_TOOL_SHOW) */
+
+	case STAT_CMD:
+		enbox_show_status(stdout);
+		ret = EXIT_SUCCESS;
+		break;
+#endif /* defined(CONFIG_ENBOX_SHOW) */
 
 	default:
 		enbox_assert(0);
 	}
 
-destroy:
-#if defined(CONFIG_ENBOX_DEBUG)
-	enbox_destroy_conf(conf);
-#endif /* defined(CONFIG_ENBOX_DEBUG) */
-
-out:
 	enbox_log_fini(&log);
 
 	return ret;

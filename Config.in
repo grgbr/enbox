@@ -35,6 +35,12 @@ config ENBOX_DISABLE_DUMP
 	  See sections about `/proc/sys/fs/suid_dumpable' and PR_SET_DUMPABLE
 	  operation of proc(5) and prctl(2) man pages respectively.
 
+config ENBOX_SHOW
+	bool "Enable display"
+	default n
+	help
+	  Build enbox library tool with ability to display settings.
+
 config ENBOX_TOOL
 	bool "Enable utility"
 	default y
@@ -67,12 +73,5 @@ config ENBOX_TOOL_MQLOG_NAME
 	help
 	  Name of POSIX message queue that Enbox tool may use to log messages.
 	  See mq_overview(7) for informations about message queue identifiers.
-
-config ENBOX_TOOL_SHOW
-	bool "Enable utility display"
-	default n
-	depends on ENBOX_TOOL
-	help
-	  Build enbox library tool with ability to display settings.
 
 # ex: filetype=kconfig

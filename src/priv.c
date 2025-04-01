@@ -5,195 +5,12 @@
  * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
  ******************************************************************************/
 
-#include "common.h"
-#include <stdlib.h>
+#include "priv.h"
+#include "caps.h"
 #include <unistd.h>
 #include <sys/prctl.h>
-#include <sys/syscall.h>
-#include <linux/securebits.h>
-#include <linux/version.h>
 
-/* Support for Linux capability v3 only (Linux 2.6.26 and after). */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
-#error No support for Linux kernel version below 2.6.26 !
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26) */
-#if VFS_CAP_U32 != VFS_CAP_U32_3
-#error Unexpected VFS_CAP_U32 found into <linux/capability.h> header. \
-       Check your Linux kernel revision is compatible with Enbox...
-#endif /* VFS_CAP_U32 != VFS_CAP_U32_3 */
-
-/*
- * Expect support for CAP_BLOCK_SUSPEND capability shipped with Linux
- * 3.5.
- */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)
-#error No support for Linux kernel version below 3.5 !
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5,9) */
-#if !defined(CAP_BLOCK_SUSPEND) || defined(CAP_EPOLLWAKEUP)
-#error Unexpected deprecated CAP_EPOLLWAKEUP found into <linux/capability.h> \
-       header. Check your Linux kernel revision is compatible with Enbox...
-#endif
-
-/*
- * Expect support for CAP_CHECKPOINT_RESTORE capability shipped with Linux
- * 5.9...
- */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,9,0)
-#error No support for Linux kernel version below 5.9 !
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5,9) */
-#if !defined(CAP_CHECKPOINT_RESTORE)
-#error CAP_CHECKPOINT_RESTORE not found into <linux/capability.h> header. \
-       Check your Linux kernel revision is compatible with Enbox...
-#endif
-
-/*
- * Ensure that the kernel does not define capabilities Enbox is not aware of.
- */
-#if CAP_LAST_CAP != CAP_CHECKPOINT_RESTORE
-#error Unexpected additional capability found into <linux/capability.h> \
-       header. Check your Linux kernel revision is compatible with Enbox...
-#endif /* CAP_LAST_CAP != CAP_CHECKPOINT_RESTORE */
-
-/**
- * @internal
- *
- * An opaque structure holding internal capability state.
- */
-struct enbox_caps {
-	struct __user_cap_data_struct data[VFS_CAP_U32];
-};
-
-#if defined(CONFIG_ENBOX_VERBOSE)
-
-/*
- * Load and return secure bits for the current thread.
- *
- * No particular capability is required for this operation.
- *
- * See PR_GET_SECUREBITS(2const) and capabilities(7).
- */
-static __enbox_nothrow __warn_result
-int
-enbox_load_secbits(void)
-{
-	int ret;
-
-	ret = prctl(PR_GET_SECUREBITS);
-	enbox_assert(!(ret & ~(SECURE_ALL_BITS | SECURE_ALL_LOCKS)));
-
-	return ret;
-}
-
-#endif /* defined(CONFIG_ENBOX_VERBOSE) */
-
-/*
- * Modify and save secure bits for the current thread.
- *
- * Requires CAP_SETPCAP capability.
- *
- * Warning:
- * This function always clears the SECBIT_NO_SETUID_FIXUP bit and locks it !
- *
- * See PR_SET_SECUREBITS(2const) and capabilities(7).
- */
-int
-enbox_save_secbits(int secbits)
-{
-	enbox_assert(!(secbits & ~(SECURE_ALL_BITS | SECURE_ALL_LOCKS)));
-
-	secbits = (secbits & ~SECBIT_NO_SETUID_FIXUP) |
-	          SECBIT_NO_SETUID_FIXUP_LOCKED;
-
-	if (prctl(PR_SET_SECUREBITS, (unsigned long)secbits)) {
-		int err = errno;
-
-		enbox_assert(err != EINVAL);
-
-		enbox_info("cannot save secure bits: %s (%d)",
-		           strerror(err),
-		           err);
-
-		return -err;
-	}
-
-	return 0;
-}
-
-/*
- * Set "keep capabilities" flag for the current thread.
- *
- * No particular capability is required for this operation. However, the
- * SECBIT_KEEP_CAPS_LOCKED secbit must not be set.
- *
- * See PR_SET_KEEPCAPS(2const) and capabilities(7).
- */
-static __enbox_nothrow __warn_result
-int
-enbox_enable_keep_caps(bool on)
-{
-	if (prctl(PR_SET_KEEPCAPS, (long)on)) {
-		int err = errno;
-
-		enbox_assert(err != EINVAL);
-
-		enbox_info("cannot setup keep capability flag: %s (%d)",
-		           strerror(err),
-		           err);
-
-		return -err;
-	}
-
-	return 0;
-}
-
-#if defined(CONFIG_ENBOX_VERBOSE)
-
-/*
- * Get the no_new_privs attribute for the current thread.
- *
- * No particular capability is required for this operation.
- *
- * See PR_GET_NO_NEW_PRIVS(2const) and capabilities(7).
- */
-static __enbox_nothrow __warn_result
-bool
-enbox_load_nonewprivs(void)
-{
-	int ret;
-
-	ret = prctl(PR_GET_NO_NEW_PRIVS, 0L, 0L, 0L, 0L);
-	enbox_assert(ret >= 0);
-
-	return !!ret;
-}
-
-#endif /* defined(CONFIG_ENBOX_VERBOSE) */
-
-/*
- * Set the no_new_privs attribute for the calling thread.
- *
- * With no_new_privs set to 1, execve(2) promises not to grant privileges to do
- * anything that could not have been done without the execve(2) call (for
- * example, rendering the set-user-ID and set- group-ID mode bits, and file
- * capabilities non-functional).
- *
- * No particular privileges is required to set this bit. Once set, it cannot be
- * unset.
- * The setting of this attribute is inherited by children created by fork(2) and
- * clone(2), and preserved across execve(2).
- *
- * See <linux>/Documentation/userspace-api/no_new_privs.rst
- */
-void
-enbox_enable_nonewprivs(void)
-{
-	int err __unused;
-
-	err = prctl(PR_SET_NO_NEW_PRIVS, 1L, 0L, 0L, 0L);
-	enbox_assert(!err);
-}
-
-#if defined(CONFIG_ENBOX_VERBOSE)
+#if defined(CONFIG_ENBOX_SHOW)
 
 /*
  * Get the "dumpable" attribute for the current thread.
@@ -202,7 +19,6 @@ enbox_enable_nonewprivs(void)
  *
  * See PR_GET_DUMPABLE(2const) and capabilities(7).
  */
-static __enbox_nothrow __warn_result
 bool
 enbox_load_dump(void)
 {
@@ -214,539 +30,66 @@ enbox_load_dump(void)
 	return !!ret;
 }
 
-#endif /* defined(CONFIG_ENBOX_VERBOSE) */
+#endif /* defined(CONFIG_ENBOX_SHOW) */
 
-#if defined(CONFIG_ENBOX_VERBOSE)
+#if defined(CONFIG_ENBOX_DISABLE_DUMP)
 
-/*
- * Get the ambient capability set for the current thread.
+/**
+ * @internal
  *
- * No particular capability required to load this set.
+ * Setup current process *dumpable* attribute.
  *
- * See PR_CAP_AMBIENT_IS_SET(2const), PR_CAP_AMBIENT(2const) and
- * capabilities(7).
- */
-static __enbox_nothrow __warn_result
-uint64_t
-enbox_load_amb_caps(void)
-{
-	int      c;
-	uint64_t caps = 0;
-
-	for (c = 0; c < ENBOX_CAPS_NR; c++) {
-		enbox_assert(cap_valid(c));
-
-		int ret;
-
-		ret = prctl(PR_CAP_AMBIENT,
-		            PR_CAP_AMBIENT_IS_SET,
-		            (long)c,
-		            0L,
-		            0L);
-		enbox_assert(ret >= 0);
-
-		caps |= (uint64_t)(!!ret) << c;
-	}
-
-	return caps;
-}
-
-#endif /* defined(CONFIG_ENBOX_VERBOSE) */
-
-static __enbox_nothrow
-int
-enbox_save_amb_caps(uint64_t ambient)
-{
-	enbox_assert(!(ambient & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	int c;
-
-	for (c = 0; c < ENBOX_CAPS_NR; c++) {
-		enbox_assert(cap_valid(c));
-
-		int cmd = (ambient & enbox_cap(c)) ? PR_CAP_AMBIENT_RAISE
-		                                   : PR_CAP_AMBIENT_LOWER;
-
-		if (prctl(PR_CAP_AMBIENT, cmd, (long)c, 0L, 0L)) {
-			int err = errno;
-
-			enbox_info("cannot save ambient set capabilities: "
-			           "%s (%d)",
-			           strerror(err),
-			           err);
-			return -err;
-		}
-	}
-
-	return 0;
-}
-
-/*
- * Clear the ambient capability set for the current thread.
+ * Enable or disable generation of coredumps for current process.
+ * In addition, attaching to the process via @man{ptrace(2)} PTRACE_ATTACH is
+ * restricted according to multiple logics introduced below.
  *
- * No particular privileges is required to perform this operation.
+ * As stated into section «PR_SET_DUMPABLE» of @man{prctl(2)}, the *dumpable*
+ * attribute is normally set to 1. However, it is reset to the current value
+ * contained in the file `/proc/sys/fs/suid_dumpable` (which defaults to value
+ * 0), in the following circumstances:
+ * - current process EUID or EGID is changed ;
+ * - current process FSUID or FSGID is changed ;
+ * - current process @man{execve(2)} a SUID / SGID program incurring a EUID /
+ *   EGID change ;
+ * - current process @man{execve(2)} a program that has file capabilities
+ *   exceeding those already permitted.
+ * The `/proc/sys/fs/suid_dumpable` file is documented into @man{proc(5)}.
  *
- * See PR_CAP_AMBIENT_CLEAR_ALL(2const), PR_CAP_AMBIENT(2const) and
- * capabilities(7).
+ * As stated in @man{ptrace(2)}, Linux kernel performs so-called "ptrace access
+ * mode" checks whose outcome determines whether @man{ptrace(2)} operations are
+ * permitted in addition to `CAP_SYS_PTRACE` capability and Linux Security
+ * Module ptrace access checks.
+ * See section «Ptrace access mode checking» of @man{ptrace(2)} for more
+ * informations.
+ *
+ * Finally, the [Yama] Linux Security Module may further restrict
+ * @man{ptrace(2)} operations thanks to the runtime controllable sysctl
+ * `/proc/sys/kernel/yama`.
+ * See «PR_SET_PTRACER» section in @man{prctl(2)} and [Yama] section in
+ * [The Linux kernel user’s and administrator’s guide].
+ *
+ * @param[in] on Enable coredumps generation if `true`, disable it otherwise.
+ *
+ * @see
+ * - #ENBOX_ENABLE_DUMP
+ * - #ENBOX_DISABLE_DUMP
+ * - enbox_setup()
+ *
+ * [The Linux kernel user’s and administrator’s guide]: https://www.kernel.org/doc/html/latest/admin-guide/index.html
+ * [Yama]:                                              https://www.kernel.org/doc/html/latest/admin-guide/LSM/Yama.html
  */
 void
-enbox_clear_amb_caps(void)
-{
-	int ret __unused;
-
-	ret = prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0);
-	enbox_assert(!ret);
-}
-
-#if defined(CONFIG_ENBOX_VERBOSE)
-
-/*
- * Get the bounding capability set for the current thread.
- *
- * No particular capability required to load this set.
- *
- * See PR_CAPBSET_READ(2const) and capabilities(7).
- */
-static __enbox_nothrow __warn_result
-uint64_t
-enbox_load_bound_caps(void)
-{
-	int      c;
-	uint64_t caps = 0;
-
-	for (c = 0; c < ENBOX_CAPS_NR; c++) {
-		enbox_assert(cap_valid(c));
-
-		int ret;
-
-		ret = prctl(PR_CAPBSET_READ, (long)c);
-		enbox_assert(ret >= 0);
-
-		caps |= (uint64_t)(!!ret) << c;
-	}
-
-	return caps;
-}
-
-#endif /* defined(CONFIG_ENBOX_VERBOSE) */
-
-int
-enbox_clear_bound_caps(void)
-{
-	int c;
-
-	for (c = 0; c < ENBOX_CAPS_NR; c++) {
-		enbox_assert(cap_valid(c));
-
-		if (prctl(PR_CAPBSET_DROP, (unsigned long)c, 0, 0, 0) < 0) {
-			int err = errno;
-
-			enbox_info("cannot clear bounding set capabilities: "
-			           "%s (%d)",
-			           strerror(err),
-			           err);
-			return -err;
-		}
-	}
-
-	return 0;
-}
-
-/*
- * Get effective / permitted / inheritable capability sets for the current
- * thread.
- *
- * There is no glibc wrapper for this syscall...
- *
- * See capget(2) and syscall(2).
- */
-static inline __enbox_nonull(1, 2) __warn_result
-int
-capget(cap_user_header_t header, cap_user_data_t data)
-{
-	return (int)syscall(SYS_capget, header, data);
-}
-
-static inline __enbox_nonull(1) __warn_result
-uint64_t
-enbox_get_eff_caps(const struct enbox_caps * __restrict caps)
-{
-	enbox_assert(caps);
-
-	return (((uint64_t)caps->data[1].effective) << 32) |
-	       (uint64_t)caps->data[0].effective;
-}
-
-static inline __enbox_nonull(1) __enbox_pure __enbox_nothrow __warn_result
-bool
-enbox_eff_caps_have(const struct enbox_caps * __restrict caps,
-                    int                                  id)
-{
-	enbox_assert(caps);
-	enbox_assert(cap_valid(id));
-
-	return !!(enbox_get_eff_caps(caps) & enbox_cap(id));
-}
-
-static inline __enbox_nonull(1) __warn_result
-uint64_t
-enbox_get_perm_caps(const struct enbox_caps * __restrict caps)
-{
-	enbox_assert(caps);
-
-	return (((uint64_t)caps->data[1].permitted) << 32) |
-	       (uint64_t)caps->data[0].permitted;
-}
-
-static inline __enbox_nonull(1) __enbox_pure __enbox_nothrow __warn_result
-bool
-enbox_perm_caps_have(const struct enbox_caps * __restrict caps,
-                     int                                  id)
-{
-	enbox_assert(caps);
-	enbox_assert(cap_valid(id));
-
-	return !!(enbox_get_perm_caps(caps) & enbox_cap(id));
-}
-
-static inline __enbox_nonull(1) __warn_result
-uint64_t
-enbox_get_inh_caps(const struct enbox_caps * __restrict caps)
-{
-	enbox_assert(caps);
-
-	return (((uint64_t)caps->data[1].inheritable) << 32) |
-	       (uint64_t)caps->data[0].inheritable;
-}
-
-static inline __enbox_nonull(1) __enbox_pure __enbox_nothrow __warn_result
-bool
-enbox_inh_caps_have(const struct enbox_caps * __restrict caps,
-                    int                                  id)
-{
-	enbox_assert(caps);
-	enbox_assert(cap_valid(id));
-
-	return !!(enbox_get_inh_caps(caps) & enbox_cap(id));
-}
-
-static __enbox_nonull(1)
-void
-enbox_load_epi_caps(struct enbox_caps * __restrict caps)
-{
-	enbox_assert(caps);
-
-	/* Prepare capability sets header for the current thread. */
-	int                             err __unused;
-	struct __user_cap_header_struct hdr = {
-		.version = _LINUX_CAPABILITY_VERSION_3,
-		.pid     = 0
-	};
-
-	err = capget(&hdr, caps->data);
-	enbox_assert(!err);
-
-	enbox_assert(hdr.version == _LINUX_CAPABILITY_VERSION_3);
-}
-
-/*
- * Set effective / permitted / inheritable capability sets for the current
- * thread.
- *
- * There is no glibc wrapper for this syscall...
- *
- * See capget(2) and syscall(2).
- */
-static inline __enbox_nonull(1, 2) __warn_result
-int
-capset(cap_user_header_t header, const cap_user_data_t data)
-{
-	return (int)syscall(SYS_capset, header, data);
-}
-
-static inline __enbox_nonull(1) __enbox_nothrow
-void
-enbox_set_eff_caps(struct enbox_caps * __restrict caps, uint64_t effective)
-{
-	enbox_assert(caps);
-	enbox_assert(!(effective & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	caps->data[0].effective = (uint32_t)
-	                          (effective & (UINT64_C(0xffffffff)));
-	caps->data[1].effective = (uint32_t)(effective >> 32);
-}
-
-static inline __enbox_nonull(1) __enbox_nothrow
-void
-enbox_raise_eff_caps(struct enbox_caps * __restrict caps, uint64_t effective)
-{
-	enbox_assert(caps);
-	enbox_assert(!(effective & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	enbox_set_eff_caps(caps, enbox_get_eff_caps(caps) | effective);
-}
-
-static inline __enbox_nonull(1) __enbox_nothrow
-void
-enbox_drop_eff_caps(struct enbox_caps * __restrict caps, uint64_t effective)
-{
-	enbox_assert(caps);
-	enbox_assert(!(effective & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	enbox_set_eff_caps(caps, enbox_get_eff_caps(caps) & ~effective);
-}
-
-static inline __enbox_nonull(1) __enbox_nothrow
-void
-enbox_set_perm_caps(struct enbox_caps * __restrict caps, uint64_t permitted)
-{
-	enbox_assert(caps);
-	enbox_assert(!(permitted & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	caps->data[0].permitted = (uint32_t)
-	                          (permitted & (UINT64_C(0xffffffff)));
-	caps->data[1].permitted = (uint32_t)(permitted >> 32);
-}
-
-static inline __enbox_nonull(1) __enbox_nothrow
-void
-enbox_raise_perm_caps(struct enbox_caps * __restrict caps, uint64_t permitted)
-{
-	enbox_assert(caps);
-	enbox_assert(!(permitted & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	enbox_set_perm_caps(caps, enbox_get_perm_caps(caps) | permitted);
-}
-
-static inline __enbox_nonull(1) __enbox_nothrow
-void
-enbox_drop_perm_caps(struct enbox_caps * __restrict caps, uint64_t permitted)
-{
-	enbox_assert(caps);
-	enbox_assert(!(permitted & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	enbox_set_perm_caps(caps, enbox_get_perm_caps(caps) & ~permitted);
-}
-
-static inline __enbox_nonull(1) __enbox_nothrow
-void
-enbox_set_inh_caps(struct enbox_caps * __restrict caps, uint64_t inheritable)
-{
-	enbox_assert(caps);
-	enbox_assert(!(inheritable & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	caps->data[0].inheritable = (uint32_t)
-	                            (inheritable & (UINT64_C(0xffffffff)));
-	caps->data[1].inheritable = (uint32_t)(inheritable >> 32);
-}
-
-static inline __enbox_nonull(1) __enbox_nothrow
-void
-enbox_raise_inh_caps(struct enbox_caps * __restrict caps, uint64_t inheritable)
-{
-	enbox_assert(caps);
-	enbox_assert(!(inheritable & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	enbox_set_inh_caps(caps, enbox_get_inh_caps(caps) | inheritable);
-}
-
-static inline __enbox_nonull(1) __enbox_nothrow
-void
-enbox_drop_inh_caps(struct enbox_caps * __restrict caps, uint64_t inheritable)
-{
-	enbox_assert(caps);
-	enbox_assert(!(inheritable & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
-
-	enbox_set_inh_caps(caps, enbox_get_inh_caps(caps) & ~inheritable);
-}
-
-static inline __enbox_nonull(1) __warn_result
-int
-_enbox_save_epi_caps(struct enbox_caps * __restrict caps)
-{
-	enbox_assert(caps);
-
-	/* Prepare capability sets header for the current thread. */
-	struct __user_cap_header_struct hdr = {
-		.version = _LINUX_CAPABILITY_VERSION_3,
-		.pid     = 0
-	};
-
-	if (capset(&hdr, caps->data)) {
-		int err = errno;
-
-		enbox_assert(err != EFAULT);
-		enbox_assert(err != EINVAL);
-		enbox_assert(err != ESRCH);
-
-		return -err;
-	}
-
-	return 0;
-}
-
-static __enbox_nonull(1) __warn_result
-int
-enbox_save_epi_caps(struct enbox_caps * __restrict caps)
-{
-	enbox_assert(caps);
-
-	int ret;
-
-	ret = _enbox_save_epi_caps(caps);
-	if (ret)
-		enbox_info("cannot save capabilities: %s (%d)",
-		           strerror(-ret),
-		           -ret);
-
-	return ret;
-}
-
-void
-enbox_clear_epi_caps(void)
-{
-	struct enbox_caps caps;
-	int               err __unused;
-
-	memset(&caps, 0, sizeof(caps));
-
-	/* This should never fail since we simply drop all capabilities... */
-	err = _enbox_save_epi_caps(&caps);
-	enbox_assert(!err);
-}
-
-const struct enbox_flag_desc enbox_caps_descs[] = {
-	/* Include generated capability descriptor definitions. */
-#include "capabilities.i"
-	{ NULL, }
-};
-
-#if defined(CONFIG_ENBOX_VERBOSE)
-
-static __enbox_nonull(1)
-void
-enbox_print_caps(FILE * __restrict stdio)
-{
-	enbox_assert(stdio);
-
-	struct enbox_caps caps;
-	uint64_t          eff;
-	uint64_t          perm;
-	uint64_t          inh;
-	uint64_t          amb;
-	uint64_t          bound;
-	int               c;
-
-	enbox_load_epi_caps(&caps);
-	eff = enbox_get_eff_caps(&caps);
-	perm = enbox_get_perm_caps(&caps);
-	inh = enbox_get_inh_caps(&caps);
-	amb = enbox_load_amb_caps();
-	bound = enbox_load_bound_caps();
-
-	fprintf(stdio,
-	        "CAPABILITY          PERMITTED  EFFECTIVE  INHERITABLE  AMBIENT  BOUNDING\n");
-
-	for (c = 0; c < ENBOX_CAPS_NR; c++) {
-		fprintf(stdio,
-		        "%-18.18s         %s         %s           %s       %s        %s\n",
-		        enbox_caps_descs[c].kword,
-		        (perm & enbox_cap(c)) ? "on" : " .",
-		        (eff & enbox_cap(c)) ? "on" : " .",
-		        (inh & enbox_cap(c)) ? "on" : " .",
-		        (amb & enbox_cap(c)) ? "on" : " .",
-		        (bound & enbox_cap(c)) ? "on" : " .");
-	}
-}
-
-static __enbox_nonull(1)
-void
-enbox_print_secbits(FILE * __restrict stdio)
-{
-	enbox_assert(stdio);
-
-	int bits;
-
-	bits = enbox_load_secbits();
-
-	fputs("SECUREBITS  NOROOT  NO_SETUID_FIXUP  KEEP_CAPS  NO_CAP_AMBIENT_RAISE  NO_NEW_PRIVS  DUMPABLE\n",
-	      stdio);
-	fprintf(stdio,
-	        "state           %s               %s         %s                    %s            %s        %s\n",
-	        (bits & SECBIT_NOROOT) ? "on" : " .",
-	        (bits & SECBIT_NO_SETUID_FIXUP) ? "on" : " .",
-	        (bits & SECBIT_KEEP_CAPS) ? "on" : " .",
-	        (bits & SECBIT_NO_CAP_AMBIENT_RAISE) ? "on" : " .",
-	        enbox_load_nonewprivs() ? "on" : " .",
-	        enbox_load_dump() ? "on" : " .");
-	fprintf(stdio,
-	        "lock            %s               %s         %s                    %s            NA        NA\n",
-	        (bits & SECBIT_NOROOT_LOCKED) ? "on" : " .",
-	        (bits & SECBIT_NO_SETUID_FIXUP_LOCKED) ? "on" : " .",
-	        (bits & SECBIT_KEEP_CAPS_LOCKED) ? "on" : " .",
-	        (bits & SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED) ? "on" : " .");
-}
-
-static __enbox_nonull(1)
-void
-enbox_print_creds(FILE * __restrict stdio)
-{
-	enbox_assert(stdio);
-
-	uid_t   ruid;
-	uid_t   euid;
-	uid_t   suid;
-	gid_t   rgid;
-	gid_t   egid;
-	gid_t   sgid;
-	gid_t * supp;
-	int     g;
-	int     ret;
-
-	ret = getresuid(&ruid, &euid, &suid);
-	enbox_assert(!ret);
-	ret = getresgid(&rgid, &egid, &sgid);
-	enbox_assert(!ret);
-
-	fputs("CREDENTIALS         Real   Effective       Saved\n",
-	      stdio);
-	fprintf(stdio, "uid           %10d  %10d  %10d\n", ruid, euid, suid);
-	fprintf(stdio, "gid           %10d  %10d  %10d\n", rgid, egid, sgid);
-
-	supp = malloc(NGROUPS_MAX * sizeof(supp[0]));
-	if (!supp)
-		return;
-
-	ret = getgroups(NGROUPS_MAX, supp);
-	enbox_assert(ret >= 0);
-
-	if (ret) {
-		fputs(         "Supp. groups  ", stdio);
-		fprintf(stdio, "%d", supp[0]);
-		for (g = 1; g < ret; g++)
-			fprintf(stdio, ", %d", supp[g]);
-		putc('\n', stdio);
-	}
-	else
-		fputs(         "Supp. groups  none\n", stdio);
-
-	free(supp);
-}
-
-void
-enbox_print_priv(FILE * __restrict stdio)
+enbox_setup_dump(bool on)
 {
 	enbox_assert_setup();
-	enbox_assert(stdio);
 
-	enbox_print_caps(stdio);
-	putc('\n', stdio);
-	enbox_print_secbits(stdio);
-	putc('\n', stdio);
-	enbox_print_creds(stdio);
+	int err __unused;
+
+	err = prctl(PR_SET_DUMPABLE, (int)on, 0, 0, 0);
+	enbox_assert(!err);
 }
 
-#endif /* defined(CONFIG_ENBOX_VERBOSE) */
+#endif /* defined(CONFIG_ENBOX_DISABLE_DUMP) */
 
 /*
  * Require the CAP_SETUID capability.
@@ -1157,8 +500,8 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
 		 * Make sure we can modify :
 		 * - capabilities (at least, to clear the bounding set),
 		 * - and change UIDs / GIDs.
-		 * Also make sure `kept_caps' are added to the permitted set so that we
-		 * may enable them after the change IDs operation.
+		 * Also make sure `kept_caps' are added to the permitted set so
+		 * that we may enable them after the change IDs operation.
 		 *
 		 * Prepare capability sets for preservation across next change
 		 * IDs and execve(2). Basically, this means we must:
@@ -1234,6 +577,41 @@ err:
 	return err;
 }
 
+int
+enbox_enforce_safe(uint64_t kept_caps)
+{
+	int               err;
+	struct enbox_caps caps;
+
+	enbox_enable_nonewprivs();
+
+	err = enbox_save_secbits(ENBOX_CAPS_SECBITS);
+	if (err)
+		goto err;
+
+	err = enbox_clear_bound_caps();
+	if (err)
+		goto err;
+
+	enbox_clear_amb_caps();
+
+	enbox_set_eff_caps(&caps, kept_caps);
+	enbox_set_perm_caps(&caps, kept_caps);
+	enbox_set_inh_caps(&caps, 0);
+	err = enbox_save_epi_caps(&caps);
+	if (err)
+		goto err;
+
+	return 0;
+
+err:
+	enbox_info("failed to enforce safe operations: %s (%d)",
+	           strerror(-err),
+	           -err);
+
+	return err;
+}
+
 void
 enbox_ensure_safe(uint64_t kept_caps)
 {
@@ -1246,13 +624,13 @@ enbox_ensure_safe(uint64_t kept_caps)
 	enbox_enable_nonewprivs();
 
 	enbox_load_epi_caps(&caps);
-	if (enbox_perm_caps_have(&caps, CAP_SETPCAP)) {
+	if (enbox_have_perm_caps(&caps, CAP_SETPCAP)) {
 
 		/*
 		 * Enable CAP_SETPCAP to clear bounding set and setup securebits
 		 * below.
 		 */
-		if (!enbox_eff_caps_have(&caps, CAP_SETPCAP)) {
+		if (!enbox_have_eff_caps(&caps, CAP_SETPCAP)) {
 			enbox_raise_eff_caps(&caps, ENBOX_CAP(CAP_SETPCAP));
 			err = _enbox_save_epi_caps(&caps);
 			enbox_assert(!err);

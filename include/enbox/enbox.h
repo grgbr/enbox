@@ -52,9 +52,11 @@
 
 #else  /* !defined(CONFIG_ENBOX_ASSERT) */
 
-#define enbox_assert(_expr)
+#define enbox_assert(_expr) \
+	do {} while (0)
 
-#define enbox_assert_setup()
+#define enbox_assert_setup() \
+	do {} while (0)
 
 #define __enbox_nonull(_arg_index, ...) __nonull(_arg_index, ## __VA_ARGS__)
 #define __enbox_const                   __const
@@ -459,7 +461,6 @@ enbox_make_fifo(const char * __restrict path, uid_t uid, gid_t gid, mode_t mode)
  *
  * @see
  * - enbox_cap()
- * - ENBOX_CAPS_NR
  * - @man{capabilities(7)}
  */
 #define ENBOX_CAP(_cap) \
@@ -832,6 +833,42 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
 	__enbox_nonull(1, 3, 4);
 
 /**
+ * Enforce the safest security context possible.
+ *
+ * Given the current system privilege context, this function enforces the
+ * most restricted environment possible for the current thread.
+ *
+ * Basically, it sets @rstterm{no_new_privs} attribute to 1.
+ *
+ * It clears all bounding set capabilities. In addition, securebits are modified
+ * and locked to so that the following bits are set:
+ * - `SECBIT_NOROOT`,
+ * - `SECBIT_NOROOT_LOCKED`,
+ * - `SECBIT_NO_SETUID_FIXUP_LOCKED`,
+ * - `SECBIT_KEEP_CAPS_LOCKED`,
+ * - `SECBIT_NO_CAP_AMBIENT_RAISE`,
+ * - `SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED`.
+ *
+ * All ambient set and inheritable capabilities are cleared.
+ *
+ * Finally, capabilities given as @p kept_caps argument are left enabled into
+ * the permitted and effective sets while all other ones are cleared.
+ *
+ * Requires CAP_SETPCAP capability.
+ *
+ * @param[in] kept_caps Capabilities to preserve into permitted and effective
+ *                      sets.
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - @man{capabilities(7)}
+ * - @rstterm{no_new_privs}
+ */
+extern int
+enbox_enforce_safe(uint64_t kept_caps);
+
+/**
  * Enable the safest security context possible.
  *
  * Given the current system privilege context, this function enables the
@@ -884,21 +921,21 @@ enbox_ensure_safe(uint64_t kept_caps);
  * - @rstterm{no_new_privs}
  * - @man{credentials(7)}
  */
-#if defined(CONFIG_ENBOX_VERBOSE)
+#if defined(CONFIG_ENBOX_SHOW)
 
 extern void
-enbox_print_priv(FILE * __restrict stdio)
+enbox_show_status(FILE * __restrict stdio)
 	__enbox_nonull(1);
 
-#else  /* !defined(CONFIG_ENBOX_VERBOSE) */
+#else  /* !defined(CONFIG_ENBOX_SHOW) */
 
 static inline __enbox_nonull(1)
 void
-enbox_print_priv(FILE * __restrict stdio __unused)
+enbox_show_status(FILE * __restrict stdio __unused)
 {
 }
 
-#endif /* defined(CONFIG_ENBOX_VERBOSE) */
+#endif /* defined(CONFIG_ENBOX_SHOW) */
 
 /**
  * File system entry type identifier.

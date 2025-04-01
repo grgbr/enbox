@@ -5,15 +5,19 @@
  * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
  ******************************************************************************/
 
-#include "common.h"
+#include "conf.h"
 #include <utils/path.h>
 #include <stdlib.h>
 
-#if defined(CONFIG_ENBOX_TOOL)
-#define __enbox_intern
-#else  /* !defined(CONFIG_ENBOX_TOOL) */
-#define __enbox_intern static
-#endif /* defined(CONFIG_ENBOX_TOOL) */
+#if defined(CONFIG_ENBOX_SHOW) && defined(CONFIG_ENBOX_TOOL)
+
+#define __enbox_flag_descs_storage
+
+#else /* !(defined(CONFIG_ENBOX_SHOW) && defined(CONFIG_ENBOX_TOOL)) */
+
+#define __enbox_flag_descs_storage static
+
+#endif /* defined(CONFIG_ENBOX_SHOW) && defined(CONFIG_ENBOX_TOOL) */
 
 #define enbox_conf_log(_setting, _severity, _format, ...) \
 	({ \
@@ -1036,7 +1040,8 @@ enbox_load_host_entry(const config_setting_t * __restrict setting,
 	return ret;
 }
 
-__enbox_intern const struct enbox_flag_desc enbox_mount_flag_descs[] = {
+__enbox_flag_descs_storage
+const struct enbox_flag_desc enbox_mount_flag_descs[] = {
 	/* Include generated mounting flag descriptor definitions. */
 #include "mount_flags.i"
 	{ NULL, }
@@ -1604,7 +1609,8 @@ enbox_unload_host(struct enbox_fsset * __restrict host)
 	free(host);
 }
 
-__enbox_intern const struct enbox_flag_desc enbox_namespace_descs[] = {
+__enbox_flag_descs_storage
+const struct enbox_flag_desc enbox_namespace_descs[] = {
 	/* Include generated mounting flag descriptor definitions. */
 #include "namespaces.i"
 	{ NULL, }

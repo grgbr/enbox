@@ -5,18 +5,13 @@
  * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
  ******************************************************************************/
 
-#include "common.h"
+#include "lib.h"
 #include <utils/path.h>
 #include <utils/file.h>
-#include <stdlib.h>
-#include <dirent.h>
 #include <sched.h>
-#include <sys/mount.h>
-#include <sys/syscall.h>
+#include <dirent.h>
 #include <sys/vfs.h>
-#include <sys/prctl.h>
 #include <linux/magic.h>
-#include <linux/securebits.h>
 
 struct elog * enbox_logger;
 mode_t        enbox_umask = (mode_t)-1;
@@ -768,7 +763,7 @@ enbox_mount_proc(unsigned long flags, const char * __restrict opts)
 	 */
 	err = enbox_mount("proc", "proc", "proc", flags, opts);
 	if (err)
-		return err;
+		goto err;
 
 	/* Make procfs just mounted private and unbindable. */
 	err = enbox_mount(NULL, "proc", NULL, MS_UNBINDABLE, NULL);
@@ -1064,7 +1059,7 @@ enbox_populate_jail(const struct enbox_entry entries[__restrict_arr],
 
 #define ENBOX_JAIL_ROOTFS_EXTOPTS_LEN \
 	(sizeof(ENBOX_JAIL_ROOTFS_EXTOPTS) - 1 + \
-	 1 + sizeof("gid=") - 1 + 5 + \
+	 1 + sizeof("gid=") - 1 + 10 + \
 	 1 + sizeof("nr_inodes=") - 1 + 10)
 
 static __enbox_nonull(1, 4) __enbox_nothrow __warn_result
@@ -1102,8 +1097,8 @@ enbox_init_jail_root(
 	 */
 	snprintf(root_opts,
 	         ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1,
-	         ENBOX_JAIL_ROOTFS_EXTOPTS ",gid=%hu,nr_inodes=%u",
-	         gid,
+	         ENBOX_JAIL_ROOTFS_EXTOPTS ",gid=%u,nr_inodes=%u",
+	         (unsigned int)gid,
 	         inodes_nr + 1);
 
 	err = enbox_mount("root",
@@ -1237,7 +1232,7 @@ enbox_setup_jail(
 
 	int                        err;
 	const struct enbox_fsset * fsset = &jail->fsset;
-	const char *               msg __enbox_terse_unused;
+	const char *               msg __unused;
 
 	/*
 	 * Dissociate from parent process namespaces.
@@ -1591,8 +1586,7 @@ enbox_prep_proc(const struct enbox_proc * __restrict proc,
 	 * no longer shares its root directory (chroot(2)), current directory
 	 * (chdir(2)), or umask (umask(2)) attributes with any other process.
 	 */
-
-	enbox_umask = umask(proc->umask);
+	enbox_set_umask(proc->umask);
 
 	if (proc->cwd) {
 		err = upath_chdir(proc->cwd);
@@ -1622,9 +1616,12 @@ enbox_change_proc_ids(const struct enbox_proc * __restrict proc)
 	int err;
 
 	if (proc->ids) {
-		err = enbox_change_ids(proc->ids->pwd,
-		                       proc->ids->drop_supp,
-		                       proc->caps);
+		if (proc->ids->pwd->pw_uid != enbox_uid)
+			err = enbox_change_ids(proc->ids->pwd,
+			                       proc->ids->drop_supp,
+			                       proc->caps);
+		else
+			err = enbox_enforce_safe(proc->caps);
 		if (err)
 			goto err;
 	}
@@ -1644,7 +1641,6 @@ enbox_validate_exec_arg(const char * __restrict arg)
 
 	size_t len;
 
-#define ENBOX_EXEC_ARG_SIZE (1024U)
 	len = strnlen(arg, ENBOX_EXEC_ARG_SIZE);
 	if (!len)
 		return -ENODATA;
@@ -1739,93 +1735,6 @@ enbox_read_umask(void)
 	return msk;
 }
 
-#if defined(CONFIG_ENBOX_DISABLE_DUMP)
-
-/**
- * @internal
- *
- * Setup current process *dumpable* attribute.
- *
- * Enable or disable generation of coredumps for current process.
- * In addition, attaching to the process via @man{ptrace(2)} PTRACE_ATTACH is
- * restricted according to multiple logics introduced below.
- *
- * As stated into section «PR_SET_DUMPABLE» of @man{prctl(2)}, the *dumpable*
- * attribute is normally set to 1. However, it is reset to the current value
- * contained in the file `/proc/sys/fs/suid_dumpable` (which defaults to value
- * 0), in the following circumstances:
- * - current process EUID or EGID is changed ;
- * - current process FSUID or FSGID is changed ;
- * - current process @man{execve(2)} a SUID / SGID program incurring a EUID /
- *   EGID change ;
- * - current process @man{execve(2)} a program that has file capabilities
- *   exceeding those already permitted.
- * The `/proc/sys/fs/suid_dumpable` file is documented into @man{proc(5)}.
- *
- * As stated in @man{ptrace(2)}, Linux kernel performs so-called "ptrace access
- * mode" checks whose outcome determines whether @man{ptrace(2)} operations are
- * permitted in addition to `CAP_SYS_PTRACE` capability and Linux Security
- * Module ptrace access checks.
- * See section «Ptrace access mode checking» of @man{ptrace(2)} for more
- * informations.
- *
- * Finally, the [Yama] Linux Security Module may further restrict
- * @man{ptrace(2)} operations thanks to the runtime controllable sysctl
- * `/proc/sys/kernel/yama`.
- * See «PR_SET_PTRACER» section in @man{prctl(2)} and [Yama] section in
- * [The Linux kernel user’s and administrator’s guide].
- *
- * @param[in] on Enable coredumps generation if `true`, disable it otherwise.
- *
- * @see
- * - #ENBOX_ENABLE_DUMP
- * - #ENBOX_DISABLE_DUMP
- * - enbox_setup()
- *
- * [The Linux kernel user’s and administrator’s guide]: https://www.kernel.org/doc/html/latest/admin-guide/index.html
- * [Yama]:                                              https://www.kernel.org/doc/html/latest/admin-guide/LSM/Yama.html
- */
-static __enbox_nothrow
-void
-enbox_setup_dump(bool on)
-{
-	enbox_assert_setup();
-
-	int err __unused;
-
-	err = prctl(PR_SET_DUMPABLE, (int)on, 0, 0, 0);
-	enbox_assert(!err);
-}
-
-/**
- * @internal
- *
- * Enable process *dumpable* attribute.
- *
- * @see enbox_setup_dump()
- */
-#define ENBOX_ENABLE_DUMP  (1)
-
-/**
- * @internal
- *
- * Disable process *dumpable* attribute.
- *
- * @see enbox_setup_dump()
- */
-#define ENBOX_DISABLE_DUMP (0)
-
-#else  /* !defined(CONFIG_ENBOX_DISABLE_DUMP) */
-
-static inline
-void
-enbox_setup_dump(bool on __unused)
-{
-
-}
-
-#endif /* !defined(CONFIG_ENBOX_DISABLE_DUMP) */
-
 void
 enbox_setup(struct elog * __restrict logger)
 {
@@ -1835,7 +1744,5 @@ enbox_setup(struct elog * __restrict logger)
 	enbox_gid = getegid();
 	enbox_umask = enbox_read_umask();
 
-#if defined(CONFIG_ENBOX_DISABLE_DUMP)
 	enbox_setup_dump(ENBOX_DISABLE_DUMP);
-#endif /* defined(CONFIG_ENBOX_DISABLE_DUMP) */
 }
