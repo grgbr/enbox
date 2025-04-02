@@ -23,6 +23,7 @@
 .. |capabilities|  replace:: :ref:`capabilities <sect-main-capabilities>`
 .. |configuration| replace:: :ref:`configuration <sect-main-configuration>`
 .. |cmd|           replace:: :ref:`cmd <sect-main-top_cmd>`
+.. |Enbox tool|    replace:: :ref:`Enbox tool <sect-main-usage>`
 
 
 ..
@@ -104,6 +105,7 @@
 .. _gcc:                 https://gcc.gnu.org/
 .. _enbox:               https://github.com/grgbr/enbox/
 .. _no_new_privs:        https://docs.kernel.org/userspace-api/no_new_privs.html
+.. _PAM:                 https://github.com/linux-pam/linux-pam
 
 
 ..

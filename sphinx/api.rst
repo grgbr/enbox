@@ -79,6 +79,34 @@ built at compile-time.
 Additional usage details may be found into section Instantiation_. This is the
 most complex way to use the Enbox_ library.
 
+PAM module
+----------
+
+.. todo:: complete me!
+
+Typical use case involves a standard login process onto console through PAM. The
+Enbox_ PAM module setup the jail at PAM session establishment for final user
+shell containment.
+
+#. ``login`` manages authentication over the console, running as *root*
+   
+   
+like so:
+
+#. setup host rootfs
+#. setup jail rootfs with final user primary group ID
+#. enter jail with its own namespaces except *net*
+#. |execve(2)| lighttpd as root and request it to switch to *lighttpd* user with
+   the following capabilities:
+   
+   * setuid
+   * setgid
+   * net_bind_service
+   * sys_chroot
+
+#. Make sure that inherited and ambient capabilities are cleared before PAM
+   operations
+
 Initialization
 ==============
 
@@ -289,147 +317,6 @@ mentioned above. These are :
    * Various :
 
       * :c:func:`enbox_show_status`
-
-Use cases
-=========
-
-sshd
-----
-
-Sshd process architecture:
-
-* 1 *master* process that listens connection on main port (22) and running as
-  *root* ;
-* 1 *privileged monitor* process, ``/usr/libexec/sshd-session``, running as
-  *root* and that executes the PAM handshake and |fork(2)| the *unprivileged
-  monitor* ;
-* 1 *unprivileged monitor* process, ``/usr/libexec/sshd-session``, 
-  that switches immediatly to final user ID and |fork(2)| / |execve(2)| the
-  final *unprivileged shell* process ;
-* 1 *unprivileged shell* process running as final user ID.
-
-Session establishment workflow:
-
-#. upon connection request, *master* process |fork(2)| / |execve(2)| the
-   *privileged monitor*
-#. *privileged monitor* run the PAM handshake then |fork(2)| the *unprivileged
-   monitor*
-#. *unprivileged monitor* changes to final user ID then |fork(2)| / |execve(2)|
-   final user *unprivileged shell*.
-
-For more informations, refer to :
-
-`OpenSSH Sandboxing and Privilege Separation <https://jfrog.com/blog/examining-openssh-sandboxing-and-privilege-separation-attack-surface-analysis>`_
-`Privilege Separated OpenSSH <http://www.citi.umich.edu/u/provos/ssh/privsep.html>`_
-
-.. rubric:: with pre-opened listen socket(s)
-
-#. setup host rootfs and open listen socket(s)
-#. setup jail rootfs with *root* user primary group ID and a chroot directory
-   for cli user usage (see ``ChrootDirectory`` option)
-#. enter jail with its own namepaces
-#. |execve(2)| sshd as *root* user with the following capabilities:
-
-   * sys_chroot
-   * setuid
-   * setgid
-   * chown
-   * fowner
-   * kill
-
-#. Make sure that inherited and ambient capabilities are cleared during
-   *privileged monitor* PAM handshake operations, i.e., before *unprivileged
-   monitor* switches to final user ID.
-
-
-.. rubric:: without pre-opened listen socket(s)
-
-#. setup host rootfs
-#. setup jail rootfs with *root* user primary group ID and a chroot directory
-   for cli user usage (see ``ChrootDirectory`` option)
-#. enter jail with its own namespaces except *net*
-#. |execve(2)| sshd as *root* user with the following capabilities:
-   
-   * net_bind_service
-   * sys_chroot
-   * setuid
-   * setgid
-   * chown
-   * fowner
-   * kill
-
-#. Make sure that inherited and ambient capabilities are cleared during
-   *privileged monitor* PAM handshake operations, i.e., before *unprivileged
-   monitor* switches to final user ID.
-
-lighttpd
---------
-
-.. rubric:: with pre-opened listen socket(s)
-
-#. setup host rootfs and open listen socket(s)
-#. setup jail rootfs with lighttpd user /group IDs
-#. enter jail with its own namepaces
-#. |execve(2)| lighttpd as lighttpd user with no capabilities
-
-Note that in this case, lighttpd looses the ability to |chroot(8)| into web
-documents root directory !
-
-.. rubric:: without pre-opened listen socket(s)
-
-#. setup host rootfs
-#. setup jail rootfs with *lighttpd* user primary group ID
-#. enter jail with its own namespaces except *net*
-#. |execve(2)| lighttpd as root and request it to switch to *lighttpd* user with
-   the following capabilities:
-   
-   * setuid
-   * setgid
-   * net_bind_service
-   * sys_chroot
-
-#. Make sure that inherited and ambient capabilities are cleared before PAM
-   operations
-
-elogd
------
-
-.. rubric:: without pre-opened kernel logging ring-buffer
-   
-.. todo:: complete me!
-
-
-.. rubric:: with pre-opened kernel logging ring-buffer
-
-.. todo:: complete me!
-
-PAM module
-----------
-
-Typical use case involves a standard login process onto console through PAM. The
-Enbox_ PAM module setup the jail at PAM session establishment for final user
-shell containment.
-
-#. ``login`` manages authentication over the console, running as *root*
-   
-   
-like so:
-
-#. setup host rootfs
-#. setup jail rootfs with final user primary group ID
-#. enter jail with its own namespaces except *net*
-#. |execve(2)| lighttpd as root and request it to switch to *lighttpd* user with
-   the following capabilities:
-   
-   * setuid
-   * setgid
-   * net_bind_service
-   * sys_chroot
-
-#. Make sure that inherited and ambient capabilities are cleared before PAM
-   operations
-
-
 
 Reference
 =========

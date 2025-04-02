@@ -1993,7 +1993,7 @@ enbox_parse_caps_setting(const config_setting_t * __restrict setting,
 	}
 
 	msk = enbox_cap((int)enbox_caps_descs[d].value);
-	if (!(msk & ENBOX_CAPS_VALID)) {
+	if (!(msk & ENBOX_CAPS_ALLOWED)) {
 		enbox_conf_err(setting, "invalid '%s' capability", str);
 		return -EINVAL;
 	}

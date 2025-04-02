@@ -795,33 +795,32 @@ enbox_show_status(FILE * __restrict stdio)
 		        "cannot retrieve namespaces: %s (%d).\n",
 		        strerror(-ret),
 		        -ret);
-	putc('\n', stdio);
 
+	putc('\n', stdio);
 	enbox_show_caps(stdio);
-	putc('\n', stdio);
 
+	putc('\n', stdio);
 	enbox_show_secbits(stdio);
-	putc('\n', stdio);
 
+	putc('\n', stdio);
 	enbox_show_creds(stdio);
-	putc('\n', stdio);
 
-	fputs("PROCESS\n", stdio);
+	fputs("\nPROCESS\n", stdio);
 	enbox_show_proc(stdio, show->buff, sizeof(show->buff));
-	putc('\n', stdio);
 
-	fputs("FILE DESC.  PATHNAME\n", stdio);
+	fputs("\nFILE DESC.  PATHNAME\n", stdio);
 	ret = etux_fstree_walk("/proc/self/fd", 0, enbox_show_proc_fd, show);
 	if (ret)
 		fprintf(stdio,
 		        "cannot retrieve opened file descriptors: %s (%d).\n",
 		        strerror(-ret),
 		        -ret);
-	putc('\n', stdio);
 
 	/* TODO: show mountpoint informations (/proc/self/mountinfo) ?? */
 
-	fputs("T     MODE       #LINK         UID         GID   MAJ      MIN                 SIZE                 CTIME  PATH\n",
+#warning Remove me!!
+#if 0
+	fputs("\nT     MODE       #LINK         UID         GID   MAJ      MIN                 SIZE                 CTIME  PATH\n",
 	      stdio);
 	ret = etux_fstree_scan("/",
 	                       ETUX_FSTREE_PRE_OPT | ETUX_FSTREE_XDEV_OPT,
@@ -832,6 +831,7 @@ enbox_show_status(FILE * __restrict stdio)
 		        "cannot scan root filesystem: %s (%d).\n",
 		        strerror(-ret),
 		        -ret);
+#endif
 
 	enbox_destroy_show(show);
 }

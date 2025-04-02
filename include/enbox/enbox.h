@@ -587,6 +587,17 @@ enbox_clear_bound_caps(void)
  * - when @p drop_supp argument equals #ENBOX_DROP_SUPP_GROUPS, clear
  *   supplementary group list.
  *
+ * @note
+ * - if one or more of the real, effective, or saved set user IDs was previously
+ *   0, and as a result of the UID changes all of these IDs have a nonzero
+ *   value, then all capabilities are cleared from the permitted, effective, and
+ *   ambient capability sets.
+ * - if the effective user ID is changed from nonzero to 0, then the permitted
+ *   set is copied to the effective set.
+ * - see @man{capabilities(7)} and @man{credentials(7)} for further informations
+ *   about filesystem user ID changes.
+ * - refer to enbox_change_ids() if capability preservation is desired.
+ *
  * @warning
  * Requires the ability to enable the CAP_SETUID and CAP_SETUID capabilities.
  *
@@ -604,6 +615,7 @@ enbox_clear_bound_caps(void)
  * - @man{setresuid(2)}
  * - @man{initgroups(3)}
  * - @man{setgroups(2)}
+ * - @man{credentials(7)}
  * - @man{capabilities(7)}
  */
 extern int
@@ -630,7 +642,7 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  * when returning from call to enbox_change_ids().
  *
  * Upon return, current thread permitted and effective capability sets reflect
- * the mask given by @p kept_caps. Bounding and ambient capabilitiy sets are
+ * the mask given by @p kept_caps. Bounding and ambient capability sets are
  * cleared. The @rstterm{no_new_privs} attribute is set to 1 and securebits are
  * also modified and locked so that the following bits are set:
  * - `SECBIT_NOROOT`,
@@ -689,7 +701,7 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
  * bounding capability set. An error is returned otherwise.
  *
  * Upon return, current thread permitted, effective, inheritable and ambient
- * capability sets reflect the mask given by @p kept_caps. Bounding capabilitiy
+ * capability sets reflect the mask given by @p kept_caps. Bounding capability
  * set is cleared. The @rstterm{no_new_privs} attribute is set to 1 and
  * securebits are also modified and locked so that the following bits are set:
  * - `SECBIT_NOROOT`,
@@ -765,7 +777,7 @@ enbox_execve(const char * __restrict path,
  * bounding capability set. An error is returned otherwise.
  *
  * Upon return, current thread permitted, effective, inheritable and ambient
- * capability sets reflect the mask given by @p kept_caps. Bounding capabilitiy
+ * capability sets reflect the mask given by @p kept_caps. Bounding capability
  * set is cleared. The @rstterm{no_new_privs} attribute is set to 1 and
  * securebits are also modified and locked so that the following bits are set:
  * - `SECBIT_NOROOT`,
@@ -876,7 +888,7 @@ enbox_enforce_safe(uint64_t kept_caps);
  *
  * Basically, it sets @rstterm{no_new_privs} attribute to 1.
  *
- * If the CAP_SETPCAP capabilitiy is enabled into the permitted set, it clears
+ * If the CAP_SETPCAP capability is enabled into the permitted set, it clears
  * all bounding set capabilities. In addition, securebits are modified and
  * locked to so that the following bits are set:
  * - `SECBIT_NOROOT`,

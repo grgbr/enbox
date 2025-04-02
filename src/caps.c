@@ -182,7 +182,7 @@ enbox_load_amb_caps(void)
 int
 enbox_save_amb_caps(uint64_t ambient)
 {
-	enbox_assert(!(ambient & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+	enbox_assert(!(ambient & ~ENBOX_CAPS_VALID));
 
 	int c;
 

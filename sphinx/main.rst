@@ -168,7 +168,7 @@ Features
 * lightweight
 * Linux OS only
 
-.. _usage:
+.. _sect-main-usage:
 
 Usage
 =====
@@ -278,6 +278,8 @@ below:
 
 Reference
 ---------
+
+.. _sect-main-caps_attr:
 
 caps-attr
 *********
@@ -1320,6 +1322,8 @@ dies.
            )
    }
 
+.. _sect-main-ns_attr:
+
 ns-attr
 *******
 
@@ -1383,10 +1387,12 @@ valid `top-proc`_ statement.
    # Command / program to execve(2)
    cmd = [ "/sbin/mydaemon", "--opt", "value" ]
 
+.. _sect-main-top_host:
+
 top-host
 ********
 
-Define a list of entries to create onto the host filesystem. This is usefull
+Define a list of entries to create onto the |host| filesystem. This is usefull
 when it needs to be dynamically populated at runtime prior to running a command
 specified by `top-cmd`_.
 
@@ -1428,10 +1434,12 @@ to system administration tasks.
            }
    )
 
+.. _sect-main-top_jail:
+
 top-jail
 ********
 
-Specify an optional jail to spawn with tunable settings.
+Specify an optional |jail| to spawn with tunable settings.
 
 .. rubric:: Syntax
 
@@ -1641,9 +1649,191 @@ informations.
      - ``MS_NODIRATIME``
      - disable directory inode access time updates
 
-Use cases
----------
+Case studies
+============
 
-.. todo::
+OpenSSH server
+--------------
 
-   Document typical configuration use cases
+.. _openssh: https://www.openssh.com
+
+Requirements
+************
+
+This section details how to |jail| an OpenSSH_ server using the |Enbox tool|
+according to the following requirements:
+
+* run the `master sshd process`_ as *root* with the least privileges possible
+* |chroot(8)|'ed within a restricted filesystem hierarchy
+* and allowing final user to run an SSH shell session
+* retrieved through a PAM_ handshake.
+
+The final user shell session should be:
+
+* running as final user,
+* and |chroot(8)|'ed into user's home directory within a restricted filesystem
+  hierarchy
+
+Based upon what is described in the SSH `server processes`_ section below, here
+are various use cases that may be addressed using the |Enbox tool|.
+
+With pre-opened listen socket(s)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. todo:: FINISH ME!!
+`master sshd process`_, when running as *root*, forks the
+`privileged monitor process`_ as *root* ; therefore all caps for execve() by root
+  requires all caps for execve() by root
+`privileged monitor process`_ all caps for execve() by root
+`preauthentication child`_ all caps for execve() + cleanup inh / amb for post IDs switch
+`postauthentication child`_ all caps for switch ids + cleanup inh / amb for post IDs switch
+
+
+* setup :ref:`host <sect-main-top_host>` filesystem and open listen socket(s)
+* setup :ref:`jail <sect-main-top_jail>` filesystem with *root* group ID and a
+  chroot directory for final user shell usage (see OpenSSH_ ``ChrootDirectory``
+  option)
+* enter |jail| with its own private :ref:`namepaces <sect-main-ns_attr>`
+* |execve(2)| sshd as *root* user with the following
+  :ref:`capabilities <sect-main-caps_attr>`:
+
+  * sys_chroot
+  * setuid
+  * setgid
+  * chown
+  * fowner
+  * kill
+
+* Make sure that inherited and ambient capabilities are cleared during
+  *privileged monitor* PAM_ handshake operations, i.e., before *unprivileged
+  monitor* switches to final user ID.
+
+Without pre-opened listen socket(s)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+#. setup host rootfs
+#. setup jail rootfs with *root* user primary group ID and a chroot directory
+   for cli user usage (see ``ChrootDirectory`` option)
+#. enter jail with its own namespaces except *net*
+#. |execve(2)| sshd as *root* user with the following capabilities:
+   
+   * net_bind_service
+   * sys_chroot
+   * setuid
+   * setgid
+   * chown
+   * fowner
+   * kill
+
+#. Make sure that inherited and ambient capabilities are cleared during
+   *privileged monitor* PAM_ handshake operations, i.e., before *unprivileged
+   monitor* switches to final user ID.
+
+Server processes
+****************
+
+Below is an extremely brief description of a final user shell session started
+over ssh from a *server process architecture point of view only*.
+
+For more informations, refer to :
+
+* `OpenSSH Sandboxing and Privilege Separation <https://jfrog.com/blog/examining-openssh-sandboxing-and-privilege-separation-attack-surface-analysis>`_
+* `Privilege Separated OpenSSH <http://www.citi.umich.edu/u/provos/ssh/privsep.html>`_
+
+master sshd process
+^^^^^^^^^^^^^^^^^^^
+
+* ``/sbin/sshd``, the main daemon itself
+* runs as *root*
+* listens to incoming connections on main port(s)
+* |fork(2)| `privileged monitor process`_ upon incoming connections.
+
+privileged monitor process
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+   
+* |fork(2)|\'ed as root by the `master sshd process`_ upon incoming connection
+  request
+* quickly |execve(2)| ``/libexec/sshd-session`` which...
+* ... |fork(2)| the `preauthentication child`_ (see ``privsep_preauth()``)
+* renames process name to ``[priv]``
+* waits for `preauthentication child`_ completion
+* performs PAM_ handshake
+* |fork(2)| the `postauthentication child`_ (see ``privsep_postauth()``)
+* waits for `postauthentication child`_ completion
+* and exits.
+
+preauthentication child
+^^^^^^^^^^^^^^^^^^^^^^^
+
+* otherwise known as the *unprivileged networking* process
+* |fork(2)|\'ed as root by the `privileged monitor process`_ to perform
+  *preauthentication*
+* quickly |execve(2)| ``/libexec/sshd-auth`` which...
+* ... renames process name to ``[session-auth]``
+* sandboxes itself (seccomp)
+* |chroot(8)| itself into ``/var/empty``
+* then changes to unprivileged ``sshd`` user
+* renames process name to ``[net]``
+* performs preauthentication exchanges with the `privileged monitor process`_
+* then exits.
+
+
+postauthentication child
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+* otherwise known as the *unprivileged monitor* process
+* |fork(2)|\'ed as root by the `privileged monitor process`_ to perform
+  *postauthentication*
+* creates and setup process session
+* eventually |chroot(8)| into final user chroot directory (if configured)
+* switches to final user
+* starts user session (see ``do_authenticated()``)
+* runs user session loop (see ``server_loop2()``) which may eventually:
+  
+  * allocates and setup PTYs
+  * renames process name to ``[<user>@<pts>]``
+  * |fork(2)| and |execve(2)| final user shell (see ``do_exec_pty()``)
+    
+* then, upon end of user session, finalize PAM_ logic
+* and exits
+  
+lighttpd
+--------
+
+.. rubric:: with pre-opened listen socket(s)
+
+#. setup host rootfs and open listen socket(s)
+#. setup jail rootfs with lighttpd user /group IDs
+#. enter jail with its own namepaces
+#. |execve(2)| lighttpd as lighttpd user with no capabilities
+
+Note that in this case, lighttpd looses the ability to |chroot(8)| into web
+documents root directory !
+
+.. rubric:: without pre-opened listen socket(s)
+
+#. setup host rootfs
+#. setup jail rootfs with *lighttpd* user primary group ID
+#. enter jail with its own namespaces except *net*
+#. |execve(2)| lighttpd as root and request it to switch to *lighttpd* user with
+   the following capabilities:
+   
+   * setuid
+   * setgid
+   * net_bind_service
+   * sys_chroot
+
+#. Make sure that inherited and ambient capabilities are cleared before PAM_
+   operations
+
+elogd
+-----
+
+.. rubric:: without pre-opened kernel logging ring-buffer
+   
+.. todo:: complete me!
+
+
+.. rubric:: with pre-opened kernel logging ring-buffer
+
+.. todo:: complete me!

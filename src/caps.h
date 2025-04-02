@@ -58,18 +58,24 @@
 	(CAP_LAST_CAP + 1)
 
 /*
+ * Mask of capabilities that system supports.
+ */
+#define ENBOX_CAPS_VALID \
+	((UINT64_C(1) << ENBOX_CAPS_NR) - 1)
+
+/*
  * Mask of capabilities that Enbox refuses to propagate across setresuid(2) and
  * execve(2).
  */
-#define ENBOX_CAPS_INVAL \
+#define ENBOX_CAPS_REJECTED \
 	(ENBOX_CAP(CAP_SETPCAP) | ENBOX_CAP(CAP_SYS_ADMIN))
 
 /*
  * Mask of capabilities that Enbox allows to propagate across setresuid(2) and
  * execve(2).
  */
-#define ENBOX_CAPS_VALID \
-	(((UINT64_C(1) << ENBOX_CAPS_NR) - 1) & ~(ENBOX_CAPS_INVAL))
+#define ENBOX_CAPS_ALLOWED \
+	(ENBOX_CAPS_VALID & ~ENBOX_CAPS_REJECTED)
 
 #if defined(CONFIG_ENBOX_SHOW)
 #define __enbox_export_caps

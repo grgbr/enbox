@@ -243,7 +243,8 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
 	enbox_assert_setup();
 	enbox_assert(!enbox_validate_pwd(pwd_entry, false));
 	enbox_assert(pwd_entry->pw_uid != enbox_uid);
-	enbox_assert(kept_caps & (ENBOX_CAPS_VALID | ENBOX_CAPS_CHIDS_MASK));
+	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
+	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
 
 	struct enbox_caps caps;
 	int               err;
@@ -370,7 +371,7 @@ enbox_execve_with_caps(struct enbox_caps * __restrict caps,
 	enbox_assert(argv);
 	enbox_assert(argv[0]);
 	enbox_assert(*argv[0]);
-	enbox_assert(kept_caps & (ENBOX_CAPS_VALID | ENBOX_CAPS_CHIDS_MASK));
+	enbox_assert(!(kept_caps & ~ENBOX_CAPS_VALID));
 
 	int err;
 
@@ -439,7 +440,7 @@ enbox_execve(const char * __restrict path,
 	enbox_assert(argv);
 	enbox_assert(argv[0]);
 	enbox_assert(*argv[0]);
-	enbox_assert(kept_caps & ENBOX_CAPS_VALID);
+	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
 
 	struct enbox_caps caps;
 	int               err;
@@ -482,7 +483,8 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
 	enbox_assert(argv);
 	enbox_assert(argv[0]);
 	enbox_assert(*argv[0]);
-	enbox_assert(kept_caps & ENBOX_CAPS_VALID);
+	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
+	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
 
 	struct enbox_caps caps;
 	uint64_t          eff;
@@ -580,6 +582,8 @@ err:
 int
 enbox_enforce_safe(uint64_t kept_caps)
 {
+	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
+
 	int               err;
 	struct enbox_caps caps;
 
@@ -616,7 +620,7 @@ void
 enbox_ensure_safe(uint64_t kept_caps)
 {
 	enbox_assert_setup();
-	enbox_assert(!(kept_caps & ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1)));
+	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
 
 	struct enbox_caps caps;
 	int               err __unused;
