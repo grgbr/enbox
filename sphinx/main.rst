@@ -1674,60 +1674,48 @@ The final user shell session should be:
 * and |chroot(8)|'ed into user's home directory within a restricted filesystem
   hierarchy
 
-Based upon what is described in the SSH `server processes`_ section below, here
-are various use cases that may be addressed using the |Enbox tool|.
+OpenSSH_ runtime analysis shows that it basically requires the following
+|capabilities| to operate:
 
-With pre-opened listen socket(s)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* sys_chroot
+* setuid
+* setgid
+* chown
+* fowner
+* kill
 
-.. todo:: FINISH ME!!
-`master sshd process`_, when running as *root*, forks the
-`privileged monitor process`_ as *root* ; therefore all caps for execve() by root
-  requires all caps for execve() by root
-`privileged monitor process`_ all caps for execve() by root
-`preauthentication child`_ all caps for execve() + cleanup inh / amb for post IDs switch
-`postauthentication child`_ all caps for switch ids + cleanup inh / amb for post IDs switch
+In addition, the SSH `server processes`_ section below shows that, in the case
+of a multiuser server instance, the `master sshd process`_ should run as *root*
+with all |capabilities| listed above enabled in its permitted, effective,
+inheritable and ambient sets.
 
+Once |fork(2)|'ed as *root* by the `master sshd process`_, the
+`privileged monitor process`_ |execve(2)| ``/libexec/sshd-session``, which
+requires all |capabilities| listed above to be enabled in its permitted,
+effective, inheritable and ambient sets.
 
-* setup :ref:`host <sect-main-top_host>` filesystem and open listen socket(s)
-* setup :ref:`jail <sect-main-top_jail>` filesystem with *root* group ID and a
-  chroot directory for final user shell usage (see OpenSSH_ ``ChrootDirectory``
-  option)
-* enter |jail| with its own private :ref:`namepaces <sect-main-ns_attr>`
-* |execve(2)| sshd as *root* user with the following
-  :ref:`capabilities <sect-main-caps_attr>`:
+Once |fork(2)|\'ed as *root* by the `privileged monitor process`_, the
+`preauthentication child`_  |execve(2)| ``/libexec/sshd-auth``, which
+requires all |capabilities| listed above to be enabled in its permitted and
+effective sets.
+However, inheritable and ambient sets may safely be cleared just after first
+call to |execve(2)| since `preauthentication child`_ does not perform
+further calls to this syscall.
 
-  * sys_chroot
-  * setuid
-  * setgid
-  * chown
-  * fowner
-  * kill
+Once |fork(2)|\'ed as *root* by the `privileged monitor process`_, the
+`postauthentication child`_ requires all |capabilities| listed below to be
+enabled in its permitted and effective sets.
+As it does perform no more calls to |execve(2)|, the inheritable and ambient
+sets may immediatly be cleared since it does not require its later calls to
+|execve(2)| to preserve |capabilities|.
 
-* Make sure that inherited and ambient capabilities are cleared during
-  *privileged monitor* PAM_ handshake operations, i.e., before *unprivileged
-  monitor* switches to final user ID.
-
-Without pre-opened listen socket(s)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-#. setup host rootfs
-#. setup jail rootfs with *root* user primary group ID and a chroot directory
-   for cli user usage (see ``ChrootDirectory`` option)
-#. enter jail with its own namespaces except *net*
-#. |execve(2)| sshd as *root* user with the following capabilities:
-   
-   * net_bind_service
-   * sys_chroot
-   * setuid
-   * setgid
-   * chown
-   * fowner
-   * kill
-
-#. Make sure that inherited and ambient capabilities are cleared during
-   *privileged monitor* PAM_ handshake operations, i.e., before *unprivileged
-   monitor* switches to final user ID.
+Finally, thanks to the Debian's *systemd-socket-activation.patch*, we may
+further restrict privileges granted to OpenSSH_ server by requesting Enbox_ to
+pre-open the listening socket(s) and pass them to the `master sshd process`_ at
+instantiation time.
+In this case, the *net_bind_service* capability is not required. In addition,
+the server may run in its own *net* |namepaces| so that it does not need to see
+system network interfaces anymore.
 
 Server processes
 ****************
@@ -1751,7 +1739,7 @@ master sshd process
 privileged monitor process
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
    
-* |fork(2)|\'ed as root by the `master sshd process`_ upon incoming connection
+* |fork(2)|\'ed as *root* by the `master sshd process`_ upon incoming connection
   request
 * quickly |execve(2)| ``/libexec/sshd-session`` which...
 * ... |fork(2)| the `preauthentication child`_ (see ``privsep_preauth()``)
@@ -1766,7 +1754,7 @@ preauthentication child
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 * otherwise known as the *unprivileged networking* process
-* |fork(2)|\'ed as root by the `privileged monitor process`_ to perform
+* |fork(2)|\'ed as *root* by the `privileged monitor process`_ to perform
   *preauthentication*
 * quickly |execve(2)| ``/libexec/sshd-auth`` which...
 * ... renames process name to ``[session-auth]``
@@ -1777,12 +1765,11 @@ preauthentication child
 * performs preauthentication exchanges with the `privileged monitor process`_
 * then exits.
 
-
 postauthentication child
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 * otherwise known as the *unprivileged monitor* process
-* |fork(2)|\'ed as root by the `privileged monitor process`_ to perform
+* |fork(2)|\'ed as *root* by the `privileged monitor process`_ to perform
   *postauthentication*
 * creates and setup process session
 * eventually |chroot(8)| into final user chroot directory (if configured)
@@ -1802,38 +1789,38 @@ lighttpd
 
 .. rubric:: with pre-opened listen socket(s)
 
-#. setup host rootfs and open listen socket(s)
-#. setup jail rootfs with lighttpd user /group IDs
-#. enter jail with its own namepaces
-#. |execve(2)| lighttpd as lighttpd user with no capabilities
+#. setup host rootfs
+#. setup jail rootfs with *root* user primary group ID
+#. enter jail with its own namespaces
+#. |execve(2)| lighttpd as *root* and request it to switch to *lighttpd* user
+   with the following capabilities:
+   
+   * setuid
+   * setgid
+   * sys_chroot (for |chroot(8)|'ing into WWW document root)
 
-Note that in this case, lighttpd looses the ability to |chroot(8)| into web
-documents root directory !
+#. Make sure that inherited and ambient capabilities are cleared at first
+   Enbox_\'s |execve(2)|, i.e., no ``ENBOX_KEEP_INH_CAPS`` environment variable
+   given.
 
 .. rubric:: without pre-opened listen socket(s)
 
 #. setup host rootfs
-#. setup jail rootfs with *lighttpd* user primary group ID
+#. setup jail rootfs with *root* user primary group ID
 #. enter jail with its own namespaces except *net*
-#. |execve(2)| lighttpd as root and request it to switch to *lighttpd* user with
-   the following capabilities:
+#. |execve(2)| lighttpd as *root* and request it to switch to *lighttpd* user
+   with the following capabilities:
    
    * setuid
    * setgid
    * net_bind_service
-   * sys_chroot
+   * sys_chroot (for |chroot(8)|'ing into WWW document root)
 
-#. Make sure that inherited and ambient capabilities are cleared before PAM_
-   operations
+#. Make sure that inherited and ambient capabilities are cleared at first
+   Enbox_\'s |execve(2)|, i.e., no ``ENBOX_KEEP_INH_CAPS`` environment variable
+   given.
 
 elogd
 -----
-
-.. rubric:: without pre-opened kernel logging ring-buffer
-   
-.. todo:: complete me!
-
-
-.. rubric:: with pre-opened kernel logging ring-buffer
 
 .. todo:: complete me!
