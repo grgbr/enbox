@@ -94,6 +94,10 @@ enbox_validate_exec(const char * const exec[__restrict_arr] __unused)
 	enbox_assert((_fsset)->nr); \
 	enbox_assert((_fsset)->entries)
 
+#define enbox_assert_ids(_ids) \
+	enbox_assert(_ids); \
+	enbox_assert(!enbox_validate_pwd((_ids)->pwd, true))
+
 #define enbox_assert_jail(_jail) \
 	enbox_assert(_jail); \
 	enbox_assert(!((_jail)->namespaces & ~ENBOX_VALID_NAMESPACE_FLAGS)); \
@@ -104,8 +108,6 @@ enbox_validate_exec(const char * const exec[__restrict_arr] __unused)
 #define enbox_assert_proc(_proc) \
 	enbox_assert(_proc); \
 	enbox_assert(!((_proc)->umask & ~((mode_t)ALLPERMS))); \
-	enbox_assert(!(_proc)->ids || \
-	             !enbox_validate_pwd((_proc)->ids->pwd, true)); \
 	enbox_assert(!((_proc)->caps & \
 	               ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1))); \
 	enbox_assert(!(_proc)->cwd || \

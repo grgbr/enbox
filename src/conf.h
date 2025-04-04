@@ -25,6 +25,7 @@
 
 struct enbox_conf {
 	struct enbox_fsset * host;
+	struct enbox_ids *   ids;
 	struct enbox_jail *  jail;
 	struct enbox_proc *  proc;
         const char **        cmd;
@@ -33,10 +34,12 @@ struct enbox_conf {
 
 #define enbox_assert_conf(_conf) \
 	enbox_assert(_conf); \
+	enbox_assert((_conf)->cmd || (_conf)->host); \
 	enbox_assert(!(_conf)->jail || (_conf)->proc); \
-	enbox_assert(!(_conf)->cmd || (_conf)->proc); \
 	enbox_assert(!(_conf)->host || \
 	             ({ enbox_assert_fsset((_conf)->host); true; })); \
+	enbox_assert(!(_conf)->ids || \
+	             ({ enbox_assert_ids((_conf)->ids); true; })); \
 	enbox_assert(!(_conf)->jail || \
 	             ({ enbox_assert_jail((_conf)->jail); true; })); \
 	enbox_assert(!(_conf)->proc || \

@@ -495,65 +495,6 @@ enbox_cap(int cap)
 }
 
 /**
- * Clear effective, permitted and inheritable capability sets.
- *
- * Remove all capabilities from current thread's effective, permitted and
- * inheritable sets.
- *
- * For more informations about Linux capability sets, refer to section `Thread
- * capability sets` of @man{capabilities(7)}.
- *
- * No particular privileges is required to perform this operation.
- *
- * @see
- * - sections `Thread capability sets` of @man{capabilities(7)}
- * - @man{capget(2)}
- */
-extern void
-enbox_clear_epi_caps(void) __enbox_nothrow;
-
-/**
- * Clear ambient capability set.
- *
- * Remove all capabilities from current thread's ambient set.
- *
- * For more informations about Linux capability sets, refer to section `Thread
- * capability sets` of @man{capabilities(7)}.
- *
- * No particular privileges is required to perform this operation.
- *
- * @see
- * - sections `Thread capability sets` of @man{capabilities(7)}
- * - section `PR_CAP_AMBIENT_CLEAR_ALL` of @man{prctl(2)}
- * - @man{PR_CAP_AMBIENT_CLEAR_ALL(2const)}
- * - @man{PR_CAP_AMBIENT(2const)}
- */
-extern void
-enbox_clear_amb_caps(void) __enbox_nothrow;
-
-/**
- * Clear bounding capability set.
- *
- * Remove all capabilities from current thread's bounding set.
- *
- * For more informations about Linux capability sets, refer to section `Thread
- * capability sets` of @man{capabilities(7)}.
- *
- * @warning Requires CAP_SETPCAP capability.
- *
- * @return 0 if successful, an errno-like error code otherwise.
- *
- * @see
- * - sections `Thread capability sets` and `CAP_SETPCAP` of
- *   @man{capabilities(7)}
- * - section `PR_CAPBSET_DROP` of @man{prctl(2)}
- * - @man{PR_CAPBSET_DROP(2const)}
- */
-extern int
-enbox_clear_bound_caps(void)
-	__enbox_nothrow __warn_result;
-
-/**
  * Request to setup current process's list of supplementary group IDs.
  *
  * @see
@@ -842,7 +783,7 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
                          char * const                     argv[__restrict_arr],
                          char * const                     envp[__restrict_arr],
                          uint64_t                         kept_caps)
-	__enbox_nonull(1, 3, 4);
+	__enbox_nonull(1, 3, 4) __leaf;
 
 /**
  * Enforce the safest security context possible.
@@ -878,7 +819,7 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
  * - @rstterm{no_new_privs}
  */
 extern int
-enbox_enforce_safe(uint64_t kept_caps);
+enbox_enforce_safe(uint64_t kept_caps) __leaf __warn_result;
 
 /**
  * Enable the safest security context possible.
@@ -913,7 +854,7 @@ enbox_enforce_safe(uint64_t kept_caps);
  * - @rstterm{no_new_privs}
  */
 extern void
-enbox_ensure_safe(uint64_t kept_caps);
+enbox_ensure_safe(uint64_t kept_caps) __leaf;
 
 /**
  * Show current thread's privileges.
@@ -1403,8 +1344,8 @@ struct enbox_ids {
  *
  * Given the UID @p id argument, load the related ownership and group membership
  * informations and store them into @p ids. It may then be used as input to
- * enbox_prep_proc(), enbox_change_proc_ids(), enbox_run_proc_cmd() or
- * enbox_change_ids() to switch to the stored user and group(s).
+ * enbox_prep_proc(), enbox_run_proc() or enbox_change_ids() to switch to the
+ * stored user and group(s).
  *
  * Depending on @p drop_supp argument, group membership informations will be set
  * to the following :
@@ -1424,8 +1365,7 @@ struct enbox_ids {
  * - enbox_load_ids_byname()
  * - #enbox_proc::ids
  * - enbox_prep_proc()
- * - enbox_run_proc_cmd()
- * - enbox_change_proc_ids()
+ * - enbox_run_proc()
  * - enbox_change_ids()
  * - @man{getpwent(3)}
  * - @man{credentials(7)}
@@ -1441,8 +1381,8 @@ enbox_load_ids_byid(struct enbox_ids * __restrict ids,
  *
  * Given the user name @p name argument, load the related ownership and group
  * membership informations and store them into @p ids. It may then be used as
- * input to enbox_prep_proc(), enbox_change_proc_ids(), enbox_run_proc_cmd() or
- * enbox_change_ids() to switch to the stored user and group(s).
+ * input to enbox_prep_proc(), enbox_run_proc() or enbox_change_ids() to switch
+ * to the stored user and group(s).
  *
  * Depending on @p drop_supp argument, group membership informations will be set
  * to the following :
@@ -1462,8 +1402,7 @@ enbox_load_ids_byid(struct enbox_ids * __restrict ids,
  * - enbox_load_ids_byid()
  * - #enbox_proc::ids
  * - enbox_prep_proc()
- * - enbox_run_proc_cmd()
- * - enbox_change_proc_ids()
+ * - enbox_run_proc()
  * - enbox_change_ids()
  * - @man{getpwent(3)}
  * - @man{credentials(7)}
@@ -1535,11 +1474,20 @@ struct enbox_jail {
 	struct enbox_fsset fsset;
 };
 
+#warning Document me!
+
+extern int
+enbox_enter_jail(const struct enbox_jail * __restrict jail,
+                 gid_t                                gid,
+                 const int                            fdescs[__restrict_arr],
+                 unsigned int                         nr)
+	__enbox_nonull(1) __leaf __warn_result;
+
 /**
  * Process context descriptor.
  *
  * This structure holds properties used to prepare runtime context for further
- * secure operations such as enbox_run_proc_cmd() or enbox_change_proc_ids().
+ * secure operations such as enbox_prep_proc() or enbox_run_proc().
  *
  * You are encouraged to use enbox_load_ids_byid() or enbox_load_ids_byname() to
  * setup user / group @rstsubst{credentials} pointed to by the #enbox_proc::ids
@@ -1547,8 +1495,7 @@ struct enbox_jail {
  *
  * @see
  * - enbox_prep_proc()
- * - enbox_run_proc_cmd()
- * - enbox_change_proc_ids()
+ * - enbox_run_proc()
  * - enbox_load_ids_byid()
  * - enbox_load_ids_byname()
  */
@@ -1559,16 +1506,6 @@ struct enbox_proc {
 	 * @see @man{umask(2)}
 	 */
 	mode_t               umask;
-	/**
-	 * Optional pointer to a structure holding user and group membership
-	 * identifiers to change to for current process.
-	 *
-	 * @see
-	 * - enbox_load_ids_byid()
-	 * - enbox_load_ids_byname()
-	 * - @man{credentials(7)}
-	 */
-	struct enbox_ids *   ids;
 	/**
 	 * Optional mask of system capabilities enabled for current process.
 	 *
@@ -1612,15 +1549,14 @@ struct enbox_proc {
  * argument.
  *
  * When returning from this function, current process may be considered secure
- * enough and ready to perform further call to enbox_run_proc_cmd(),
- * enbox_change_proc_ids(), or eventually hand-crafted @man{setresuid(2)} /
- * @man{execve(2)} to run an arbitrary program isolated from the main
- * system-wide runtime.
+ * enough and ready to perform further call to enbox_run_proc(), or eventually
+ * hand-crafted @man{setresuid(2)} / @man{execve(2)} to run an arbitrary program
+ * isolated from the main system-wide runtime.
  *
  * @note
  * This function does not configure system @rstsubst{capabilities} at all. For
  * additional restricted system privileges, a subsequent call to
- * enbox_run_proc_cmd() or enbox_change_proc_ids() *should* be performed.
+ * enbox_run_proc() *should* be performed.
  *
  * Basically, the following sequence of actions are carried out:
  * -# clear the whole environment using @man{clearenv(3)} ;
@@ -1688,8 +1624,7 @@ struct enbox_proc {
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
- * - enbox_run_proc_cmd()
- * - enbox_change_proc_ids()
+ * - enbox_run_proc()
  * - @man{clearenv(3)}
  * - @man{namespaces(7)}
  * - @man{unshare(2)}
@@ -1700,47 +1635,21 @@ struct enbox_proc {
  * - @man{umask(2)}
  * - @man{semop(2)}
  */
-extern int
-enbox_prep_proc(const struct enbox_proc * __restrict proc,
-                const struct enbox_jail * __restrict jail)
-	__enbox_nonull(1) __warn_result;
-
+#warning Document optional ids parameter
 /**
- * Change user / group IDs according to a process runtime context.
- *
- * Perform a change of user / group @rstsubst{credentials} for the current
- * process according to the @p proc argument.
- * This function is typically called after enbox_prep_proc() to complete the
- * process of securing the current runtime context for further operations.
- *
- * The @p proc argument *should* have been previously given to enbox_prep_proc()
- * and is used to perform the user / group IDs change for the current process
- * according to the #enbox_proc::ids field.
- *
- * Basically, this function performs the following:
- * * configures system @rstsubst{capabilities} to further restrict system
- *   privileges according to #enbox_proc::caps content ;
- * * optionally switch to user / group IDs according to #enbox_proc::ids.
- *
- * When returning from this function, current process may be considered ready to
- * perform operations on a completly secure and isolated basis.
- *
- * @warning
- * Should an error occur, current program state will be left as-is, i.e. in an
- * unpredictable state. Caller should exit(3) as soon as possible.
- *
- * @param[in] proc Process runtime properties to enforce
- *
- * @return 0 if successful, an errno-like error code otherwise.
+ * Optional pointer to a structure holding user and group membership
+ * identifiers to change to for current process.
  *
  * @see
- * - enbox_run_proc_cmd()
- * - enbox_prep_proc()
- * - @man{capabilities(7)}
- * - @man{setresuid(2)}
+ * - enbox_load_ids_byid()
+ * - enbox_load_ids_byname()
+ * - @man{credentials(7)}
  */
 extern int
-enbox_change_proc_ids(const struct enbox_proc * __restrict proc)
+enbox_prep_proc(const struct enbox_proc * __restrict proc,
+                const struct enbox_ids * __restrict  ids,
+                const struct enbox_jail * __restrict jail)
+
 	__enbox_nonull(1) __warn_result;
 
 /**
@@ -1748,8 +1657,8 @@ enbox_change_proc_ids(const struct enbox_proc * __restrict proc)
  * runtime context.
  *
  * Perform an optional change of user / group @rstsubst{credentials} for the
- * current process according to the @p proc argument, then @man{exeve(2)} the
- * program given as @p cmd argument.
+ * current process according to the @p proc argument, then optionally
+ * @man{exeve(2)} the program given as @p cmd argument.
  * This function is typically called after enbox_prep_proc() to complete the
  * process of securing the current runtime context in order to run the program
  * given as argument.
@@ -1758,8 +1667,8 @@ enbox_change_proc_ids(const struct enbox_proc * __restrict proc)
  * and is used to perform a change of user / group @rstsubst{credentials} for
  * the current process according to the #enbox_proc::ids field.
  *
- * @p cmd is an array of arguments that specifies the program to be executed by
- * the current process.
+ * The optional @p cmd is an array of arguments that specifies the program to be
+ * executed by the current process.
  * First @p cmd array entry will be passed to @man{execve(2)} as first argument.
  * The whole array will be passed to @man{execve(2)} as second argument.
  * This array must be `NULL` terminated.
@@ -1768,7 +1677,8 @@ enbox_change_proc_ids(const struct enbox_proc * __restrict proc)
  * - optionally change user / group IDs according to #enbox_proc::ids if
  *   present ;
  * - restrict system @man{capabilities(7)} according to #enbox_proc::caps ;
- * - and finally @man{exeve(2)} the program passed as @p cmd.
+ * - and finally @man{exeve(2)} the program passed as @p cmd if non `NULL`,
+ * - or secure the process runtime environment.
  *
  * See #enbox_proc for further details about properties used to setup
  * runtime context and optional program of current process.
@@ -1780,25 +1690,26 @@ enbox_change_proc_ids(const struct enbox_proc * __restrict proc)
  *   unpredictable state. Caller should exit(3) as soon as possible.
  *
  * @param[in] proc Process runtime properties to enforce
- * @param[in] cmd  Program and arguments used to @man{execve(2)} this command
+ * @param[in] cmd  Optional program and arguments used to @man{execve(2)} this
+ *                 command
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
  * @see
  * - #enbox_proc
  * - enbox_prep_proc()
- * - enbox_change_proc_ids()
- * - enbox_change_idsn_execve()
  * - @man{setresuid(2)}
  * - @man{execve(2)}
  * - @man{exit(3)}
  * - @man{capabilities(7)}
  * - @man{credentials(7)}
  */
+#warning Document optional ids parameter
 extern int
-enbox_run_proc_cmd(const struct enbox_proc * __restrict proc,
-                   const char * const                   cmd[__restrict_arr])
-	__enbox_nonull(1, 2) __warn_result;
+enbox_run_proc(const struct enbox_proc * __restrict proc,
+               const struct enbox_ids * __restrict  ids,
+               const char * const                   cmd[__restrict_arr])
+	__enbox_nonull(1) __leaf __warn_result;
 
 /**
  * @struct enbox_conf

@@ -159,7 +159,7 @@ wether the configuration was successfully applied or not and one should call
 :c:func:`enbox_destroy_conf` to release resources allocated by 
 :c:func:`enbox_create_conf_from_file`.
 
-Note that :c:type:`enbox_conf` is an opaque structure holding a loaded Enbox_
+Note that :c:struct:`enbox_conf` is an opaque structure holding a loaded Enbox_
 configuration that may be required by functions mentioned above.
 
 .. todo:: 
@@ -196,7 +196,7 @@ A «host» filesystem hierarchy may be required to exist prior to
 
 The host may be populated with filesystem entries thanks to
 :c:func:`enbox_populate_host` allowing to create any arbitrary hierarchy.
-:c:type:`enbox_fsset` is the structure that conveys filesystem entry
+:c:struct:`enbox_fsset` is the structure that conveys filesystem entry
 specifications.
 
 .. _sect-usr_grp_ids:
@@ -212,7 +212,7 @@ to :
   :ref:`performing subsequent operations <sect-subseq_ops>`.
 
 :c:func:`enbox_load_ids_byid` and :c:func:`enbox_load_ids_byname` load user and
-group informations into an opaque :c:type:`enbox_ids` structure which is
+group informations into an opaque :c:struct:`enbox_ids` structure which is
 further required to achieve the 2 tasks mentioned above.
 
 .. _sect-setup_proc:
@@ -225,7 +225,7 @@ privileges for the current process thanks to the :c:func:`enbox_prep_proc`
 function.
 
 The caller may enforce the following properties for the current process thanks
-to the :c:type:`enbox_proc` structure:
+to the :c:struct:`enbox_proc` structure:
 
 * |umask|,
 * |capabilities|,
@@ -248,12 +248,12 @@ global system resources in a configurable way.
 As stated into section `Overview`_, isolation implementation is based upon Linux
 |namespaces(7)| and |capabilities(7)|.
 
-When given a non `NULL` :c:type:`enbox_jail` argument, the
+When given a non `NULL` :c:struct:`enbox_jail` argument, the
 c:func:`enbox_prep_proc` function creates a new jail and jumps into it.
 Once entered, there is no more way to escape it apart from calling |exit(3)|,
 which will implictly destroy the jail.
 
-Jail is instantiated according to properties set into the :c:type:`enbox_jail`
+Jail is instantiated according to properties set into the :c:struct:`enbox_jail`
 structure allowing to specify :
 
 * set of new |namespaces(7)| to make the jail a member of,
@@ -261,8 +261,8 @@ structure allowing to specify :
 
 Note that filesystem content specification mechanism provides the ability to
 «import» or «share» entries with the «host» thanks to Linux bind mount
-mechanism. See :c:type:`enbox_bind_entry` structure for additional informations
-about this.
+mechanism. See :c:struct:`enbox_bind_entry` structure for additional
+informations about this.
 
 .. _sect-subseq_ops:
 
@@ -271,21 +271,19 @@ Subsequent operations
 
 Once the current :ref:`process privileges <sect-setup_proc>` have been
 restricted (and eventually :ref:`jailed <sect-spawn_jail>`), one can proceed to
-further operations in a secure manner thanks to one of the following functions:
+further operations in a secure manner thanks to one of the following:
 
-* :c:func:`enbox_run_proc_cmd`
-* :c:func:`enbox_change_proc_ids`.
+* :c:func:`enbox_run_proc`
 
-If requested, :c:func:`enbox_change_proc_ids` changes current user / group IDs
-and hands back controll to the caller. :c:func:`enbox_run_proc_cmd` may in
-addition |execve(2)| an arbitrary program.
+If requested, :c:func:`enbox_run_proc` changes current user / group IDs,
+and optionally |execve(2)| an arbitrary program. It secures the current process
+runtime and hands back control to the caller otherwise.
 
 When requested, subsequent operations will run under the system user and groups
-given into a :c:type:`enbox_ids` structure previously loaded as explained into
+given into a :c:struct:`enbox_ids` structure previously loaded as explained into
 `sect-usr_grp_ids` section.
-In addition, both functions drop |capabilities(7)| inherited from parent process
-according to the :c:type:`enbox_proc` structure to complete isolation from
-«host».
+|capabilities(7)| inherited from parent process according to the
+:c:struct:`enbox_proc` structure to complete isolation from «host».
 
 Utilities
 =========
@@ -300,29 +298,25 @@ mentioned above. These are :
       * :c:func:`enbox_change_idsn_execve`,
       * :c:func:`enbox_execve`,
       * :c:func:`enbox_get_umask`,
-      * :c:type:`enbox_jail`,
+      * :c:struct:`enbox_jail`,
       * :c:func:`enbox_prep_proc`,
-      * :c:type:`enbox_proc`,
-      * :c:func:`enbox_run_proc_cmd`,
+      * :c:struct:`enbox_proc`,
+      * :c:func:`enbox_run_proc`,
       * :c:func:`enbox_set_umask`,
 
    * User / group IDs :
 
       * :c:func:`enbox_change_ids`,
       * :c:func:`enbox_change_idsn_execve`,
-      * :c:func:`enbox_change_proc_ids`,
       * :c:func:`enbox_get_uid`,
       * :c:func:`enbox_get_gid`,
-      * :c:type:`enbox_ids`,
+      * :c:struct:`enbox_ids`,
       * :c:func:`enbox_switch_ids`,
 
    * Capabilities :
 
       * :c:macro:`ENBOX_CAP`,
       * :c:func:`enbox_cap`,
-      * :c:func:`enbox_clear_amb_caps`,
-      * :c:func:`enbox_clear_bound_caps`,
-      * :c:func:`enbox_clear_epi_caps`,
       * :c:func:`enbox_enforce_safe`,
       * :c:func:`enbox_ensure_safe`,
 
@@ -530,30 +524,10 @@ enbox_change_idsn_execve()
 
 .. doxygenfunction:: enbox_change_idsn_execve
 
-enbox_change_proc_ids
-*********************
-
-.. doxygenfunction:: enbox_change_proc_ids
-
 enbox_change_perms()
 ********************
 
 .. doxygenfunction:: enbox_change_perms
-
-enbox_clear_amb_caps()
-**********************
-
-.. doxygenfunction:: enbox_clear_amb_caps
-
-enbox_clear_bound_caps()
-************************
-
-.. doxygenfunction:: enbox_clear_bound_caps
-
-enbox_clear_epi_caps()
-************************
-
-.. doxygenfunction:: enbox_clear_epi_caps
 
 enbox_create_conf_from_file()
 *****************************
@@ -645,10 +619,10 @@ enbox_run_conf()
 
 .. doxygenfunction:: enbox_run_conf
 
-enbox_run_proc_cmd
-******************
+enbox_run_proc
+**************
 
-.. doxygenfunction:: enbox_run_proc_cmd
+.. doxygenfunction:: enbox_run_proc
 
 enbox_set_umask()
 *****************

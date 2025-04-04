@@ -1221,13 +1221,12 @@ enbox_seal_jail_root(
 static int __enbox_nonull(1, 2, 3) __enbox_nothrow __warn_result
 enbox_setup_jail(
 	const struct enbox_jail * __restrict jail,
-	const struct enbox_proc * __restrict proc,
+	gid_t                                gid,
 	char                                 root_opts[__restrict_arr
 	                                               ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1])
 
 {
 	enbox_assert_jail(jail);
-	enbox_assert_proc(proc);
 	enbox_assert(root_opts);
 
 	int                        err;
@@ -1256,11 +1255,7 @@ enbox_setup_jail(
 	}
 
 	/* Mount future root filesystem. */
-	err = enbox_init_jail_root(
-		jail->root_path,
-		proc->ids ? proc->ids->pwd->pw_gid : enbox_gid,
-		fsset->nr,
-		root_opts);
+	err = enbox_init_jail_root(jail->root_path, gid, fsset->nr, root_opts);
 	if (err) {
 		msg = "cannot mount jail root filesystem";
 		goto err;
@@ -1424,40 +1419,50 @@ enbox_chroot_jail(void)
 	return 0;
 }
 
-static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
 int
-enbox_enter_jail(
-	const struct enbox_jail * __restrict jail,
-	char                                 root_opts[__restrict_arr
-	                                               ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1])
+enbox_enter_jail(const struct enbox_jail * __restrict jail,
+                 gid_t                                gid,
+                 const int                            fdescs[__restrict_arr],
+                 unsigned int                         nr)
 {
 	enbox_assert_jail(jail);
-	enbox_assert(root_opts);
 
-	int err;
+	char         opts[ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1];
+	int          err;
+	const char * msg;
+
+	/* Setup jail runtime. */
+	err = enbox_setup_jail(jail, gid, opts);
+	if (err) {
+		msg = "cannot setup jail";
+		goto err;
+	}
+
+	/* Close unwanted file descriptors. */
+	err = enbox_close_fds(fdescs, nr);
+	if (err) {
+		msg = "cannot close file descriptors";
+		goto err;
+	}
 
 	/* Remount future filesystem read-only. */
-	err = enbox_seal_jail_root(jail->root_path, root_opts);
+	err = enbox_seal_jail_root(jail->root_path, opts);
 	if (err) {
-		enbox_info("cannot seal jail root filesystem: %s (%d)",
-		           strerror(-err),
-		           -err);
+		msg = "cannot seal jail";
 		goto err;
 	}
 
 	/* Switch root filesystem to the new one created just above. */
 	err = enbox_chroot_jail();
 	if (err) {
-		enbox_info("cannot chroot into jail: %s (%d)",
-		           strerror(-err),
-		           -err);
+		msg = "cannot chroot into jail";
 		goto err;
 	}
 
 	return 0;
 
 err:
-	enbox_err("cannot enter jail: %s (%d)", strerror(-err), -err);
+	enbox_err("cannot enter jail: %s: %s (%d)", msg, strerror(-err), -err);
 
 	return err;
 }
@@ -1544,10 +1549,12 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
 
 int
 enbox_prep_proc(const struct enbox_proc * __restrict proc,
+                const struct enbox_ids * __restrict  ids,
                 const struct enbox_jail * __restrict jail)
 {
 	enbox_assert_setup();
 	enbox_assert_proc(proc);
+	enbox_assert(!ids || ({ enbox_assert_ids(ids); true; }));
 	enbox_assert(!jail || ({ enbox_assert_jail(jail); true; }));
 
 	int err;
@@ -1561,17 +1568,10 @@ enbox_prep_proc(const struct enbox_proc * __restrict proc,
 	}
 
 	if (jail) {
-		char opts[ENBOX_JAIL_ROOTFS_EXTOPTS_LEN + 1];
-
-		err = enbox_setup_jail(jail, proc, opts);
-		if (err)
-			goto err;
-
-		err = enbox_close_fds(proc->fds, proc->fds_nr);
-		if (err)
-			goto err;
-
-		err = enbox_enter_jail(jail, opts);
+		err = enbox_enter_jail(jail,
+		                       ids ? ids->pwd->pw_gid : enbox_gid,
+		                       proc->fds,
+		                       proc->fds_nr);
 		if (err)
 			goto err;
 	}
@@ -1603,33 +1603,6 @@ enbox_prep_proc(const struct enbox_proc * __restrict proc,
 
 err:
 	enbox_err("cannot setup process: %s (%d)", strerror(-err), -err);
-
-	return err;
-}
-
-int
-enbox_change_proc_ids(const struct enbox_proc * __restrict proc)
-{
-	enbox_assert_setup();
-	enbox_assert_proc(proc);
-
-	int err;
-
-	if (proc->ids) {
-		if (proc->ids->pwd->pw_uid != enbox_uid)
-			err = enbox_change_ids(proc->ids->pwd,
-			                       proc->ids->drop_supp,
-			                       proc->caps);
-		else
-			err = enbox_enforce_safe(proc->caps);
-		if (err)
-			goto err;
-	}
-
-	return 0;
-
-err:
-	enbox_err("cannot change process IDs: %s (%d)", strerror(-err), -err);
 
 	return err;
 }
@@ -1683,32 +1656,46 @@ enbox_validate_exec(const char * const args[__restrict_arr])
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
 
 int
-enbox_run_proc_cmd(const struct enbox_proc * __restrict proc,
-                   const char * const                   cmd[__restrict_arr])
+enbox_run_proc(const struct enbox_proc * __restrict proc,
+               const struct enbox_ids * __restrict  ids,
+               const char * const                   cmd[__restrict_arr])
 {
 	enbox_assert_setup();
 	enbox_assert_proc(proc);
-	enbox_assert(!enbox_validate_exec(cmd));
+	enbox_assert(!ids || ({ enbox_assert_ids(ids); true; }));
+	enbox_assert(!cmd || !enbox_validate_exec(cmd));
 
-	int err;
+	const struct passwd * pwd = ids ? ids->pwd : NULL;
+	bool                  chid = pwd && (pwd->pw_uid != enbox_uid);
+	int                   err;
 
+	if (cmd) {
 STROLL_IGNORE_WARN("-Wcast-qual")
-	if (proc->ids) {
-		err = enbox_change_idsn_execve(proc->ids->pwd,
-		                               proc->ids->drop_supp,
-		                               cmd[0],
-		                               (char * const *)cmd,
-		                               environ,
-		                               proc->caps);
-	}
-	else
-		err = enbox_execve(cmd[0],
-		                   (char * const *)cmd,
-		                   environ,
-		                   proc->caps);
+		if (chid)
+			err = enbox_change_idsn_execve(pwd,
+			                               ids->drop_supp,
+			                               cmd[0],
+			                               (char * const *)cmd,
+			                               environ,
+			                               proc->caps);
+		else
+			err = enbox_execve(cmd[0],
+			                   (char * const *)cmd,
+			                   environ,
+			                   proc->caps);
 STROLL_RESTORE_WARN
+	}
+	else {
+		if (chid)
+			err = enbox_change_ids(pwd, ids->drop_supp, proc->caps);
+		else
+			err = enbox_enforce_safe(proc->caps);
+	}
 
-	enbox_err("cannot run process command: %s (%d)", strerror(-err), -err);
+	if (!err)
+		return 0;
+
+	enbox_err("cannot run process: %s (%d)", strerror(-err), -err);
 
 	return err;
 }

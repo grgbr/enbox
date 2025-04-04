@@ -25,6 +25,12 @@ extern struct elog * enbox_logger;
 
 #if defined(CONFIG_ENBOX_VERBOSE)
 
+#define enbox_warn(_format, ...) \
+	do { \
+		if (enbox_logger) \
+			elog_warn(enbox_logger, _format ".", ## __VA_ARGS__); \
+	} while (0)
+
 #define enbox_info(_format, ...) \
 	do { \
 		if (enbox_logger) \

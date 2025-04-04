@@ -136,7 +136,7 @@ enbox_drop_supp_groups(void)
 /*
  * Require the CAP_SETGID capability.
  */
-static __enbox_nonull(1)
+static __enbox_nonull(1) __warn_result
 int
 enbox_raise_supp_groups(const char * user, gid_t gid)
 {
@@ -179,7 +179,7 @@ int
 enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
 {
 	enbox_assert_setup();
-	enbox_assert(!enbox_validate_pwd(pwd_entry, false));
+	enbox_assert(!enbox_validate_pwd(pwd_entry, true));
 
 	int err;
 
@@ -241,7 +241,7 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
                  uint64_t                         kept_caps)
 {
 	enbox_assert_setup();
-	enbox_assert(!enbox_validate_pwd(pwd_entry, false));
+	enbox_assert(!enbox_validate_pwd(pwd_entry, true));
 	enbox_assert(pwd_entry->pw_uid != enbox_uid);
 	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
 	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
@@ -357,7 +357,7 @@ err:
 	return err;
 }
 
-static
+static __enbox_nonull(1, 2, 3) __warn_result
 int
 enbox_execve_with_caps(struct enbox_caps * __restrict caps,
                        const char * __restrict        path,
@@ -371,6 +371,7 @@ enbox_execve_with_caps(struct enbox_caps * __restrict caps,
 	enbox_assert(argv);
 	enbox_assert(argv[0]);
 	enbox_assert(*argv[0]);
+	enbox_assert(kept_caps);
 	enbox_assert(!(kept_caps & ~ENBOX_CAPS_VALID));
 
 	int err;
@@ -447,23 +448,46 @@ enbox_execve(const char * __restrict path,
 
 	enbox_enable_nonewprivs();
 
-	/*
-	 * Prepare capability sets for preservation across next execve(2).
-	 * Basically, this means we must:
-	 * - enable CAP_SETPCAP into the effective set for later bounding set
-	 *   and securebits configuration ;
-	 * - enable `kept_caps' capabilities into the permitted set for later
-	 *   configuration of the ambient set.
-	 * See enbox_execve_with_caps() for more details.
-	 */
-	enbox_load_epi_caps(&caps);
-	enbox_raise_eff_caps(&caps, ENBOX_CAP(CAP_SETPCAP));
-	enbox_raise_perm_caps(&caps, ENBOX_CAP(CAP_SETPCAP) | kept_caps);
+	if (kept_caps) {
+		/*
+		 * Prepare capability sets for preservation across next
+		 * execve(2).  Basically, this means we must:
+		 * - enable CAP_SETPCAP into the effective set for later
+		 *   bounding set and securebits configuration ;
+		 * - enable `kept_caps' capabilities into the permitted set for
+		 *   later configuration of the ambient set.
+		 * See enbox_execve_with_caps() for more details.
+		 */
+		enbox_load_epi_caps(&caps);
+		enbox_raise_eff_caps(&caps, ENBOX_CAP(CAP_SETPCAP));
+		enbox_raise_perm_caps(&caps,
+		                      ENBOX_CAP(CAP_SETPCAP) | kept_caps);
 
-	/* Complete capability configuration and call execve(2). */
-	err = enbox_execve_with_caps(&caps, path, argv, envp, kept_caps);
+		/* Complete capability configuration and call execve(2). */
+		err = enbox_execve_with_caps(&caps,
+		                             path,
+		                             argv,
+		                             envp,
+		                             kept_caps);
+	}
+	else {
+		err = enbox_save_secbits(ENBOX_CAPS_SECBITS);
+		if (err)
+			goto err;
+
+		err = enbox_clear_bound_caps();
+		if (err)
+			goto err;
+
+		enbox_clear_epi_caps();
+
+		execve(path, argv, envp);
+		err = -errno;
+	}
+
 	enbox_assert(err);
 
+err:
 	enbox_info("failed to execute: %s (%d)", strerror(-err), -err);
 
 	return err;
@@ -479,6 +503,7 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
 {
 	enbox_assert_setup();
 	enbox_assert(!enbox_validate_pwd(pwd_entry, true));
+	enbox_assert(pwd_entry->pw_uid != enbox_uid);
 	enbox_assert(path);
 	enbox_assert(argv);
 	enbox_assert(argv[0]);
@@ -487,85 +512,64 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
 	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
 
 	struct enbox_caps caps;
-	uint64_t          eff;
 	int               err;
 
 	enbox_enable_nonewprivs();
 
+	/*
+	 * A change IDs is required before execve(2).
+	 *
+	 * Make sure we can modify :
+	 * - capabilities (at least, to clear the bounding set),
+	 * - and change UIDs / GIDs.
+	 * Also make sure `kept_caps' are added to the permitted set so
+	 * that we may enable them after the change IDs operation.
+	 *
+	 * Prepare capability sets for preservation across next change
+	 * IDs and execve(2). Basically, this means we must:
+	 * - enable CAP_SETUID and CAP_SETGID into the effective set to
+	 *   perform successful change IDs operation ;
+	 * - enable CAP_SETPCAP into the effective set for later
+	 *   bounding set and securebits configuration ;
+	 * - make sure `kept_caps' are added to the permitted set so
+	 *   that we may enable them after the change IDs operation.
+	 * - cleanup inheritable set to make things deterministic (this
+	 *   is not really required though).
+	 */
 	enbox_load_epi_caps(&caps);
-	eff = enbox_get_eff_caps(&caps);
+	enbox_raise_perm_caps(&caps, ENBOX_CAPS_CHIDS_MASK | kept_caps);
+	enbox_raise_eff_caps(&caps, ENBOX_CAPS_CHIDS_MASK);
+	enbox_set_inh_caps(&caps, 0);
+	err = enbox_save_epi_caps(&caps);
+	if (err)
+		goto err;
 
-	if (pwd_entry->pw_uid != enbox_uid) {
-		/*
-		 * A change IDs is required before execve(2).
-		 *
-		 * Make sure we can modify :
-		 * - capabilities (at least, to clear the bounding set),
-		 * - and change UIDs / GIDs.
-		 * Also make sure `kept_caps' are added to the permitted set so
-		 * that we may enable them after the change IDs operation.
-		 *
-		 * Prepare capability sets for preservation across next change
-		 * IDs and execve(2). Basically, this means we must:
-		 * - enable CAP_SETUID and CAP_SETGID into the effective set to
-		 *   perform successful change IDs operation ;
-		 * - enable CAP_SETPCAP into the effective set for later
-		 *   bounding set and securebits configuration ;
-		 * - make sure `kept_caps' are added to the permitted set so
-		 *   that we may enable them after the change IDs operation.
-		 * - cleanup inheritable set to make things deterministic (this
-		 *   is not really required though).
-		 */
-		enbox_set_eff_caps(&caps, eff | ENBOX_CAPS_CHIDS_MASK);
-		enbox_raise_perm_caps(&caps,
-		                      ENBOX_CAPS_CHIDS_MASK | kept_caps);
-		enbox_set_inh_caps(&caps, 0);
-		err = enbox_save_epi_caps(&caps);
-		if (err)
-			goto err;
+	/*
+	 * Request system to preserve capabilities (into the permitted
+	 * set) across change IDs operation.
+	 */
+	err = enbox_enable_keep_caps(true);
+	if (err)
+		goto err;
 
-		/*
-		 * Request system to preserve capabilities (into the permitted
-		 * set) across change IDs operation.
-		 */
-		err = enbox_enable_keep_caps(true);
-		if (err)
-			goto err;
+	/*
+	 * Change user and group IDs.
+	 * On return from enbox_switch_ids() / setresuid(2), effective
+	 * and ambients sets will be cleared.
+	 */
+	err = enbox_switch_ids(pwd_entry, drop_supp);
+	if (err)
+		goto err;
 
-		/*
-		 * Change user and group IDs.
-		 * On return from enbox_switch_ids() / setresuid(2), effective
-		 * and ambients sets will be cleared.
-		 */
-		err = enbox_switch_ids(pwd_entry, drop_supp);
-		if (err)
-			goto err;
-
-		/*
-		 * Re-enable CAP_SETPCAP into the effective set for later
-		 * bounding set and securebits configuration.
-		 * `kept_caps' capabilities have already been enabled into the
-		 * permitted set above, allowing later configuration of the
-		 * ambient set.
-		 * See enbox_execve_with_caps() for more details.
-		 */
-		enbox_set_eff_caps(&caps, eff | ENBOX_CAP(CAP_SETPCAP));
-	}
-	else {
-		/*
-		 * No change IDs is required. Just prepare capability set for
-		 * preservation across next execve(2). Basically, this means we
-		 * must:
-		 * - enable CAP_SETPCAP into the effective set for later
-		 *   bounding set and securebits configuration ;
-		 * - enable `kept_caps' capabilities into the permitted set for
-		 *   later configuration of the ambient set.
-		 * See enbox_execve_with_caps() for more details.
-		 */
-		enbox_set_eff_caps(&caps, eff | ENBOX_CAP(CAP_SETPCAP));
-		enbox_raise_perm_caps(&caps,
-		                      ENBOX_CAP(CAP_SETPCAP) | kept_caps);
-	}
+	/*
+	 * Re-enable CAP_SETPCAP into the effective set for later
+	 * bounding set and securebits configuration.
+	 * `kept_caps' capabilities have already been enabled into the
+	 * permitted set above, allowing later configuration of the
+	 * ambient set.
+	 * See enbox_execve_with_caps() for more details.
+	 */
+	enbox_raise_eff_caps(&caps, ENBOX_CAP(CAP_SETPCAP));
 
 	/* Complete capability configuration and call execve(2). */
 	err = enbox_execve_with_caps(&caps, path, argv, envp, kept_caps);

@@ -1609,6 +1609,138 @@ enbox_unload_host(struct enbox_fsset * __restrict host)
 	free(host);
 }
 
+static int __enbox_nonull(1, 2)
+enbox_load_ids_user(const config_setting_t * __restrict setting,
+                    void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+
+	struct enbox_ids * ids = (struct enbox_ids *)data;
+
+	return enbox_load_pwd_setting(setting, &ids->pwd);
+}
+
+static int __enbox_nonull(1, 2, 3)
+enbox_load_bool_setting(const config_setting_t * __restrict setting,
+                        const char * __restrict             label __unused,
+                        bool * __restrict                   value)
+{
+	enbox_assert(setting);
+	enbox_assert(config_setting_name(setting));
+	enbox_assert(!strcmp(config_setting_name(setting), label));
+	enbox_assert(value);
+
+	if (config_setting_type(setting) != CONFIG_TYPE_BOOL) {
+		enbox_conf_err(setting, "boolean required");
+		return -EINVAL;
+	}
+
+	*value = !!config_setting_get_bool(setting);
+
+	return 0;
+}
+
+static int __enbox_nonull(1, 2)
+enbox_load_ids_drop_supp(const config_setting_t * __restrict setting,
+                         void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+
+	struct enbox_ids * ids = (struct enbox_ids *)data;
+
+	return enbox_load_bool_setting(setting,
+	                               "drop_supp",
+	                               &ids->drop_supp);
+}
+
+static int __enbox_nonull(1, 2)
+enbox_do_load_ids(const config_setting_t * __restrict setting,
+                  struct enbox_ids * __restrict       ids)
+{
+	enbox_assert(setting);
+	enbox_assert(ids);
+	enbox_assert(!ids->pwd);
+	enbox_assert(!ids->drop_supp);
+
+	int                              err;
+	int                              nr;
+	static const struct enbox_loader loaders[] = {
+		{ .name = "user",      .load = enbox_load_ids_user },
+		{ .name = "drop_supp", .load = enbox_load_ids_drop_supp }
+	};
+
+	if (!config_setting_is_group(setting)) {
+		enbox_conf_err(setting, "dictionary required");
+		return -EINVAL;
+	}
+
+	nr = config_setting_length(setting);
+	enbox_assert(nr >= 0);
+	if (nr < 1) {
+		/* Missing field definitions. 'user' setting is mandatory. */
+		enbox_conf_err(setting, "missing setting(s)");
+		return -ENODATA;
+	}
+
+	err = enbox_load_setting(setting,
+	                         ids,
+	                         loaders,
+	                         stroll_array_nr(loaders));
+	if (err)
+		goto err;
+
+	if (!ids->pwd) {
+		enbox_conf_info(setting, "missing 'user' setting");
+		err = -ENODATA;
+		goto err;
+	}
+	enbox_assert(!enbox_validate_pwd(ids->pwd, true));
+
+	return 0;
+
+err:
+	enbox_conf_err(setting, "invalid IDs setting");
+
+	return err;
+}
+
+static int __enbox_nonull(1, 2)
+enbox_load_ids(const config_setting_t * __restrict setting,
+               void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+	enbox_assert(!((struct enbox_conf *)data)->ids);
+
+	struct enbox_conf * conf = (struct enbox_conf *)data;
+	struct enbox_ids *  ids;
+	int                 err;
+
+	ids = calloc(1, sizeof(*ids));
+	if (!ids)
+		return -errno;
+
+	err = enbox_do_load_ids(setting, ids);
+	if (err) {
+		free(ids);
+		return err;
+	}
+
+	conf->ids = ids;
+
+	return 0;
+}
+
+static void __enbox_nonull(1)
+enbox_unload_ids(struct enbox_ids * __restrict ids)
+{
+	enbox_assert(ids);
+
+	free((void *)ids);
+}
+
 __enbox_flag_descs_storage
 const struct enbox_flag_desc enbox_namespace_descs[] = {
 	/* Include generated mounting flag descriptor definitions. */
@@ -1713,26 +1845,6 @@ enbox_load_jail_namespaces(const config_setting_t * __restrict setting,
 	struct enbox_jail * jail = (struct enbox_jail *)data;
 
 	return enbox_load_namespaces_setting(setting, &jail->namespaces);
-}
-
-static int __enbox_nonull(1, 2, 3)
-enbox_load_bool_setting(const config_setting_t * __restrict setting,
-                        const char * __restrict             label __unused,
-                        bool * __restrict                   value)
-{
-	enbox_assert(setting);
-	enbox_assert(config_setting_name(setting));
-	enbox_assert(!strcmp(config_setting_name(setting), label));
-	enbox_assert(value);
-
-	if (config_setting_type(setting) != CONFIG_TYPE_BOOL) {
-		enbox_conf_err(setting, "boolean required");
-		return -EINVAL;
-	}
-
-	*value = !!config_setting_get_bool(setting);
-
-	return 0;
 }
 
 static int __enbox_nonull(1, 2)
@@ -1845,110 +1957,6 @@ enbox_unload_jail(struct enbox_jail * __restrict jail)
 
 	enbox_unload_fsset(&jail->fsset);
 	free(jail);
-}
-
-static int __enbox_nonull(1, 2)
-enbox_load_ids_user(const config_setting_t * __restrict setting,
-                    void * __restrict                   data)
-{
-	enbox_assert(setting);
-	enbox_assert(data);
-
-	struct enbox_ids * ids = (struct enbox_ids *)data;
-
-	return enbox_load_pwd_setting(setting, &ids->pwd);
-}
-
-static int __enbox_nonull(1, 2)
-enbox_load_ids_drop_supp(const config_setting_t * __restrict setting,
-                         void * __restrict                   data)
-{
-	enbox_assert(setting);
-	enbox_assert(data);
-
-	struct enbox_ids * ids = (struct enbox_ids *)data;
-
-	return enbox_load_bool_setting(setting,
-	                               "drop_supp",
-	                               &ids->drop_supp);
-}
-
-static int __enbox_nonull(1, 2)
-enbox_do_load_ids(const config_setting_t * __restrict setting,
-                  struct enbox_ids * __restrict       ids)
-{
-	enbox_assert(setting);
-	enbox_assert(ids);
-	enbox_assert(!ids->pwd);
-	enbox_assert(!ids->drop_supp);
-
-	int                              err;
-	int                              nr;
-	static const struct enbox_loader loaders[] = {
-		{ .name = "user",      .load = enbox_load_ids_user },
-		{ .name = "drop_supp", .load = enbox_load_ids_drop_supp }
-	};
-
-	if (!config_setting_is_group(setting)) {
-		enbox_conf_err(setting, "dictionary required");
-		return -EINVAL;
-	}
-
-	nr = config_setting_length(setting);
-	enbox_assert(nr >= 0);
-	if (nr < 1) {
-		/* Missing field definitions. 'user' setting is mandatory. */
-		enbox_conf_err(setting, "missing setting(s)");
-		return -ENODATA;
-	}
-
-	err = enbox_load_setting(setting,
-	                         ids,
-	                         loaders,
-	                         stroll_array_nr(loaders));
-	if (err)
-		goto err;
-
-	if (!ids->pwd) {
-		enbox_conf_info(setting, "missing 'user' setting");
-		err = -ENODATA;
-		goto err;
-	}
-	enbox_assert(!enbox_validate_pwd(ids->pwd, true));
-
-	return 0;
-
-err:
-	enbox_conf_err(setting, "invalid IDs setting");
-
-	return err;
-}
-
-static int __enbox_nonull(1, 2)
-enbox_load_ids(const config_setting_t * __restrict setting,
-               void * __restrict                   data)
-{
-	enbox_assert(setting);
-	enbox_assert(data);
-	enbox_assert(!((struct enbox_proc *)data)->ids);
-
-	struct enbox_proc * proc = (struct enbox_proc *)data;
-	struct enbox_ids *  ids;
-	int                 err;
-
-	ids = calloc(1, sizeof(*ids));
-	if (!ids)
-		return -errno;
-
-	err = enbox_do_load_ids(setting, ids);
-	if (err) {
-		free(ids);
-		return err;
-	}
-
-	proc->ids = ids;
-
-	return 0;
 }
 
 static int __enbox_nonull(1, 2)
@@ -2167,7 +2175,6 @@ enbox_do_load_proc(const config_setting_t * __restrict setting,
 	enbox_assert(setting);
 	enbox_assert(proc);
 	enbox_assert(!proc->umask);
-	enbox_assert(!proc->ids);
 	enbox_assert(!proc->caps);
 	enbox_assert(!proc->cwd);
 	enbox_assert(!proc->fds_nr);
@@ -2177,7 +2184,6 @@ enbox_do_load_proc(const config_setting_t * __restrict setting,
 	int                              nr;
 	static const struct enbox_loader loaders[] = {
 		{ .name = "umask",    .load = enbox_load_proc_umask },
-		{ .name = "ids",      .load = enbox_load_ids },
 		{ .name = "caps",     .load = enbox_load_proc_caps },
 		{ .name = "cwd",      .load = enbox_load_proc_cwd },
 		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds }
@@ -2191,7 +2197,7 @@ enbox_do_load_proc(const config_setting_t * __restrict setting,
 	nr = config_setting_length(setting);
 	enbox_assert(nr >= 0);
 	if (nr < 1) {
-		/* Missing field definitions:  'exec' setting is mandatory. */
+		/* Missing field definitions. */
 		enbox_conf_err(setting, "missing setting(s)");
 		return -ENODATA;
 	}
@@ -2244,7 +2250,6 @@ enbox_unload_proc(struct enbox_proc * __restrict proc)
 	enbox_assert(proc);
 
 STROLL_IGNORE_WARN("-Wcast-qual")
-	free((void *)proc->ids);
 	free((void *)proc->fds);
 STROLL_RESTORE_WARN
 	free(proc);
@@ -2355,14 +2360,16 @@ enbox_unload_conf(struct enbox_conf * __restrict conf)
 {
 	enbox_assert(conf);
 
-	if (conf->cmd)
-		enbox_unload_cmd(conf->cmd);
-	if (conf->proc)
-		enbox_unload_proc(conf->proc);
-	if (conf->jail)
-		enbox_unload_jail(conf->jail);
 	if (conf->host)
 		enbox_unload_host(conf->host);
+	if (conf->ids)
+		enbox_unload_ids(conf->ids);
+	if (conf->jail)
+		enbox_unload_jail(conf->jail);
+	if (conf->proc)
+		enbox_unload_proc(conf->proc);
+	if (conf->cmd)
+		enbox_unload_cmd(conf->cmd);
 }
 
 static int __enbox_nonull(1)
@@ -2370,6 +2377,7 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 {
 	enbox_assert(conf);
 	enbox_assert(!conf->host);
+	enbox_assert(!conf->ids);
 	enbox_assert(!conf->jail);
 	enbox_assert(!conf->proc);
 	enbox_assert(!conf->cmd);
@@ -2378,6 +2386,7 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 	const config_setting_t *         root;
 	static const struct enbox_loader loaders[] = {
 		{ .name = "host", .load = enbox_load_host },
+		{ .name = "ids",  .load = enbox_load_ids },
 		{ .name = "jail", .load = enbox_load_jail },
 		{ .name = "proc", .load = enbox_load_proc },
 		{ .name = "cmd",  .load = enbox_load_cmd }
@@ -2394,15 +2403,49 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 	if (err)
 		goto err;
 
-	if (!conf->proc && (conf->jail || conf->cmd)) {
-		/*
-		 * 'cmd' command setting is mandatory when one of 'jail' or
-		 * 'cmd' settings is enabled.
-		 */
-		enbox_err("%s: missing 'proc' setting",
-		          config_setting_source_file(root));
-		err = -ENODATA;
-		goto err;
+#warning Fix ids config block documentation
+	err = -ENODATA;
+	if (!conf->cmd) {
+		if (!conf->host) {
+			/*
+			 * 'host' setting is mandatory when no 'cmd' setting is
+			 * is found.
+			 */
+			enbox_err("%s: missing 'host' setting",
+			          config_setting_source_file(root));
+			goto err;
+		}
+
+		if (conf->ids) {
+			enbox_unload_ids(conf->ids);
+			conf->ids = NULL;
+			enbox_warn("%s: ignoring useless 'ids' setting",
+			           config_setting_source_file(root));
+		}
+
+		if (conf->jail) {
+			enbox_unload_jail(conf->jail);
+			conf->jail = NULL;
+			enbox_warn("%s: ignoring useless 'jail' setting",
+			           config_setting_source_file(root));
+		}
+
+		if (conf->proc) {
+			enbox_unload_proc(conf->proc);
+			conf->proc = NULL;
+			enbox_warn("%s: ignoring useless 'proc' setting",
+			           config_setting_source_file(root));
+		}
+	}
+
+	if (conf->jail && !conf->proc) {
+			/*
+			 * 'proc' setting is mandatory when a 'jail' setting is
+			 * is enabled.
+			 */
+			enbox_err("%s: missing 'proc' setting",
+			          config_setting_source_file(root));
+			goto err;
 	}
 
 	return 0;
@@ -2490,18 +2533,19 @@ enbox_run_conf(const struct enbox_conf * __restrict conf)
 	}
 
 	if (conf->proc) {
-		ret = enbox_prep_proc(conf->proc, conf->jail);
+		ret = enbox_prep_proc(conf->proc, conf->ids, conf->jail);
+		if (ret)
+			goto out;
+
+		ret = enbox_run_proc(conf->proc, conf->ids, conf->cmd);
 		if (ret)
 			goto out;
 	}
 
-	if (conf->cmd)
-		ret = enbox_run_proc_cmd(conf->proc, conf->cmd);
-	else
-		ret = enbox_change_proc_ids(conf->proc);
+	return 0;
 
 out:
-	if (ret) {
+	{
 		const config_setting_t * root;
 
 		root = config_root_setting(&conf->lib);

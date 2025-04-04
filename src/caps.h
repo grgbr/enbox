@@ -135,9 +135,26 @@ extern int
 enbox_save_amb_caps(uint64_t ambient)
 	__enbox_nothrow __leaf __warn_result __export_intern;
 
+/**
+ * @internal
+ *
+ * Clear ambient capability set.
+ *
+ * Remove all capabilities from current thread's ambient set.
+ *
+ * For more informations about Linux capability sets, refer to section `Thread
+ * capability sets` of @man{capabilities(7)}.
+ *
+ * No particular privileges is required to perform this operation.
+ *
+ * @see
+ * - sections `Thread capability sets` of @man{capabilities(7)}
+ * - section `PR_CAP_AMBIENT_CLEAR_ALL` of @man{prctl(2)}
+ * - @man{PR_CAP_AMBIENT_CLEAR_ALL(2const)}
+ * - @man{PR_CAP_AMBIENT(2const)}
+ */
 extern void
-enbox_clear_amb_caps(void)
-	__enbox_nothrow __leaf __export_intern;
+enbox_clear_amb_caps(void) __enbox_nothrow __leaf __export_intern;
 
 #if defined(CONFIG_ENBOX_SHOW)
 
@@ -147,9 +164,30 @@ enbox_load_bound_caps(void)
 
 #endif /* defined(CONFIG_ENBOX_SHOW) */
 
+/**
+ * @internal
+ *
+ * Clear bounding capability set.
+ *
+ * Remove all capabilities from current thread's bounding set.
+ *
+ * For more informations about Linux capability sets, refer to section `Thread
+ * capability sets` of @man{capabilities(7)}.
+ *
+ * @warning Requires CAP_SETPCAP capability.
+ *
+ * @return 0 if successful, an errno-like error code otherwise.
+ *
+ * @see
+ * - sections `Thread capability sets` and `CAP_SETPCAP` of
+ *   @man{capabilities(7)}
+ * - section `PR_CAPBSET_DROP` of @man{prctl(2)}
+ * - @man{PR_CAPBSET_DROP(2const)}
+ */
+
 extern int
 enbox_clear_bound_caps(void)
-	__enbox_nothrow __leaf __warn_result __export_intern;
+	__enbox_nothrow  __leaf __warn_result __export_intern;
 
 static inline __enbox_nonull(1) __enbox_pure __enbox_nothrow __warn_result
 uint64_t
@@ -322,8 +360,25 @@ extern int
 enbox_save_epi_caps(struct enbox_caps * __restrict caps)
 	__enbox_nonull(1) __warn_result __export_intern;
 
+/**
+ * @internal
+ *
+ * Clear effective, permitted and inheritable capability sets.
+ *
+ * Remove all capabilities from current thread's effective, permitted and
+ * inheritable sets.
+ *
+ * For more informations about Linux capability sets, refer to section `Thread
+ * capability sets` of @man{capabilities(7)}.
+ *
+ * No particular privileges is required to perform this operation.
+ *
+ * @see
+ * - sections `Thread capability sets` of @man{capabilities(7)}
+ * - @man{capget(2)}
+ */
 extern void
-enbox_clear_epi_caps(void)
-	__export_intern;
+enbox_clear_epi_caps(void) __export_intern;
+
 
 #endif /* _ENBOX_CAPS_H */

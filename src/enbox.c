@@ -575,6 +575,8 @@ enbox_show_ids_conf(const struct enbox_ids * __restrict ids)
 	const struct passwd * pwd = ids->pwd;
 	char *                grps = NULL;
 
+	puts("\n### Credentials ###\n");
+
 	/*
 	 * Allocate a string large enough to hold a comma separated list
 	 * of supplementary groups (including primary group).
@@ -638,9 +640,6 @@ enbox_show_proc_conf(const struct enbox_proc * __restrict proc)
 
 	printf("Umask            : %04o\n", proc->umask);
 
-	if (proc->ids)
-		enbox_show_ids_conf(proc->ids);
-
 	if (proc->caps) {
 		char * str;
 
@@ -660,7 +659,7 @@ enbox_show_proc_conf(const struct enbox_proc * __restrict proc)
 		putchar('\n');
 	}
 	else
-		fputs("Keep file descs  : none", stdout);
+		fputs("Keep file descs  : none\n", stdout);
 }
 
 static __enbox_nonull(1)
@@ -687,6 +686,8 @@ enbox_show_conf(const struct enbox_conf * __restrict conf)
 
 	if (conf->host)
 		enbox_show_host_conf(conf->host);
+	if (conf->ids)
+		enbox_show_ids_conf(conf->ids);
 	if (conf->jail)
 		enbox_show_jail_conf(conf->jail);
 	if (conf->proc)
