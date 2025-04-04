@@ -1257,6 +1257,9 @@ main(int argc, char * const argv[])
 	else if (cmd == INVALID_CMD)
 		return EXIT_FAILURE;
 
+#warning No need to go any further if not root !! \
+         Also check enbox_switch_ids() / enbox_validate_pwd() root assertion
+
 	enbox_setup(log.top);
 
 	switch (cmd) {

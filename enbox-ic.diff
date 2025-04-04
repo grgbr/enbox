@@ -1,0 +1,1673 @@
+diff --git a/Config.in b/Config.in
+index f825b90..ea3b07f 100644
+--- a/Config.in
++++ b/Config.in
+@@ -35,6 +35,28 @@ config ENBOX_DISABLE_DUMP
+ 	  See sections about `/proc/sys/fs/suid_dumpable' and PR_SET_DUMPABLE
+ 	  operation of proc(5) and prctl(2) man pages respectively.
+ 
++config ENBOX_ALLOW_ROOT
++	bool "Allow root"
++	default n
++	help
++	  Allow "root", uid = 0 and gid = 0 as valid user.
++
++config ENBOX_CAPABILITIES
++	bool "Enable capabalities"
++	default n
++	help
++	  Keep capabalities after execve.
++	  Add depends to libcap.
++	  See capabalities(7), prctl(2) and execve(2) manpage.
++
++config ENBOX_KEYRING
++	bool "Enable keyring"
++	default n
++	help
++	  Create session keyring and attach keys from user 'root' keyring to the
++	  session keyring.
++	  See keyrings(7) manpage.
++
+ config ENBOX_TOOL
+ 	bool "Enable utility"
+ 	default y
+@@ -62,6 +84,16 @@ config ENBOX_TOOL_STDLOG_FORMAT
+ 	  See eLog library's header elog_format enum for more informations about
+ 	  available format flags.
+ 
++config ENBOX_TOOL_LOG_FACILITY
++	int "Syslog facility"
++	range 8 23
++	default 3
++	depends on ENBOX_TOOL
++	help
++	  Internal tool messages can be send to syslog instead of standard I/O
++	  logger with selected facility.
++	  See syslog(3) levels for more informations about available facilities.
++
+ config ENBOX_TOOL_SHOW
+ 	bool "Enable utility display"
+ 	default n
+@@ -69,4 +101,10 @@ config ENBOX_TOOL_SHOW
+ 	help
+ 	  Build enbox library tool with ability to display settings.
+ 
++config ENBOX_PAM
++	bool "Enbox pam module"
++	default n
++	help
++	  Build enbox pam module to set.
++
+ # ex: filetype=kconfig
+diff --git a/capabilities.in b/capabilities.in
+new file mode 100644
+index 0000000..d829a23
+--- /dev/null
++++ b/capabilities.in
+@@ -0,0 +1,50 @@
++# List of support capabilities for process isolation purposes.
++#
++# This file is used to generate capability descriptors related definitions
++# using `gen_flag_descs_header' and `gen_flag_descs_src' scripts.
++# See ebuild.mk for details about the generation workflow.
++#
++# string keyword accepted by     corresponding capability
++# enbox configuration logic      flag accepted by capabilities(7)
++# ----------------------------------------------------------
++  chown                          CAP_CHOWN
++  dac_override                   CAP_DAC_OVERRIDE
++  dac_read_search                CAP_DAC_READ_SEARCH
++  fowner                         CAP_FOWNER
++  fsetid                         CAP_FSETID
++  kill                           CAP_KILL
++  setgid                         CAP_SETGID
++  setuid                         CAP_SETUID
++  setpcap                        CAP_SETPCAP
++  linux_immutable                CAP_LINUX_IMMUTABLE
++  net_bind_service               CAP_NET_BIND_SERVICE
++  net_broadcast                  CAP_NET_BROADCAST
++  net_admin                      CAP_NET_ADMIN
++  net_raw                        CAP_NET_RAW
++  ipc_lock                       CAP_IPC_LOCK
++  ipc_owner                      CAP_IPC_OWNER
++  sys_module                     CAP_SYS_MODULE
++  sys_rawio                      CAP_SYS_RAWIO
++  sys_chroot                     CAP_SYS_CHROOT
++  sys_ptrace                     CAP_SYS_PTRACE
++  sys_pacct                      CAP_SYS_PACCT
++  sys_admin                      CAP_SYS_ADMIN
++  sys_boot                       CAP_SYS_BOOT
++  sys_nice                       CAP_SYS_NICE
++  sys_resource                   CAP_SYS_RESOURCE
++  sys_time                       CAP_SYS_TIME
++  sys_tty_config                 CAP_SYS_TTY_CONFIG
++  mknod                          CAP_MKNOD
++  lease                          CAP_LEASE
++  audit_write                    CAP_AUDIT_WRITE
++  audit_control                  CAP_AUDIT_CONTROL
++  setfcap                        CAP_SETFCAP
++  mac_override                   CAP_MAC_OVERRIDE
++  mac_admin                      CAP_MAC_ADMIN
++  syslog                         CAP_SYSLOG
++  wake_alarm                     CAP_WAKE_ALARM
++  block_suspend                  CAP_BLOCK_SUSPEND
++  audit_read                     CAP_AUDIT_READ
++  perfmon                        CAP_PERFMON
++  bpf                            CAP_BPF
++  checkpoint_restore             CAP_CHECKPOINT_RESTORE
+\ No newline at end of file
+diff --git a/common.h b/common.h
+index c5da2a4..d1dc0ce 100644
+--- a/common.h
++++ b/common.h
+@@ -6,10 +6,15 @@
+ #endif /* _GNU_SOURCE */
+ 
+ #include "enbox/enbox.h"
++#include <stroll/cdefs.h>
+ #include <elog/elog.h>
+ #include <libconfig.h>
+ #include <linux/sched.h>
+ 
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++#include <sys/capability.h>
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
++
+ /*
+  * Declare a symbol as unused when Enbox is built with verbose support disabled.
+  * This prevents GCC from emitting a warning when a variable is only used for
+@@ -35,6 +40,10 @@
+ struct enbox_ids {
+ 	const struct passwd * pwd;
+ 	bool                  drop_supp;
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++	// WARNING: cap_iab_t is a pointer
++	cap_iab_t             capabilities;
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
+ };
+ 
+ /* Mask of inode timestamp related mounting flags. */
+@@ -83,7 +92,7 @@ extern const struct enbox_flag_desc enbox_namespace_descs[];
+ 
+ extern int
+ enbox_validate_mount_time_flags(unsigned long flags)
+-	__const __nothrow __leaf __priv_visi;
++	__const __nothrow __leaf __export_intern;
+ 
+ #define enbox_assert_jail(_jail) \
+ 	enbox_assert(_jail); \
+@@ -103,6 +112,15 @@ enbox_validate_mount_time_flags(unsigned long flags)
+ /* Include generated namespaces definitions. */
+ #include "namespaces.h"
+ 
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++#if defined(CONFIG_ENBOX_TOOL)
++extern const struct enbox_flag_desc enbox_capabilities_descs[];
++#endif /* defined(CONFIG_ENBOX_TOOL) */
++
++/* Include generated capabilities definitions. */
++#include "capabilities.h"
++#endif
++
+ extern struct elog * enbox_logger;
+ 
+ #define enbox_err(_format, ...) \
+@@ -152,21 +170,21 @@ enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
+ #if defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL)
+ 	__enbox_nonull(1) __pure __nothrow __leaf;
+ #else  /* !(defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL)) */
+-	__enbox_nonull(1) __pure __nothrow __leaf __priv_visi;
++	__enbox_nonull(1) __pure __nothrow __leaf __export_intern;
+ #endif /* defined(CONFIG_ENBOX_ASSERT) && defined(CONFIG_ENBOX_TOOL) */
+ 
+ #define ENBOX_EXEC_ARGS_MAX (1024U)
+ 
+ extern int
+ enbox_validate_exec_arg(const char * __restrict arg)
+-	__pure __nothrow __leaf __priv_visi;
++	__pure __nothrow __leaf __export_intern;
+ 
+ #if defined(CONFIG_ENBOX_ASSERT)
+ 
+ extern int
+ enbox_validate_exec(const char * const exec[__restrict_arr])
+ #if !defined(CONFIG_ENBOX_TOOL)
+-	__enbox_nonull(1) __pure __nothrow __leaf __priv_visi;
++	__enbox_nonull(1) __pure __nothrow __leaf __export_intern;
+ #else  /* defined(CONFIG_ENBOX_TOOL) */
+ 	__enbox_nonull(1) __pure __nothrow __leaf;
+ #endif /* !defined(CONFIG_ENBOX_TOOL) */
+@@ -181,4 +199,10 @@ enbox_validate_exec(const char * const exec[__restrict_arr] __unused)
+ 
+ #endif /* defined(CONFIG_ENBOX_ASSERT) */
+ 
++#if defined(CONFIG_ENBOX_ALLOW_ROOT)
++#define ENBOX_ALLOW_ROOT (true)
++#else /* defined(CONFIG_ENBOX_ALLOW_ROOT) */
++#define ENBOX_ALLOW_ROOT (false)
++#endif /* defined(CONFIG_ENBOX_ALLOW_ROOT) */
++
+ #endif /* _ENBOX_COMMON_H */
+diff --git a/conf.c b/conf.c
+index 7c6ead4..b161145 100644
+--- a/conf.c
++++ b/conf.c
+@@ -644,7 +644,10 @@ enbox_load_dir_entry(const config_setting_t * __restrict setting,
+ 
+ 	entry->dir.mode = (mode_t)-1;
+ 
+-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
++	err = enbox_load_setting(setting,
++	                         entry,
++	                         loaders,
++	                         stroll_array_nr(loaders));
+ 	if (err)
+ 		goto err;
+ 
+@@ -710,7 +713,10 @@ enbox_load_slink_entry(const config_setting_t * __restrict setting,
+ 
+ 	entry->slink.target = NULL;
+ 
+-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
++	err = enbox_load_setting(setting,
++	                         entry,
++	                         loaders,
++	                         stroll_array_nr(loaders));
+ 	if (err)
+ 		goto err;
+ 
+@@ -806,7 +812,10 @@ enbox_load_dev_entry(const config_setting_t * __restrict setting,
+ 	entry->dev.major = UINT_MAX;
+ 	entry->dev.minor = UINT_MAX;
+ 
+-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
++	err = enbox_load_setting(setting,
++	                         entry,
++	                         loaders,
++	                         stroll_array_nr(loaders));
+ 	if (err)
+ 		return err;
+ 
+@@ -909,7 +918,10 @@ enbox_load_fifo_entry(const config_setting_t * __restrict setting,
+ 
+ 	entry->fifo.mode = (mode_t)-1;
+ 
+-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
++	err = enbox_load_setting(setting,
++	                         entry,
++	                         loaders,
++	                         stroll_array_nr(loaders));
+ 	if (err)
+ 		goto err;
+ 
+@@ -1193,7 +1205,10 @@ enbox_load_file_entry(const config_setting_t * __restrict setting,
+ 	entry->bind.flags = ENBOX_BIND_FILE_FLAGS;
+ 	entry->bind.opts = NULL;
+ 
+-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
++	err = enbox_load_setting(setting,
++	                         entry,
++	                         loaders,
++	                         stroll_array_nr(loaders));
+ 	if (err)
+ 		goto err;
+ 
+@@ -1263,7 +1278,10 @@ enbox_load_tree_entry(const config_setting_t * __restrict setting,
+ 	entry->bind.flags = ENBOX_BIND_TREE_FLAGS;
+ 	entry->bind.opts = NULL;
+ 
+-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
++	err = enbox_load_setting(setting,
++	                         entry,
++	                         loaders,
++	                         stroll_array_nr(loaders));
+ 	if (err)
+ 		goto err;
+ 
+@@ -1350,7 +1368,10 @@ enbox_load_proc_entry(const config_setting_t * __restrict setting,
+ 	entry->mount.flags = ENBOX_MOUNT_PROC_FLAGS;
+ 	entry->mount.opts = ENBOX_MOUNT_PROC_OPTS;
+ 
+-	err = enbox_load_setting(setting, entry, loaders, array_nr(loaders));
++	err = enbox_load_setting(setting,
++	                         entry,
++	                         loaders,
++	                         stroll_array_nr(loaders));
+ 	if (err)
+ 		goto err;
+ 
+@@ -1686,6 +1707,98 @@ enbox_load_jail_fsset(const config_setting_t * __restrict setting,
+ 	return enbox_load_fsset(setting, &jail->fsset, enbox_load_jail_entry);
+ }
+ 
++#if defined(CONFIG_ENBOX_KEYRING)
++static int __enbox_nonull(1, 2)
++enbox_parse_keyring(const config_setting_t * __restrict setting,
++                    struct enbox_keyring * __restrict   entry)
++{
++	enbox_assert(setting);
++	enbox_assert(entry);
++
++	int                      nr;
++	const config_setting_t * set;
++
++	if (!config_setting_is_array(setting)) {
++		enbox_conf_err(setting, "array of strings required");
++		return -EINVAL;
++	}
++
++	nr = config_setting_length(setting);
++	enbox_assert(nr == 2);
++	if (nr != 2) {
++		/* No entry definition found. */
++		enbox_conf_err(setting, "keyring must be array with type and description");
++		return -ENODATA;
++	}
++
++	set = config_setting_get_elem(setting, 0);
++	enbox_assert(set);
++	entry->type = config_setting_get_string(set);
++	if (!entry->type) {
++		enbox_conf_err(setting, "string required");
++		return -EINVAL;
++	}
++
++	set = config_setting_get_elem(setting, 1);
++	enbox_assert(set);
++	entry->description = config_setting_get_string(set);
++	if (!entry->description) {
++		enbox_conf_err(setting, "string required");
++		return -EINVAL;
++	}
++
++	return 0;
++}
++
++static int __enbox_nonull(1, 2)
++enbox_load_jail_keyring(const config_setting_t * __restrict setting,
++                        void * __restrict                   data)
++{
++	enbox_assert(setting);
++	enbox_assert(data);
++
++	struct enbox_jail    * jail = (struct enbox_jail *)data;
++	int                    nr;
++	int                    a;
++	struct enbox_keyring * entries;
++
++	if (!config_setting_is_list(setting)) {
++		enbox_conf_err(setting, "list required");
++		return -EINVAL;
++	}
++
++	nr = config_setting_length(setting);
++	enbox_assert(nr >= 0);
++	if (!nr) {
++		jail->keyset.nr = 0;
++		jail->keyset.entries = NULL;
++		return 0;
++	}
++
++	entries = malloc(nr * sizeof(*entries));
++	if (!entries)
++		return -ENOMEM;
++
++	for (a = 0; a < nr; a++) {
++		const config_setting_t * set;
++		int                      err;
++
++		set = config_setting_get_elem(setting, a);
++		enbox_assert(set);
++
++		err = enbox_parse_keyring(set, &entries[a]);
++		if (err) {
++			free(entries);
++			return err;
++		}
++	}
++
++	jail->keyset.nr = nr;
++	jail->keyset.entries = entries;
++	return 0;
++}
++#endif /* defined(CONFIG_ENBOX_KEYRING) */
++
+ static int __enbox_nonull(1, 2)
+ enbox_do_load_jail(const config_setting_t * __restrict setting,
+                    struct enbox_jail * __restrict      jail)
+@@ -1700,7 +1813,10 @@ enbox_do_load_jail(const config_setting_t * __restrict setting,
+ 	static const struct enbox_loader loaders[] = {
+ 		{ .name = "namespaces",  .load = enbox_load_jail_namespaces },
+ 		{ .name = "path",        .load = enbox_load_jail_root_path },
+-		{ .name = "fsset",       .load = enbox_load_jail_fsset }
++		{ .name = "fsset",       .load = enbox_load_jail_fsset },
++#if defined(CONFIG_ENBOX_KEYRING)
++		{ .name = "keyring",     .load = enbox_load_jail_keyring }
++#endif  /* defined(CONFIG_ENBOX_KEYRING) */
+ 	};
+ 
+ 	if (!config_setting_is_group(setting)) {
+@@ -1722,8 +1838,14 @@ enbox_do_load_jail(const config_setting_t * __restrict setting,
+ 	jail->root_path = NULL;
+ 	jail->fsset.nr = 0;
+ 	jail->fsset.entries = NULL;
+-
+-	err = enbox_load_setting(setting, jail, loaders, array_nr(loaders));
++#if defined(CONFIG_ENBOX_KEYRING)
++	jail->keyset.nr = 0;
++#endif  /* defined(CONFIG_ENBOX_KEYRING) */
++
++	err = enbox_load_setting(setting,
++	                         jail,
++	                         loaders,
++	                         stroll_array_nr(loaders));
+ 	if (err)
+ 		return err;
+ 
+@@ -1780,7 +1902,7 @@ enbox_load_ids_user(const config_setting_t * __restrict setting,
+ 
+ 	struct enbox_ids * ids = (struct enbox_ids *)data;
+ 
+-	return enbox_load_pwd_setting(setting, &ids->pwd, false);
++	return enbox_load_pwd_setting(setting, &ids->pwd, ENBOX_ALLOW_ROOT);
+ }
+ 
+ static int __enbox_nonull(1, 2)
+@@ -1797,19 +1919,142 @@ enbox_load_ids_drop_supp(const config_setting_t * __restrict setting,
+ 	                               &ids->drop_supp);
+ }
+ 
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++__enbox_intern const struct enbox_flag_desc enbox_capabilities_descs[] = {
++	/* Include generated mounting flag descriptor definitions. */
++#include "capabilities.i"
++	{ NULL, }
++};
++
++static int __enbox_nonull(1, 2)
++enbox_parse_capabilities_setting(const config_setting_t * __restrict setting,
++                                 cap_iab_t                           iab_p)
++{
++	enbox_assert(setting);
++	enbox_assert(iab_p);
++
++	const char * str;
++	unsigned int d;
++
++	str = config_setting_get_string(setting);
++	if (!str) {
++		enbox_conf_err(setting, "string required");
++		return -EINVAL;
++	}
++
++	for (d = 0; enbox_capabilities_descs[d].kword; d++) {
++		if (!memcmp(str,
++		            enbox_capabilities_descs[d].kword,
++		            enbox_capabilities_descs[d].len + 1))
++			break;
++	}
++
++	if (!enbox_capabilities_descs[d].kword) {
++		enbox_conf_err(setting, "unknown '%s' capabilities", str);
++		return -ENOENT;
++	}
++
++	if (enbox_capabilities_descs[d].value > CAP_LAST_CAP) {
++		enbox_conf_err(setting, "invalid '%s' capabilities", str);
++		return -EINVAL;
++	}
++
++	if (cap_iab_get_vector(iab_p,
++	                       CAP_IAB_AMB,
++	                       enbox_capabilities_descs[d].value) == CAP_SET) {
++		enbox_conf_warn(setting,
++		                "duplicate '%s' capabilities ignored",
++		                str);
++		return 0;
++	}
++
++	if (cap_iab_set_vector(iab_p,
++	                       CAP_IAB_AMB,
++	                       enbox_capabilities_descs[d].value,
++	                       CAP_SET))
++		return -errno;
++
++	return 0;
++}
++
++static int __enbox_nonull(1, 2)
++enbox_load_capabilities_setting(const config_setting_t * __restrict setting,
++                                cap_iab_t *                         caps)
++{
++	enbox_assert(setting);
++	enbox_assert(caps);
++
++	int       nr;
++	int       n;
++	cap_iab_t iab_p;
++
++	if (!config_setting_is_array(setting)) {
++		enbox_conf_err(setting, "array of strings required");
++		return -EINVAL;
++	}
++
++	nr = config_setting_length(setting);
++	enbox_assert(nr >= 0);
++	if (!nr) {
++		/* Array is empty: clear all capabilities. */
++		*caps = NULL;
++		return 0;
++	}
++
++	iab_p = cap_iab_init();
++	if (!iab_p)
++		return -ENOMEM;
++
++	for (n = 0; n < nr; n++) {
++		const config_setting_t * set;
++		int                      err;
++
++		set = config_setting_get_elem(setting, n);
++		enbox_assert(set);
++
++		err = enbox_parse_capabilities_setting(set, iab_p);
++		if (err)
++			return err;
++	}
++
++	*caps = iab_p;
++
++	return 0;
++}
++
++static int __enbox_nonull(1, 2)
++enbox_load_ids_capabilities(const config_setting_t * __restrict setting,
++                            void * __restrict                   data)
++{
++	enbox_assert(setting);
++	enbox_assert(data);
++
++	struct enbox_ids * ids = (struct enbox_ids *)data;
++
++	return enbox_load_capabilities_setting(setting, &ids->capabilities);
++}
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
++
+ static int __enbox_nonull(1, 2)
+ enbox_do_load_ids(const config_setting_t * __restrict setting,
+-                struct enbox_ids * __restrict       ids)
++                  struct enbox_ids * __restrict       ids)
+ {
+ 	enbox_assert(setting);
+ 	enbox_assert(ids);
+ 	enbox_assert(!ids->pwd);
+ 
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++	enbox_assert(!ids->capabilities);
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
++
+ 	int                              err;
+ 	int                              nr;
+ 	static const struct enbox_loader loaders[] = {
+-		{ .name = "user",      .load = enbox_load_ids_user },
+-		{ .name = "drop_supp", .load = enbox_load_ids_drop_supp }
++		{ .name = "user",         .load = enbox_load_ids_user },
++		{ .name = "drop_supp",    .load = enbox_load_ids_drop_supp },
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++		{ .name = "capabilities", .load = enbox_load_ids_capabilities },
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
+ 	};
+ 
+ 	if (!config_setting_is_group(setting)) {
+@@ -1828,7 +2073,14 @@ enbox_do_load_ids(const config_setting_t * __restrict setting,
+ 	ids->pwd = NULL;
+ 	ids->drop_supp = false;
+ 
+-	err = enbox_load_setting(setting, ids, loaders, array_nr(loaders));
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++	ids->capabilities = NULL;
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
++
++	err = enbox_load_setting(setting,
++	                         ids,
++	                         loaders,
++	                         stroll_array_nr(loaders));
+ 	if (err)
+ 		goto err;
+ 
+@@ -1837,7 +2089,7 @@ enbox_do_load_ids(const config_setting_t * __restrict setting,
+ 		err = -ENODATA;
+ 		goto err;
+ 	}
+-	enbox_assert(!enbox_validate_pwd(ids->pwd, false));
++	enbox_assert(!enbox_validate_pwd(ids->pwd, ENBOX_ALLOW_ROOT));
+ 
+ 	return 0;
+ 
+@@ -1879,6 +2131,9 @@ enbox_unload_ids(struct enbox_ids * __restrict ids)
+ {
+ 	enbox_assert(ids);
+ 
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++	cap_free(ids->capabilities);
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
+ 	free(ids);
+ }
+ 
+@@ -2030,7 +2285,10 @@ enbox_do_load_cmd(const config_setting_t * __restrict setting,
+ 
+ 	cmd->umask = (mode_t)-1;
+ 
+-	err = enbox_load_setting(setting, cmd, loaders, array_nr(loaders));
++	err = enbox_load_setting(setting,
++	                         cmd,
++	                         loaders,
++	                         stroll_array_nr(loaders));
+ 	if (err)
+ 		return err;
+ 
+@@ -2121,7 +2379,7 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
+ 	root = config_root_setting(&conf->lib);
+ 	enbox_assert(root);
+ 
+-	err = enbox_load_setting(root, conf, loaders, array_nr(loaders));
++	err = enbox_load_setting(root, conf, loaders, stroll_array_nr(loaders));
+ 	if (err)
+ 		goto err;
+ 
+@@ -2223,6 +2481,9 @@ enbox_run_conf(const struct enbox_conf * __restrict conf)
+ 	enbox_assert(conf);
+ 	enbox_assert(conf->host || conf->jail || conf->cmd);
+ 	enbox_assert(!conf->jail || conf->cmd);
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++	enbox_assert(conf->jail || !conf->ids->capabilities);
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
+ 
+ 	int err;
+ 
+diff --git a/ebuild.mk b/ebuild.mk
+index 612925e..b3ebc65 100644
+--- a/ebuild.mk
++++ b/ebuild.mk
+@@ -8,15 +8,24 @@ libenbox.so-objs     = lib.o conf.o
+ libenbox.so-cflags   = $(common-cflags) -DPIC -fpic
+ libenbox.so-ldflags  = $(EXTRA_LDFLAGS) \
+                        -shared -Bsymbolic -fpic -Wl,-soname,libenbox.so
+-libenbox.so-pkgconf := libelog libutils libconfig
++libenbox.so-pkgconf := libelog libutils libstroll libconfig
++libenbox.so-pkgconf += $(call kconf_enabled,ENBOX_CAPABILITIES,libcap)
+ 
+ bins                 = enbox
+ enbox-objs           = enbox.o
+ enbox-cflags         = $(common-cflags)
+ enbox-ldflags        = $(EXTRA_LDFLAGS) -lenbox
+ enbox-pkgconf       := libelog libutils
++enbox-pkgconf       += $(call kconf_enabled,ENBOX_CAPABILITIES,libcap)
+ enbox-path          := $(SBINDIR)/enbox
+ 
++solibs              += $(call kconf_enabled,ENBOX_PAM,pam_enbox.so)
++pam_enbox.so-objs    = pam_enbox.o
++pam_enbox.so-cflags  = $(common-cflags) -DPIC -fpic
++pam_enbox.so-ldflags = $(EXTRA_LDFLAGS) -lenbox -lpam \
++                       -shared -Bsymbolic -fpic -Wl,-soname,pam_enbox.so
++pam_enbox.so-path   := $(LIBDIR)/security/pam_enbox.so
++
+ HEADERDIR           := $(CURDIR)/include
+ headers              = enbox/enbox.h
+ 
+@@ -24,10 +33,12 @@ $(addprefix $(BUILDDIR)/,$(libenbox.so-objs)): $(SRCDIR)/common.h
+ $(addprefix $(BUILDDIR)/,$(enbox-skel-objs)): $(SRCDIR)/common.h
+ 
+ # Common definitions depend on generated mounting flag definitions.
+-$(SRCDIR)/common.h: $(BUILDDIR)/mount_flags.h $(BUILDDIR)/namespaces.h
++$(SRCDIR)/common.h: $(BUILDDIR)/mount_flags.h $(BUILDDIR)/namespaces.h \
++                    $(call kconf_enabled,ENBOX_CAPABILITIES,$(BUILDDIR)/capabilities.h)
+ 
+ # Configuration object depends on generated mounting flag descriptor table.
+-$(BUILDDIR)/conf.o: $(BUILDDIR)/mount_flags.i $(BUILDDIR)/namespaces.i
++$(BUILDDIR)/conf.o: $(BUILDDIR)/mount_flags.i $(BUILDDIR)/namespaces.i \
++                    $(call kconf_enabled,ENBOX_CAPABILITIES,$(BUILDDIR)/capabilities.i)
+ 
+ # Generate mounting flags header
+ $(BUILDDIR)/mount_flags.h: $(SRCDIR)/scripts/gen_flag_descs_header \
+@@ -41,6 +52,12 @@ $(BUILDDIR)/namespaces.h: $(SRCDIR)/scripts/gen_flag_descs_header \
+ 	@echo "  GEN     $(@)"
+ 	$(Q)$(<) -v macro=ENBOX_NAMESPACES_LEN $(SRCDIR)/namespaces.in > $(@)
+ 
++# Generate mounting flags header
++$(BUILDDIR)/capabilities.h: $(SRCDIR)/scripts/gen_flag_descs_header \
++                            $(SRCDIR)/capabilities.in
++	@echo "  GEN     $(@)"
++	$(Q)$(<) -v macro=ENBOX_CAPABILITIES_LEN $(SRCDIR)/capabilities.in > $(@)
++
+ # Generate mounting flag descriptor table.
+ $(BUILDDIR)/mount_flags.i: $(SRCDIR)/scripts/gen_flag_descs_src \
+                            $(SRCDIR)/mount_flags.in
+@@ -53,6 +70,12 @@ $(BUILDDIR)/namespaces.i: $(SRCDIR)/scripts/gen_flag_descs_src \
+ 	@echo "  GEN     $(@)"
+ 	$(Q)$(^) > $(@)
+ 
++# Generate capability descriptor table.
++$(BUILDDIR)/capabilities.i: $(SRCDIR)/scripts/gen_flag_descs_src \
++                            $(SRCDIR)/capabilities.in
++	@echo "  GEN     $(@)"
++	$(Q)$(^) > $(@)
++
+ clean: clean-generated
+ 
+ .PHONY: clean-generated
+@@ -71,9 +94,9 @@ includedir=$${prefix}/include
+ Name: libenbox
+ Description: Embedded sandboxing library
+ Version: $(VERSION)
+-Requires.private: libelog libutils libconfig
++Requires.private: libelog libutils libstroll libconfig $(call kconf_enabled,ENBOX_CAPABILITIES,libcap)
+ Cflags: -I$${includedir}
+-Libs: -L$${libdir} -lenbox
++Libs: -L$${libdir} -Wl,--push-state,--as-needed -lenbox -Wl,--pop-state
+ endef
+ 
+ pkgconfigs          := libenbox.pc
+diff --git a/enbox.c b/enbox.c
+index 725f2d7..7e28aef 100644
+--- a/enbox.c
++++ b/enbox.c
+@@ -372,6 +372,26 @@ enbox_show_host_conf(const struct enbox_fsset * __restrict host)
+ 	enbox_show_fsset(host, showers);
+ }
+ 
++#if defined(CONFIG_ENBOX_KEYRING)
++static void __enbox_nonull(1)
++enbox_show_keyring_conf(const struct enbox_jail * __restrict jail)
++{
++	unsigned int a;
++
++	if (jail->keyset.nr > 0) {
++		fputs("Keyrings  :\n", stdout);
++		for (a = 0; a < jail->keyset.nr; a++) {
++			printf(" - %s: %s\n",
++			jail->keyset.entries[a].type,
++			jail->keyset.entries[a].description);
++		}
++	}
++}
++#else
++static inline void __enbox_nonull(1)
++enbox_show_keyring_conf(const struct enbox_jail * __restrict jail __unused) {}
++#endif /* defined(CONFIG_ENBOX_KEYRING) */
++
+ static void __enbox_nonull(1)
+ enbox_show_jail_conf(const struct enbox_jail * __restrict jail)
+ {
+@@ -405,6 +425,7 @@ enbox_show_jail_conf(const struct enbox_jail * __restrict jail)
+ 	puts("\n### Jail attributes ###\n");
+ 	printf("Namespaces: %s\n", ns);
+ 	printf("Root path : %s\n", jail->root_path);
++	enbox_show_keyring_conf(jail);
+ 
+ 	puts("\n### Jail filesystem entries ###\n");
+ 	enbox_show_fsset(&jail->fsset, showers);
+@@ -528,11 +549,72 @@ free:
+ 	return ret;
+ }
+ 
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++static size_t __enbox_nonull(2, 4) __nothrow
++enbox_fill_capabilities(cap_iab_t                      iab_p,
++                        char *                         string,
++                        size_t                         size __unused,
++                        const struct enbox_flag_desc * descs)
++{
++	enbox_assert(string);
++	enbox_assert(size);
++	enbox_assert(descs);
++
++	unsigned int     d;
++	size_t           len = 0;
++
++	if (!iab_p)
++		goto end;
++
++	for (d = 0; descs[d].kword; d++) {
++		if (cap_iab_get_vector(iab_p, CAP_IAB_AMB, descs[d].value) == CAP_SET) {
++			enbox_assert((len + (len ? 1 : 0) + descs[d].len) <
++			             size);
++
++			if (len)
++				string[len++] = ',';
++			memcpy(&string[len], descs[d].kword, descs[d].len);
++			len += descs[d].len;
++		}
++	}
++
++end:
++	string[len] = '\0';
++
++	return len;
++}
++
++static void __enbox_nonull(1)
++enbox_show_ids_capabilities(const struct enbox_ids * __restrict ids)
++{
++	char *                cap  = NULL;
++	size_t                len __unused;
++
++	cap = xalloc(ENBOX_CAPABILITIES_LEN + 1);
++
++	len = enbox_fill_capabilities(ids->capabilities,
++	                              cap,
++	                              ENBOX_CAPABILITIES_LEN + 1,
++	                              enbox_capabilities_descs);
++	/*
++	 * Ensure the length of stringified comma separated keyword list
++	 * is <= ENBOX_CAPABILITIES_LEN.
++	 */
++	enbox_assert(len <= ENBOX_CAPABILITIES_LEN);
++	printf("Capabilities: %s\n", cap);
++	free(cap);
++}
++
++#else /* defined(CONFIG_ENBOX_CAPABILITIES) */
++static inline void __enbox_nonull(1)
++enbox_show_ids_capabilities(const struct enbox_ids * __restrict ids __unused){}
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
++
+ static void __enbox_nonull(1)
+ enbox_show_ids_conf(const struct enbox_ids * __restrict ids)
+ {
+ 	enbox_assert(ids);
+-	enbox_assert(!enbox_validate_pwd(ids->pwd, false));
++	enbox_assert(!enbox_validate_pwd(ids->pwd, ENBOX_ALLOW_ROOT));
+ 
+ 	const struct passwd * pwd = ids->pwd;
+ 	char *                grps = NULL;
+@@ -546,16 +628,15 @@ enbox_show_ids_conf(const struct enbox_ids * __restrict ids)
+ 	grps = xalloc(ENBOX_GROUP_LIST_SIZE);
+ 
+ 	if (!enbox_fill_user_groups(grps, pwd, ids->drop_supp)) {
+-		printf("User  : %u(%s)\n", pwd->pw_uid, pwd->pw_name);
+-		printf("Groups: %s\n", grps);
+-
++		printf("User        : %u(%s)\n", pwd->pw_uid, pwd->pw_name);
++		printf("Groups      : %s\n", grps);
+ 		goto free;
+ 	}
+ 
+-	puts("User  : ?(?\?)");
+-	puts("Groups: ?");
+-
++	puts("User        : ?(?\?)");
++	puts("Groups      : ?");
+ free:
++	enbox_show_ids_capabilities(ids);
+ 	free(grps);
+ }
+ 
+@@ -618,17 +699,26 @@ show_usage(void)
+ 	fprintf(stderr, USAGE, program_invocation_short_name);
+ }
+ 
+-static struct elog_stdio      stdlog;
++static union {
++	struct elog_syslog syslog;
++	struct elog_stdio  stdlog;
++} log;
+ static struct elog_stdio_conf stdlog_conf = {
+ 	.super.severity = CONFIG_ENBOX_TOOL_STDLOG_SEVERITY,
+ 	.format         = CONFIG_ENBOX_TOOL_STDLOG_FORMAT
+ };
++static struct elog_syslog_conf syslog_conf = {
++	.super.severity = CONFIG_ENBOX_TOOL_STDLOG_SEVERITY,
++	.format         = ELOG_TAG_FMT | ELOG_PID_FMT,
++	.facility       = CONFIG_ENBOX_TOOL_LOG_FACILITY << 3,
++};
+ 
+ int
+ main(int argc, char * const argv[])
+ {
+ 	int                 ret = EXIT_FAILURE;
+ 	struct enbox_conf * conf;
++	bool                syslog = false;
+ 	enum {
+ 		INVALID,
+ 		RUN,
+@@ -640,11 +730,12 @@ main(int argc, char * const argv[])
+ 	while (true) {
+ 		int                        opt;
+ 		static const struct option opts[] = {
+-			{ "help", no_argument, NULL, 'h' },
+-			{ NULL,   0,           NULL,  0 }
++			{ "help",   no_argument, NULL, 'h' },
++			{ "syslog", no_argument, NULL, 's' },
++			{ NULL,     0,           NULL,  0  }
+ 		};
+ 
+-		opt = getopt_long(argc, argv, "h", opts, NULL);
++		opt = getopt_long(argc, argv, "has", opts, NULL);
+ 		if (opt < 0)
+ 			break;
+ 
+@@ -653,6 +744,10 @@ main(int argc, char * const argv[])
+ 			ret = EXIT_SUCCESS;
+ 			goto usage;
+ 
++		case 's':
++			syslog = true;
++			break;
++
+ 		case ':':
+ 			show_error("option '%s' requires an argument.\n\n",
+ 			           argv[optind - 1]);
+@@ -696,8 +791,11 @@ main(int argc, char * const argv[])
+ 		goto usage;
+ 	}
+ 
+-	elog_init_stdio(&stdlog, &stdlog_conf);
+-	if (enbox_setup((struct elog *)&stdlog))
++	if (syslog)
++		elog_init_syslog(&log.syslog, &syslog_conf);
++	else
++		elog_init_stdio(&log.stdlog, &stdlog_conf);
++	if (enbox_setup((struct elog *)&log))
+ 		goto out;
+ 
+ 	conf = enbox_create_conf_from_file(argv[optind]);
+@@ -724,7 +822,10 @@ main(int argc, char * const argv[])
+ 	enbox_destroy_conf(conf);
+ 
+ out:
+-	elog_fini_stdio(&stdlog);
++	if (syslog)
++		elog_fini_syslog(&log.syslog);
++	else
++		elog_fini_stdio(&log.stdlog);
+ #else  /* !defined(CONFIG_ENBOX_DEBUG) */
+ out:
+ 	fflush(NULL);
+diff --git a/include/enbox/enbox.h b/include/enbox/enbox.h
+index dc15e6a..ce05790 100644
+--- a/include/enbox/enbox.h
++++ b/include/enbox/enbox.h
+@@ -1359,6 +1359,141 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
+                       bool                          drop_supp)
+ 	__enbox_nonull(1, 2);
+ 
++/**
++ * Set ambient capabilities.
++ *
++ * Apply all ambient (and ihneritable) capabilities from current thread.
++ *
++ * For more informations about Linux capability sets, refer to section `Thread
++ * capability sets` of [capabilities(7)].
++ *
++ * @warning
++ * Requires called before enbox_lock_caps and enbox_clear_bounding_caps because
++ * enbox_clear_bounding_caps lock capablity to set ihneritable capabilities and
++ * enbox_lock_caps  lock capablity to set ambient capabilities.
++ *
++ * @warning
++ * If user is not root, enbox_ids_set_ambient_caps will change ruid, euid and
++ * suid but keep all Effective and Permitted capapilities.
++ *
++ * @warning
++ * If user is not root, enbox_clear_all_caps funtion must be call when no
++ * capabilities are needed
++ *
++ * @note
++ * If user is root, when call suid (to change one on ruid, euid and suid), all
++ * capabilities are clear.
++ *
++ * @return 0 if successful, an errno-like error code otherwise.
++ *
++ * @see
++ * - enbox_lock_caps
++ * - enbox_clear_bounding_caps
++ * - section `Thread capability sets` of [capabilities(7)]
++ * - section `Effect of user ID changes on capabilities` of [capabilities(7)]
++ *
++ * [capabilities(7)]: https://man7.org/linux/man-pages/man7/capabilities.7.html
++ */
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++extern int
++enbox_ids_set_ambient_caps(const struct enbox_ids * __restrict ids);
++#else /* defined(CONFIG_ENBOX_CAPABILITIES) */
++static inline int
++enbox_ids_set_ambient_caps(const struct enbox_ids * __restrict ids __unused)
++{
++	return 0;
++};
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
++
++/**
++ * Add capability to user.
++ *
++ * After enbox_lock_caps, enbox_clear_bounding_caps and execve root lost all
++ * capabilities. To preserver some capabilities in the jail, it necessary to
++ * them in ambient set to preserve across an execve(2) of a program that is not
++ * privileged.
++ * All capabilities are applied in enbox_ids_set_ambient_caps function.
++ *
++ * @param[out] ids        Ownership and group membership informations store
++ * @param[in]  capability New capability add
++ *
++ * @return 0 if successful, an errno-like error code otherwise.
++ *
++ * @see
++ * - enbox_lock_caps
++ * - enbox_clear_bounding_caps
++ * - enbox_ids_set_ambient_caps
++ * - section `Capabilities list` of [capabilities(7)]
++ * - section `Effect of user ID changes on capabilities` of [capabilities(7)]
++ *
++ * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
++ */
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++extern int
++enbox_ids_add_capability(struct enbox_ids * __restrict ids,
++                         int                           capability)
++	__enbox_nonull(1);
++#else /* defined(CONFIG_ENBOX_CAPABILITIES) */
++static inline int
++enbox_ids_add_capability(struct enbox_ids * __restrict ids __unused,
++                         int                           capability __unused)
++{
++	return -ENOTSUP;
++} __enbox_nonull(1);
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
++
++/**
++ * Clear all capabilities to process.
++ *
++ * Clear all Inheritable, Effective and Permitted capapilities.
++ *
++ * @return 0 if successful, an errno-like error code otherwise.
++ *
++ * @see
++ * - enbox_lock_caps
++ * - enbox_clear_bounding_caps
++ * - enbox_ids_set_ambient_caps
++ * - section `Capabilities list` of [capabilities(7)]
++ * - section `Effect of user ID changes on capabilities` of [capabilities(7)]
++ *
++ * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
++ */
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++extern int
++enbox_clear_all_caps(void);
++#else /* defined(CONFIG_ENBOX_CAPABILITIES) */
++static inline int
++enbox_clear_all_caps(void)
++{
++	return -ENOTSUP;
++};
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
++
++/**
++ * Set Effective and Permitted capabilities to process.
++ *
++ * @return 0 if successful, an errno-like error code otherwise.
++ *
++ * @see
++ * - enbox_lock_caps
++ * - enbox_clear_bounding_caps
++ * - enbox_ids_set_ambient_caps
++ * - section `Capabilities list` of [capabilities(7)]
++ * - section `Effect of user ID changes on capabilities` of [capabilities(7)]
++ *
++ * [mount_namespaces(7)]: https://man7.org/linux/man-pages/man7/mount_namespaces.7.html
++ */
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++extern int
++enbox_ids_set_permitted_caps(const struct enbox_ids * __restrict ids)
++	__enbox_nonull(1);
++#else
++static inline int
++enbox_ids_set_permitted_caps(const struct enbox_ids * __restrict ids)
++{
++	return -ENOTSUP;
++} __enbox_nonull(1);
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
+ /**
+  * Default list of new namespaces a jail is made a member of.
+  *
+@@ -1385,6 +1520,34 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
+ 	 CLONE_NEWIPC | \
+ 	 CLONE_NEWNET)
+ 
++#if defined(CONFIG_ENBOX_KEYRING)
++/**
++ * Keyring descriptor.
++ *
++ * This structure holds properties used to attach key to session keyring.
++ *
++ * [keyrings(7)]: https://man7.org/linux/man-pages/man7/keyrings.7.html
++ *
++ * @see enbox_enter_jail()
++ *
++ * @ingroup instance
++ */
++struct enbox_keyring {
++	const char *type;
++	const char *description;
++};
++
++struct enbox_keyset {
++	/**
++	 * Number of #enbox_keyring entries contained into
++	 * #enbox_keyring::entries.
++	 */
++	unsigned int                 nr;
++	/** Array of #enbox_keyring entries. */
++	const struct enbox_keyring * entries;
++};
++#endif  /* defined(CONFIG_ENBOX_KEYRING) */
++
+ /**
+  * Jail descriptor.
+  *
+@@ -1417,6 +1580,10 @@ struct enbox_jail {
+ 	const char *       root_path;
+ 	/** Set of filesystem entries to create for this jail. */
+ 	struct enbox_fsset fsset;
++#if defined(CONFIG_ENBOX_KEYRING)
++	/** Set of keyring entries to link for this cmd. */
++	struct enbox_keyset keyset;
++#endif  /* defined(CONFIG_ENBOX_KEYRING) */
+ };
+ 
+ /**
+diff --git a/keyring.h b/keyring.h
+new file mode 100644
+index 0000000..cb6f755
+--- /dev/null
++++ b/keyring.h
+@@ -0,0 +1,34 @@
++/* SPDX-License-Identifier: Copyright 2021 IC */
++#ifndef _KEYRING_H_
++#define _KEYRING_H_
++
++#if defined(CONFIG_ENBOX_KEYRING)
++
++#include <linux/keyctl.h>
++#include <sys/syscall.h>
++#include <stdlib.h>
++#include <stdint.h>
++#include <unistd.h>
++
++typedef int32_t key_serial_t;
++
++static inline key_serial_t
++keyctl_search(key_serial_t  keyring,
++              const char   *type,
++              const char   *description,
++              key_serial_t  dest_keyring)
++{
++	enbox_assert(type);
++	enbox_assert(description);
++
++	return syscall(SYS_keyctl, KEYCTL_SEARCH, keyring, type, description, dest_keyring);
++};
++
++static inline key_serial_t
++keyctl_join_session_keyring(const char *name)
++{
++	return syscall(SYS_keyctl, KEYCTL_JOIN_SESSION_KEYRING, name);
++};
++
++#endif  /* defined(CONFIG_ENBOX_KEYRING) */
++#endif /* _KEYRING_H_ */
+\ No newline at end of file
+diff --git a/lib.c b/lib.c
+index 2cebf69..de1f9d3 100644
+--- a/lib.c
++++ b/lib.c
+@@ -1,4 +1,5 @@
+ #include "common.h"
++#include "keyring.h"
+ #include <utils/path.h>
+ #include <utils/file.h>
+ #include <stdlib.h>
+@@ -524,6 +525,119 @@ err:
+ 	return -err;
+ }
+ 
++#if defined(CONFIG_ENBOX_CAPABILITIES)
++int
++enbox_ids_set_ambient_caps(const struct enbox_ids * __restrict ids)
++{
++	enbox_assert_setup();
++	enbox_assert(ids);
++	int         err;
++
++	if (!ids->capabilities)
++		return enbox_clear_ambient_caps();
++
++	if (ids->pwd->pw_uid) {
++		cap_t cap;
++
++		// save capability
++		cap = cap_get_proc();
++		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0))
++			goto err;
++
++		if (seteuid(ids->pwd->pw_uid))
++			goto err;
++
++		// restore all capabilities
++		cap_set_proc(cap);
++		cap_free(cap);
++		if (setresuid(ids->pwd->pw_uid, ids->pwd->pw_uid, ids->pwd->pw_uid))
++			goto err;
++	}
++
++	if (cap_iab_set_proc(ids->capabilities))
++		goto err;
++
++	return 0;
++err:
++	err = errno;
++	enbox_info("cannot set ambient capabilities: %s (%d)", strerror(err), err);
++
++	return -err;
++}
++
++int
++enbox_ids_add_capability(struct enbox_ids * __restrict ids,
++                         int                           cap)
++{
++	enbox_assert_setup();
++	enbox_assert(ids);
++	enbox_assert(cap_valid(cap));
++
++	if (!ids->capabilities) {
++		ids->capabilities = cap_iab_init();
++		if (!ids->capabilities)
++			return -ENOMEM;
++	}
++
++	if (cap_iab_set_vector(ids->capabilities, CAP_IAB_AMB, cap, CAP_SET))
++		return -errno;
++
++	return 0;
++}
++
++int
++enbox_ids_set_permitted_caps(const struct enbox_ids * __restrict ids)
++{
++	int ret;
++	cap_iab_t iab;
++	cap_t     cap;
++
++	if (!ids->capabilities)
++		return -EINVAL;
++
++	iab = cap_iab_dup(ids->capabilities);
++	if (!iab)
++		return -ENOMEM;
++
++	cap = cap_init();
++	if (!cap) {
++		ret = -ENOMEM;
++		goto err;
++	}
++
++	// libcap clean CAP_IAB_AMB too
++	cap_iab_fill(iab, CAP_IAB_INH, cap, CAP_INHERITABLE);
++	ret = cap_iab_set_proc(iab);
++	cap_free(cap);
++err:
++	cap_free(iab);
++	return ret;
++}
++
++int
++enbox_clear_all_caps(void)
++{
++	int ret;
++	cap_t cap;
++
++	enbox_assert_setup();
++
++	cap = cap_init();
++	if (!cap)
++		return -1;
++
++	// cap = cap_get_proc();
++	// if (!cap)
++	// 	return -1;
++	// cap_clear_flag(cap, CAP_EFFECTIVE);
++	// cap_clear_flag(cap, CAP_PERMITTED);
++	// cap_clear_flag(cap, CAP_INHERITABLE);
++	ret = cap_set_proc(cap);
++	cap_free(cap);
++	return ret;
++}
++#endif /* defined(CONFIG_ENBOX_CAPABILITIES) */
++
+ /*
+  * Require the CAP_SETUID capability.
+  */
+@@ -607,7 +721,7 @@ enbox_validate_pwd(const struct passwd * __restrict pwd, bool allow_root)
+ static int __enbox_nonull(1) __nothrow
+ enbox_switch_ids(const struct passwd * __restrict pwd, bool drop_supp)
+ {
+-	enbox_assert(!enbox_validate_pwd(pwd, false));
++	enbox_assert(!enbox_validate_pwd(pwd, ENBOX_ALLOW_ROOT));
+ 
+ 	int err;
+ 
+@@ -662,7 +776,7 @@ enbox_change_ids(const char * __restrict user, bool drop_supp)
+ 	int                   err;
+ 
+ 	pwd = upwd_get_user_byname(user);
+-	if (!pwd || enbox_validate_pwd(pwd, false)) {
++	if (!pwd || enbox_validate_pwd(pwd, ENBOX_ALLOW_ROOT)) {
+ 		err = -errno;
+ 		enbox_info("invalid '%s' user name: %s (%d)",
+ 		           user,
+@@ -1596,6 +1710,47 @@ err:
+ 	return err;
+ }
+ 
++#if defined(CONFIG_ENBOX_KEYRING)
++static int
++enbox_link_keyring(const struct enbox_jail * __restrict jail)
++{
++	unsigned int i;
++	int          err;
++
++	enbox_assert(jail);
++
++	if (jail->keyset.nr == 0)
++		return 0;
++
++	err = keyctl_join_session_keyring(NULL);
++	if (err < 0) {
++		enbox_err("cannot join session: %s (%d)", strerror(-err), -err);
++		return err;
++	}
++
++	for (i = 0; i < jail->keyset.nr; i++) {
++		err = keyctl_search(KEY_SPEC_USER_KEYRING,
++		                    jail->keyset.entries[i].type,
++		                    jail->keyset.entries[i].description,
++		                    KEY_SPEC_SESSION_KEYRING);
++		if (err < 0) {
++			enbox_err("cannot link %s %s: %s (%d)",
++			          jail->keyset.entries[i].type,
++			          jail->keyset.entries[i].description,
++			          strerror(-err), -err);
++			return err;
++		}
++	}
++	return 0;
++}
++#else
++static inline int
++enbox_link_keyring(const struct enbox_jail * __restrict jail __unused)
++{
++	return 0;
++}
++#endif  /* defined(CONFIG_ENBOX_KEYRING) */
++
+ int
+ enbox_enter_jail(const struct enbox_jail * __restrict jail,
+                  const struct enbox_ids * __restrict  ids)
+@@ -1607,6 +1762,14 @@ enbox_enter_jail(const struct enbox_jail * __restrict jail,
+ 
+ 	int err;
+ 
++	err = enbox_link_keyring(jail);
++	if (err)
++		return err;
++
++	err = enbox_ids_set_ambient_caps(ids);
++	if (err)
++		return err;
++
+ 	err = enbox_enter_jail_bypwd(jail->namespaces,
+ 	                             ids->pwd->pw_gid,
+ 	                             jail->root_path,
+diff --git a/old/enbox.c b/old/enbox.c
+index cf15229..d111616 100644
+--- a/old/enbox.c
++++ b/old/enbox.c
+@@ -2,6 +2,7 @@
+ #define _GNU_SOURCE
+ #endif /* _GNU_SOURCE */
+ 
++#include <stroll/cdefs.h>
+ #include <utils/pwd.h>
+ #include <utils/file.h>
+ #include <unistd.h>
+@@ -1122,7 +1123,7 @@ main(void)
+ 	                            false,
+ 	                            "/tmp/jail",
+ 	                            sample_entries,
+-	                            array_nr(sample_entries));
++	                            stroll_array_nr(sample_entries));
+ 
+ 	//execl("/bin/sh", "/bin/sh", "-c", CMD, NULL);
+ 	//execl("/bin/ls", "/bin/ls", "-al", "/", NULL);
+diff --git a/pam_enbox.c b/pam_enbox.c
+new file mode 100644
+index 0000000..b1a1819
+--- /dev/null
++++ b/pam_enbox.c
+@@ -0,0 +1,87 @@
++#include "common.h"
++#include <security/pam_modules.h>
++#include <security/pam_modutil.h>
++#include <security/pam_ext.h>
++#include <elog/elog.h>
++#include <stdlib.h>
++#include <sched.h>
++#include <utils/path.h>
++
++#define ENBOX_CONF_OPT     "conf="
++
++int
++pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
++		    int argc, const char **argv)
++{
++	struct enbox_conf       *conf = NULL;
++	const char              *conf_path;
++	const char              *user;
++	struct elog_syslog       log;
++	int i, err;
++	static const struct elog_syslog_conf dflt = {
++		.super.severity = ELOG_DEBUG_SEVERITY,
++		.format         = ELOG_TAG_FMT | ELOG_PID_FMT,
++		.facility       = LOG_AUTHPRIV
++	};
++
++	elog_init_syslog(&log, &dflt);
++	enbox_setup((struct elog *)&log);
++
++	for (i = 0; i < argc; ++i) {
++		if (!strncmp(argv[i], ENBOX_CONF_OPT, sizeof(ENBOX_CONF_OPT) - 1)) {
++			conf_path = argv[i] + sizeof(ENBOX_CONF_OPT) - 1;
++			conf = enbox_create_conf_from_file(conf_path);
++			if (!conf) {
++				pam_syslog(pamh, LOG_ERR, "Bad configuration file: %s", conf_path);
++				return PAM_SERVICE_ERR;
++			}
++		}
++	}
++
++	if (!conf) {
++		pam_syslog(pamh, LOG_ERR, "Missing config file (conf=)");
++		return PAM_SERVICE_ERR;
++	}
++
++	// update ids witch pam info
++	err = pam_get_user(pamh, &user, 0);
++	if (err != PAM_SUCCESS) {
++		pam_syslog(pamh, LOG_NOTICE, "cannot determine user name: %s",
++			   pam_strerror(pamh, err));
++		return err == PAM_CONV_AGAIN ? PAM_INCOMPLETE : err;
++	}
++	conf->ids->pwd = pam_modutil_getpwnam(pamh, user);
++	if (!conf->ids->pwd) {
++		pam_syslog(pamh, LOG_NOTICE, "user unknown");
++		return PAM_USER_UNKNOWN;
++	}
++
++	if (!conf->jail) {
++		pam_syslog(pamh, LOG_ERR, "Jail configuration mandatory");
++		return PAM_SERVICE_ERR;
++	}
++
++	// run config file
++	if (conf->host) {
++		err = enbox_populate_host(conf->host);
++		if (err)
++			return PAM_SYSTEM_ERR;
++	}
++
++	err = enbox_enter_jail(conf->jail, conf->ids);
++	if (err)
++		return PAM_SYSTEM_ERR;
++
++	enbox_umask = umask(conf->cmd->umask);
++
++	enbox_destroy_conf(conf);
++	elog_fini_syslog(&log);
++	return PAM_SUCCESS;
++}
++
++int
++pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused,
++		     int argc __unused, const char **argv __unused)
++{
++	return PAM_SUCCESS;
++}
+diff --git a/sphinx/api.rst b/sphinx/api.rst
+index a519570..b04e9fc 100644
+--- a/sphinx/api.rst
++++ b/sphinx/api.rst
+@@ -79,16 +79,16 @@ Configuration workflow involves the following typical sequence of operations :
+ Calling :c:func:`enbox_run_conf` will not return to caller if the configuration
+ specifies a command to |execve(2)|. See section Instantiation_ and
+ :c:func:`enbox_run_cmd` for more informations about this.
+-   
++
+ In any other cases, a call to :c:func:`enbox_run_conf` will return to caller
+ wether the configuration was successfully applied or not and one should call
+-:c:func:`enbox_destroy_conf` to release resources allocated by 
++:c:func:`enbox_destroy_conf` to release resources allocated by
+ :c:func:`enbox_create_conf_from_file`.
+ 
+ Note that :c:type:`enbox_conf` is an opaque structure holding a loaded Enbox
+ configuration that may be required by functions mentioned above.
+ 
+-.. todo:: 
++.. todo::
+ 
+    Add configuration API sample code
+ 
+@@ -107,7 +107,7 @@ Support for the following tasks is implemented :
+ 
+ These tasks may be combined to implement multiple `Use cases`_ described below.
+ 
+-.. todo:: 
++.. todo::
+ 
+    Add Instantiation API sample code
+ 
+@@ -139,6 +139,9 @@ System user ownership and group membership informations are required to :
+ group informations into an opaque :c:type:`enbox_ids` structure which is
+ further required to achieve the 2 tasks mentioned above.
+ 
++Moreover, :c:func:`enbox_ids_add_capability` can be use to keep some
++capabilities to root user.
++
+ .. _sect-spawn_jail:
+ 
+ Spawn a jail
+@@ -214,6 +217,8 @@ mentioned above. These are :
+    * Capabilities :
+      
+       * :c:func:`enbox_clear_ambient_caps`
++      * :c:func:`enbox_ids_set_ambient_caps`
++      * :c:func:`enbox_ids_add_capability`
+       * :c:func:`enbox_clear_bounding_caps`
+       * :c:func:`enbox_lock_caps`
+         
+@@ -380,6 +385,11 @@ enbox_clear_ambient_caps()
+ 
+ .. doxygenfunction:: enbox_clear_ambient_caps
+ 
++enbox_ids_set_ambient_caps()
++**************************
++
++.. doxygenfunction:: enbox_ids_set_ambient_caps
++
+ enbox_clear_bounding_caps()
+ ***************************
+ 
+@@ -425,6 +435,11 @@ enbox_load_ids_byname()
+ 
+ .. doxygenfunction:: enbox_load_ids_byname
+ 
++enbox_ids_add_capability()
++**************************
++
++.. doxygenfunction:: enbox_ids_add_capability
++
+ enbox_lock_caps()
+ *****************
+ 
+diff --git a/sphinx/main.rst b/sphinx/main.rst
+index a770837..d3d0f88 100644
+--- a/sphinx/main.rst
++++ b/sphinx/main.rst
+@@ -275,6 +275,33 @@ below:
+ Reference
+ ---------
+ 
++capabilities-attr
++*****************
++
++Within the context of a `top-ids`_ statement, specify |capabilities(7)| keeped by
++root after |execve(2)|.
++
++.. rubric:: Syntax
++
++.. parsed-literal::
++   :class: highlight
++
++   <**capabilities-attr**> ::= 'capabilities = [' <capability> [|LSEP| <capability> ]... ']'
++   <**capability**>  ::= '"' |STRING| '"'
++
++This attribute is optional and *defaults* to empty list when unspecified.
++This attribute only affects root user.
++
++.. rubric:: Example
++
++.. code-block::
++
++   # Load system user and groups
++   ids = {
++           ...
++           capabilities = [ "sys_chroot", "setuid", "setgid", "chown", "fowner" ]
++   }
++
+ cwd-attr
+ ********
+ 
+@@ -294,7 +321,7 @@ This attribute is optional and *defaults* to ``"/"`` when unspecified.
+ 
+ .. code-block::
+ 
+-   # Load system user and groups
++   # Specify a command to run
+    cmd = {
+            ...
+            cwd = "/var/lib/mydaemon"
+@@ -350,7 +377,7 @@ This attribute is *mandatory*.
+ 
+ .. code-block::
+ 
+-   # Load system user and groups
++   # Specify a command to run
+    cmd = {
+            ...
+            exec = [ "/sbin/mydaemon", "--opt", "value" ]
+@@ -1303,7 +1330,7 @@ configuration.
+ .. parsed-literal::
+    :class: highlight
+ 
+-   <**top-ids**> ::= 'ids = {' <`user-attr`_> [|SSEP| <`drop-supp-attr`_>] '}'
++   <**top-ids**> ::= 'ids = {' <`user-attr`_> [|SSEP| <`drop-supp-attr`_>] [|SSEP| <`capabilites-attr`_>] '}'
+ 
+ Use `user-attr`_ to specify the system user to load |credentials| for.
+ 
+@@ -1312,6 +1339,9 @@ user specified by `user-attr`_ is a member of.
+ 
+ Note that group access list will always contain the user's primary group.
+ 
++Setup `capabilites-attr`_ with the list of |capabilities(7)| than root will
++keep after |execve(2)|.
++
+ .. rubric:: Example
+ 
+ .. code-block::
+@@ -1404,7 +1434,7 @@ Use `cwd-attr`_ to specify the |cwd| to run the command process with.
+            # Command process's current working directory
+            cwd = "/var/lib/mydaemon"
+    }
+-   
++
+ umask-attr
+ **********
+ 
+@@ -1424,7 +1454,7 @@ This attribute is optional and *defaults* to ``0077`` when unspecified.
+ 
+ .. code-block::
+ 
+-   # Load system user and groups
++   # Specify a command to run
+    cmd = {
+            ...
+            umask = 0022
