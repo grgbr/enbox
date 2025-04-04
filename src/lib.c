@@ -1052,7 +1052,7 @@ enbox_populate_jail(const struct enbox_entry entries[__restrict_arr],
 }
 
 #define ENBOX_JAIL_ROOTFS_MNTOPTS \
-	(MS_NOATIME | MS_NODEV | MS_NOSUID)
+	(MS_NOATIME | MS_NODEV | MS_NOSUID | MS_NOEXEC)
 
 #define ENBOX_JAIL_ROOTFS_EXTOPTS \
 	"uid=0,mode=0750,size=4k"
