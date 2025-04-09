@@ -1218,7 +1218,7 @@ enbox_seal_jail_root(
 	                     options);
 }
 
-static int __enbox_nonull(1, 2, 3) __enbox_nothrow __warn_result
+static int __enbox_nonull(1, 3) __enbox_nothrow __warn_result
 enbox_setup_jail(
 	const struct enbox_jail * __restrict jail,
 	gid_t                                gid,
@@ -1419,6 +1419,7 @@ enbox_chroot_jail(void)
 	return 0;
 }
 
+static __enbox_nonull(1) __warn_result
 int
 enbox_enter_jail(const struct enbox_jail * __restrict jail,
                  gid_t                                gid,
@@ -1462,7 +1463,7 @@ enbox_enter_jail(const struct enbox_jail * __restrict jail,
 	return 0;
 
 err:
-	enbox_err("cannot enter jail: %s: %s (%d)", msg, strerror(-err), -err);
+	enbox_err("%s: %s (%d)", msg, strerror(-err), -err);
 
 	return err;
 }

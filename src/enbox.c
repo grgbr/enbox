@@ -22,69 +22,11 @@
 
 #if defined(CONFIG_ENBOX_SHOW)
 
+#include "show.h"
 #include "namespaces.h"
 #include "mount_flags.h"
 #include "capabilities.h"
 #include <stroll/bmap.h>
-
-#define ENBOX_MODE_STRING_SZ (10U)
-
-static __returns_nonull __nothrow
-const char *
-enbox_build_mode_string(char str[ENBOX_MODE_STRING_SZ], mode_t mode)
-{
-	str[0] = (mode & S_IRUSR) ? 'r' : '-';
-	str[1] = (mode & S_IWUSR) ? 'w' : '-';
-	switch (mode & (S_IXUSR | S_ISUID)) {
-	case S_IXUSR:
-		str[2] = 'x';
-		break;
-	case S_ISUID:
-		str[2] = 'S';
-		break;
-	case S_IXUSR | S_ISUID:
-		str[2] = 's';
-		break;
-	default:
-		str[2] = '-';
-	}
-
-	str[3] = (mode & S_IRGRP) ? 'r' : '-';
-	str[4] = (mode & S_IWGRP) ? 'w' : '-';
-	switch (mode & (S_IXGRP | S_ISGID)) {
-	case S_IXGRP:
-		str[5] = 'x';
-		break;
-	case S_ISGID:
-		str[5] = 'S';
-		break;
-	case S_IXGRP | S_ISGID:
-		str[5] = 's';
-		break;
-	default:
-		str[5] = '-';
-	}
-
-	str[6] = (mode & S_IROTH) ? 'r' : '-';
-	str[7] = (mode & S_IWOTH) ? 'w' : '-';
-	switch (mode & (S_IXOTH | S_ISVTX)) {
-	case S_IXOTH:
-		str[8] = 'x';
-		break;
-	case S_ISVTX:
-		str[8] = 'T';
-		break;
-	case S_IXOTH | S_ISVTX:
-		str[8] = 't';
-		break;
-	default:
-		str[8] = '-';
-	}
-
-	str[9] = '\0';
-
-	return str;
-}
 
 static __enbox_nonull(1)
 void
@@ -93,7 +35,7 @@ enbox_show_dir_entry(const struct enbox_entry * __restrict ent)
 	enbox_assert(ent->uid != (uid_t)-1);
 	enbox_assert(ent->gid != (gid_t)-1);
 
-	char mode[ENBOX_MODE_STRING_SZ];
+	char mode[ENBOX_MODE_STRING_SIZE];
 
 	printf("d%s %u(%s) %u(%s) %s\n",
 	       enbox_build_mode_string(mode, ent->dir.mode),
@@ -124,7 +66,7 @@ enbox_show_chrdev_entry(const struct enbox_entry * __restrict ent)
 	enbox_assert(ent->uid != (uid_t)-1);
 	enbox_assert(ent->gid != (gid_t)-1);
 
-	char mode[ENBOX_MODE_STRING_SZ];
+	char mode[ENBOX_MODE_STRING_SIZE];
 
 	printf("c%s %u(%s) %u(%s) %s\n",
 	       enbox_build_mode_string(mode, ent->dev.mode),
@@ -142,7 +84,7 @@ enbox_show_blkdev_entry(const struct enbox_entry * __restrict ent)
 	enbox_assert(ent->uid != (uid_t)-1);
 	enbox_assert(ent->gid != (gid_t)-1);
 
-	char mode[ENBOX_MODE_STRING_SZ];
+	char mode[ENBOX_MODE_STRING_SIZE];
 
 	printf("b%s %u(%s) %u(%s) %s\n",
 	       enbox_build_mode_string(mode, ent->dev.mode),
@@ -160,7 +102,7 @@ enbox_show_fifo_entry(const struct enbox_entry * __restrict ent)
 	enbox_assert(ent->uid != (uid_t)-1);
 	enbox_assert(ent->gid != (gid_t)-1);
 
-	char mode[ENBOX_MODE_STRING_SZ];
+	char mode[ENBOX_MODE_STRING_SIZE];
 
 	printf("p%s %u(%s) %u(%s) %s\n",
 	       enbox_build_mode_string(mode, ent->fifo.mode),
@@ -293,7 +235,7 @@ enbox_show_bind_entry(const struct enbox_entry * __restrict ent,
 
 	if (!err) {
 		char sym;
-		char mode[ENBOX_MODE_STRING_SZ];
+		char mode[ENBOX_MODE_STRING_SIZE];
 
 		switch (stat.st_mode & type) {
 		case S_IFDIR:
@@ -1243,6 +1185,38 @@ destroy:
 	return NULL;
 }
 
+#if !defined(CONFIG_ENBOX_DEBUG)
+
+static
+bool
+enbox_isroot(void)
+{
+	uid_t uid, euid, suid;
+
+	if (getresuid(&uid, &euid, &suid))
+		return false;
+
+	if (uid || euid || suid)
+		return false;
+
+	return true;
+}
+
+#else /* defined(CONFIG_ENBOX_DEBUG) */
+
+static
+bool
+enbox_isroot(void)
+{
+	/*
+	 * Allows to test that no particular problems may happens when running
+	 * as an unprivileged user.
+	 */
+	return true;
+}
+
+#endif /* !defined(CONFIG_ENBOX_DEBUG) */
+
 int
 main(int argc, char * const argv[])
 {
@@ -1257,8 +1231,10 @@ main(int argc, char * const argv[])
 	else if (cmd == INVALID_CMD)
 		return EXIT_FAILURE;
 
-#warning No need to go any further if not root !! \
-         Also check enbox_switch_ids() / enbox_validate_pwd() root assertion
+	if (!enbox_isroot()) {
+		show_error("must be run as root.\n");
+		return EXIT_FAILURE;
+	}
 
 	enbox_setup(log.top);
 
@@ -1283,7 +1259,7 @@ main(int argc, char * const argv[])
 		break;
 
 	case STAT_CMD:
-		enbox_show_status(stdout);
+		enbox_show_status(stdout, 1);
 		ret = EXIT_SUCCESS;
 		break;
 #endif /* defined(CONFIG_ENBOX_SHOW) */

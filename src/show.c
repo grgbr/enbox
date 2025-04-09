@@ -1,3 +1,4 @@
+#include "show.h"
 #include "lib.h"
 #include <utils/file.h>
 #include <utils/fstree.h>
@@ -146,6 +147,7 @@ enbox_show_creds(FILE * __restrict stdio)
 	STROLL_CONST_MAX(ENBOX_EXEC_ARGS_MAX * ENBOX_EXEC_ARG_SIZE, PATH_MAX)
 
 struct enbox_show {
+	int    depth;
 	FILE * stdio;
 	char   buff[ENBOX_SHOW_BUFF_SZ];
 };
@@ -156,7 +158,7 @@ struct enbox_show {
 
 static  __enbox_nonull(1) __enbox_nothrow
 struct enbox_show *
-enbox_create_show(FILE * stdio)
+enbox_create_show(FILE * stdio, int depth)
 {
 	enbox_assert(stdio);
 
@@ -166,6 +168,7 @@ enbox_create_show(FILE * stdio)
 	if (!show)
 		return NULL;
 
+	show->depth = depth;
 	show->stdio = stdio;
 
 	return show;
@@ -454,11 +457,8 @@ enbox_show_proc(FILE * __restrict stdio,
 		fprintf(stdio, "command line       %s\n", buffer);
 }
 
-#define ENBOX_SHOW_MODE_STRING_SIZE (10U)
-
-static __enbox_nonull(1) __enbox_nothrow __returns_nonull
 const char *
-enbox_show_mode_string(char str[ENBOX_SHOW_MODE_STRING_SIZE], mode_t mode)
+enbox_build_mode_string(char str[ENBOX_MODE_STRING_SIZE], mode_t mode)
 {
 	enbox_assert(str);
 
@@ -530,7 +530,7 @@ enbox_show_path(struct etux_fstree_entry * __restrict      entry,
 		const char *        path;
 		int                 type;
 		const struct stat * st;
-		char                mod[ENBOX_SHOW_MODE_STRING_SIZE];
+		char                mod[ENBOX_MODE_STRING_SIZE];
 		struct tm           tim;
 		char                str[20];
 
@@ -585,7 +585,7 @@ enbox_show_path(struct etux_fstree_entry * __restrict      entry,
 			goto invalid;
 		}
 
-		enbox_show_mode_string(mod, st->st_mode);
+		enbox_build_mode_string(mod, st->st_mode);
 
 		utime_gmtime_from_tspec(&tim, &st->st_ctim);
 		strftime(str, sizeof(str), "%F %T", &tim);
@@ -731,6 +731,30 @@ enbox_show_dir_err(struct etux_fstree_entry * __restrict      entry,
 	return ETUX_FSTREE_CONT_CMD;
 }
 
+static __enbox_nonull(1, 2, 3) __warn_result
+int
+enbox_show_pre_dir(struct etux_fstree_entry * __restrict      entry,
+                   const struct etux_fstree_iter * __restrict iter,
+                   struct enbox_show * __restrict             show)
+{
+	enbox_assert(entry);
+	enbox_assert(iter);
+	enbox_assert(etux_fstree_entry_type(entry, iter) == DT_DIR);
+	enbox_assert_show(show);
+
+	int err;
+
+	err = enbox_show_path(entry, iter, show);
+	if (err)
+		return err;
+
+	if ((show->depth < 0) ||
+	    (etux_fstree_iter_depth(iter) < (unsigned int)show->depth))
+		return  ETUX_FSTREE_CONT_CMD;
+
+	return ETUX_FSTREE_SKIP_CMD;
+}
+
 static __enbox_nonull(2, 5) __warn_result
 int
 enbox_show_root_fs(struct etux_fstree_entry *      entry,
@@ -747,8 +771,10 @@ enbox_show_root_fs(struct etux_fstree_entry *      entry,
 
 	switch (event) {
 	case ETUX_FSTREE_ENT_EVT:
-	case ETUX_FSTREE_PRE_EVT:
 		return enbox_show_path(entry, iter, show);
+
+	case ETUX_FSTREE_PRE_EVT:
+		return enbox_show_pre_dir(entry, iter, show);
 
 	case ETUX_FSTREE_LOAD_ERR_EVT:
 		return enbox_show_path_err(entry, iter, status, show);
@@ -776,7 +802,7 @@ enbox_show_root_fs(struct etux_fstree_entry *      entry,
 }
 
 void
-enbox_show_status(FILE * __restrict stdio)
+enbox_show_status(FILE * __restrict stdio, int depth)
 {
 	enbox_assert_setup();
 	enbox_assert(stdio);
@@ -784,7 +810,7 @@ enbox_show_status(FILE * __restrict stdio)
 	struct enbox_show * show;
 	int                 ret;
 
-	show = enbox_create_show(stdio);
+	show = enbox_create_show(stdio, depth);
 	if (!show)
 		return;
 
@@ -818,20 +844,19 @@ enbox_show_status(FILE * __restrict stdio)
 
 	/* TODO: show mountpoint informations (/proc/self/mountinfo) ?? */
 
-#warning Remove me!!
-#if 0
-	fputs("\nT     MODE       #LINK         UID         GID   MAJ      MIN                 SIZE                 CTIME  PATH\n",
-	      stdio);
-	ret = etux_fstree_scan("/",
-	                       ETUX_FSTREE_PRE_OPT | ETUX_FSTREE_XDEV_OPT,
-	                       enbox_show_root_fs,
-	                       show);
-	if (ret)
-		fprintf(stdio,
-		        "cannot scan root filesystem: %s (%d).\n",
-		        strerror(-ret),
-		        -ret);
-#endif
+	if (depth) {
+		fputs("\nT     MODE       #LINK         UID         GID   MAJ      MIN                 SIZE                 CTIME  PATH\n",
+		      stdio);
+		ret = etux_fstree_scan("/",
+		                       ETUX_FSTREE_PRE_OPT | ETUX_FSTREE_XDEV_OPT,
+		                       enbox_show_root_fs,
+		                       show);
+		if (ret)
+			fprintf(stdio,
+			        "cannot scan root filesystem: %s (%d).\n",
+			        strerror(-ret),
+			        -ret);
+	}
 
 	enbox_destroy_show(show);
 }

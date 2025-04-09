@@ -93,7 +93,7 @@ As a consequence, upon session management, Enbox_'s PAM_ module only needs to
 setup and enter a jail filesystem with arbitrary filesystem entry group ID as
 well as its assotiated list of private |namespaces|.
 
-.. todo:: add reference to library setup/enter jail API
+.. todo:: add reference to library setup/enter jail config API
 
 Capability cleanup library
 --------------------------
@@ -151,8 +151,8 @@ Configuration workflow involves the following typical sequence of operations :
    :c:func:`enbox_run_conf`.
 
 Calling :c:func:`enbox_run_conf` will not return to caller if the configuration
-specifies a command to |execve(2)|. See section Instantiation_ and
-:c:func:`enbox_run_cmd` for more informations about this.
+specifies a command to |execve(2)|. See section Instantiation_ for more
+informations about this.
    
 In any other cases, a call to :c:func:`enbox_run_conf` will return to caller
 wether the configuration was successfully applied or not and one should call
@@ -177,7 +177,7 @@ Support for the following tasks is implemented :
 * :ref:`sect-populate_host_fs`,
 * :ref:`sect-usr_grp_ids`,
 * :ref:`sect-setup_proc`,
-* :ref:`sect-spawn_jail`,
+* and eventually :ref:`sect-spawn_jail`,
 * :ref:`sect-subseq_ops`.
 
 These tasks may be combined to implement multiple `Use cases`_ described below.
@@ -207,8 +207,9 @@ Manage user and groups
 Optionally, system user ownership and group membership informations are used
 to :
 
-* initialize the root filesystem of a :ref:`spawned jail <sect-spawn_jail>` ;
-* switch to user and group identifiers before
+* initialize the root filesystem of a |jail| entered during
+  :ref:`process setup <sect-setup_proc>` ;
+* switch to user and group identifiers while
   :ref:`performing subsequent operations <sect-subseq_ops>`.
 
 :c:func:`enbox_load_ids_byid` and :c:func:`enbox_load_ids_byname` load user and
@@ -232,19 +233,21 @@ to the :c:struct:`enbox_proc` structure:
 * |cwd|,
 * and the closing of unwanted file descriptors.
 
-In addition, the :c:func:`enbox_prep_proc` function may also spawn and enter a
-|jail| to further restrict accesses of current proces to global system
-resources.
+In addition, the :c:func:`enbox_prep_proc` function may also
+:ref:`spawn and enter a jail <sect-spawn_jail>` to further restrict accesses of
+current proces to global system resources.
 
 .. _sect-spawn_jail:
 
 Spawn a jail
 ------------
 
-Spawning a jail is meant to instantiate a runtime container providing isolation
-from the main system-wide «host» runtime. A program may be further
-|execve(2)|'ed from within this newly created jail, restricting all accesses to
-global system resources in a configurable way.
+Using :c:func:`enbox_prep_proc` function, one can also spawn a jail to
+instantiate a runtime container providing isolation from the main system-wide
+«host» runtime.
+A program may be further |execve(2)|'ed from within this newly created jail,
+restricting all accesses to global system resources in a configurable way.
+
 As stated into section `Overview`_, isolation implementation is based upon Linux
 |namespaces(7)| and |capabilities(7)|.
 
@@ -270,8 +273,8 @@ Subsequent operations
 ---------------------
 
 Once the current :ref:`process privileges <sect-setup_proc>` have been
-restricted (and eventually :ref:`jailed <sect-spawn_jail>`), one can proceed to
-further operations in a secure manner thanks to one of the following:
+restricted (and eventually jailed), one can proceed to further operations in a
+secure manner thanks to one of the following:
 
 * :c:func:`enbox_run_proc`
 

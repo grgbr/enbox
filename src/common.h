@@ -39,6 +39,9 @@ extern struct elog * enbox_logger;
 
 #else /* !defined(CONFIG_ENBOX_VERBOSE) */
 
+#define enbox_warn(_format, ...) \
+	do {} while (0)
+
 #define enbox_info(_format, ...) \
 	do {} while (0)
 

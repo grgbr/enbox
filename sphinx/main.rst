@@ -244,12 +244,15 @@ at least one of the top-level statements according to the following syntax.
 .. parsed-literal::
    :class: highlight
 
-   <**config**> ::= [<`top-host`_>] [<`top-jail`_>] [<`top-proc`_>] [<'top-cmd`_>]
+   <**config**>    ::= <**host-conf**> | <**cmd-conf**>
+   <**host-conf**> ::= <`top-host`_>
+   <**cmd-conf**>  ::= [<`top-host`_>] [<`top-ids`_>] [<`top-jail`_>] <`top-proc`_> <`top-cmd`_>
 
 Each top-level statement configures a subset of the Enbox_ behavior as described
 below:
 
 * `top-host`_ statement relates to host filesystem content ;
+* `top-ids`_ statement relates to process and jail |credentials| ;
 * `top-jail`_ statement relates to containment logic ;
 * `top-proc`_ statement relates to process logic ;
 * `top-cmd`_ statement relates to program execution.
@@ -262,6 +265,11 @@ below:
    host = (
         ...
    )
+
+   # Credentials settings
+   ids = {
+        ...
+   }
 
    # Containment logic settings
    jail = {
@@ -292,7 +300,7 @@ Within the context of a `top-proc`_ statement, specify the list of system
 .. parsed-literal::
    :class: highlight
 
-   <**caps-attr**> ::= 'caps = [' <caps-list> ']'
+   <**caps-attr**> ::= 'caps = [' <**caps-list**> ']'
    <**caps-list**> ::= '"' <**cap**> '"' [|LSEP| '"' <**cap**> '"']...
    <**cap**>       ::= 'chown'
                  | 'dac_override'
@@ -379,7 +387,7 @@ This attribute is optional and *defaults* to ``"/"`` when unspecified.
 drop-supp-attr
 **************
 
-Within the context of a `ids-attr`_ statement, specify wether to drop
+Within the context of a `top-ids`_ statement, specify wether to drop
 |supplementary groups| from the group access list or not.
 
 .. rubric:: Syntax
@@ -1235,42 +1243,6 @@ As shown above, <**group**> may be specified as either a |gid| or a |groupname|.
         ...
    }
 
-ids-attr
-********
-
-From within a `top-proc`_ statement, define system user and groups used to
-change current process user / group |credentials|.
-
-This setting is *optional*. If not defined, no user / group IDs change will
-happen before running the command specified by a `top-cmd`_ statement, i.e., it
-will run using the current process user / group |credentials|.
-
-.. rubric:: Syntax
-
-.. parsed-literal::
-   :class: highlight
-
-   <**ids-attr**> ::= 'ids = {' <`user-attr`_> [|SSEP| <`drop-supp-attr`_>] '}'
-
-Use `user-attr`_ to specify the system user to load |credentials| for.
-
-Setup `drop-supp-attr`_ to specify how to load |supplementary groups| the
-user specified by `user-attr`_ is a member of.
-
-Note that group access list will always contain the user's primary group.
-
-.. rubric:: Example
-
-.. code-block::
-
-   # Load system user and groups
-   ids = {
-           # System user and its (implicit) related primary group
-           user = "myuser"
-           # Do drop supplementary groups myuser is a member of.
-           drop_supp = true
-   }
-
 jail-fsset
 **********
 
@@ -1377,8 +1349,9 @@ Specify the command program and arguments to |execve(2)|.
    <**top-cmd**> ::= 'cmd = [' <|pathname|> [|LSEP| <cmd-arg> ]... ']'
    <**cmd-arg**> ::= '"' |STRING| '"'
 
-This attribute is *optional*. However, specifying a `top-cmd`_ *requires* a
-valid `top-proc`_ statement.
+This attribute is *optional*, in which case `top-ids`_, `top-jail`_ and
+`top-proc`_ statements are *ignored*. However, specifying a `top-cmd`_
+*requires* a valid `top-proc`_ statement.
 
 .. rubric:: Example
 
@@ -1413,6 +1386,9 @@ Created entries may be further *imported* into the jail via the `top-jail`_
 statement. They will will be available at *command* execution time (see the
 `top-cmd`_ statement).
 
+Note that this statement is *optional* except when no `top-cmd`_ statement is
+specified where it is *mandatory*.
+
 Note that Enbox_ does not handle the removal of created entries. It is delegated
 to system administration tasks.
 
@@ -1434,6 +1410,43 @@ to system administration tasks.
            }
    )
 
+top-ids
+*******
+
+From within a `top-proc`_ statement, define system user and groups used to
+change current process user / group |credentials|.
+
+This setting is *optional*. If not defined, no user / group IDs change will
+happen before running the command specified by a `top-cmd`_ statement, i.e., it
+will run using the current process user / group |credentials|.
+In addition, this statement is ignored when no `top-cmd`_ is specified.
+
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**top-ids**> ::= 'ids = {' <`user-attr`_> [|SSEP| <`drop-supp-attr`_>] '}'
+
+Use `user-attr`_ to specify the system user to load |credentials| for.
+
+Setup `drop-supp-attr`_ to specify how to load |supplementary groups| the
+user specified by `user-attr`_ is a member of.
+
+Note that group access list will always contain the user's primary group.
+
+.. rubric:: Example
+
+.. code-block::
+
+   # Load system user and groups
+   ids = {
+           # System user and its (implicit) related primary group
+           user = "myuser"
+           # Do drop supplementary groups myuser is a member of.
+           drop_supp = true
+   }
+
 .. _sect-main-top_jail:
 
 top-jail
@@ -1452,12 +1465,12 @@ Specify an optional |jail| to spawn with tunable settings.
 `top-jail`_ is *optional*. If not defined, no jail will be spawned at process
 configuration time and therefore, before running a command specified by a
 `top-cmd`_ statement.
-
 Specifying a `top-jail`_ *requires* a valid `top-proc`_ statement so that a
 the |jail| may be spawned according to `top-proc`_ statement.
+In addition, this statement is ignored when no `top-cmd`_ is specified.
 
 Also note that the |jail| build logic assigns its root filesystem entries group
-membership according to the `ids-attr`_ attribute when specified from
+membership according to the `top-ids`_ statement when specified from
 within the `top-proc`_ statement.
 When unspecified, current process primary group membership is assigned instead
 (see |credentials| for more informations).
@@ -1495,17 +1508,14 @@ Specify current process system runtime properties.
 
    <**top-proc**>   ::= 'proc = {' <**proc-umask**> <**proc-ids**> <**proc-caps**> <**proc-cwd**> <**proc-fds**> '}'
    <**proc-umask**> ::= [|SSEP| <`umask-attr`_>]
-   <**proc-ids**>   ::= [|SSEP| <`ids-attr`_>]
    <**proc-caps**>  ::= [|SSEP| <`caps-attr`_>]
    <**proc-cwd**>   ::= [|SSEP| <`cwd-attr`_>]
    <**proc-fds**>   ::= [|SSEP| <`fds-attr`_>]
 
-`top-proc`_ is *mandatory* if and only if the `top-jail`_ statement or the
-`top-cmd`_ have been specified.
+`top-proc`_ is *mandatory* when a `top-cmd`_ statement is specified. It is
+*ignored* otherwise.
 
 Use `umask-attr`_ to specify the |umask| to run the command process with.
-Use `ids-attr`_ to specify the user / group |credentials| to run the command
-process with.
 Use `caps-attr`_ to specify the |capabilities| to run the command process with.
 Use `cwd-attr`_ to specify the |cwd| to run the command process with.
 Use `fds-attr`_ to specify the which unwanted file descriptors to close.
@@ -1573,7 +1583,7 @@ Within the context of a parent filesystem object, the `user-attr`_ statement
 sets up owner permission bits of the related object.  See sections `jail-fsset`_
 and `top-host`_ for more informations about concerned filesystem object types.
 
-Within the context of a `ids-attr`_ statement, `user-attr`_ specifies the user
+Within the context of a `top-ids`_ statement, `user-attr`_ specifies the user
 to load |credentials| for.
 
 .. rubric:: Example

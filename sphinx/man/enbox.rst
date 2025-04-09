@@ -26,6 +26,7 @@ Synopsis
 
    :program:`enbox` [options] show_ [<:option:`CONFIG`>]
    :program:`enbox` [options] run_ [<:option:`CONFIG`>]
+   :program:`enbox` [options] status_
 
    *options*    := :option:`--log-tag`\=<:option:`TAG`>
                | :option:`--stdlog-level`\=<:option:`SEVERITY`>
@@ -51,6 +52,12 @@ configuration file given as :option:`CONFIG` argument.
 
 When the ``run`` argument is given, it loads then runs the program found into
 the configuration file given as :option:`CONFIG` argument.
+
+.. _status:
+
+When the ``status`` argument is given, it prints a detailed report of current
+process state and privileges. It may be useful to dump these from inside
+an Enbox_ |jail| for debugging purposes.
 
 .. _help:
 

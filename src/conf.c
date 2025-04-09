@@ -2403,9 +2403,19 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 	if (err)
 		goto err;
 
-#warning Fix ids config block documentation
 	err = -ENODATA;
-	if (!conf->cmd) {
+	if (conf->cmd) {
+		if (!conf->proc) {
+			/*
+			 * 'proc' setting is mandatory when a 'cmd' setting is
+			 * is enabled.
+			 */
+			enbox_err("%s: missing 'proc' setting",
+			          config_setting_source_file(root));
+			goto err;
+		}
+	}
+	else {
 		if (!conf->host) {
 			/*
 			 * 'host' setting is mandatory when no 'cmd' setting is
@@ -2436,16 +2446,6 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 			enbox_warn("%s: ignoring useless 'proc' setting",
 			           config_setting_source_file(root));
 		}
-	}
-
-	if (conf->jail && !conf->proc) {
-			/*
-			 * 'proc' setting is mandatory when a 'jail' setting is
-			 * is enabled.
-			 */
-			enbox_err("%s: missing 'proc' setting",
-			          config_setting_source_file(root));
-			goto err;
 	}
 
 	return 0;
