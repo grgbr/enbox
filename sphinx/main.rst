@@ -433,6 +433,8 @@ the current process.
 
 This attribute is optional and *defaults* to keep `stdin`, `stdout` and `stderr`
 opened when unspecified.
+Note that `stdin`, `stdout`, `stderr` as well as duplicate file descriptors are
+ignored.
 
 .. rubric:: Example
 

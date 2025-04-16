@@ -1528,6 +1528,10 @@ struct enbox_proc {
 	 * Optional list of file descriptors to keep opened before running the
 	 * final program.
 	 *
+	 * @warning
+	 * Specifying `STDIN_FILENO`, `STDOUT_FILENO`, `STDERR_FILENO` as well
+	 * as duplicate file descriptors will lead to undefined behavior.
+	 *
 	 * @see #enbox_proc::fds_nr
 	 */
 	int *                fds;
@@ -1561,7 +1565,8 @@ struct enbox_proc {
  *
  * Basically, the following sequence of actions are carried out:
  * -# clear the whole environment using @man{clearenv(3)} ;
- * -# if @p jail is given as a non `NULL` argument, setup and enter the jail ;
+ * -# if @p jail is given as a non `NULL` argument, setup and enter the jail
+ *  (see below);
  * -# otherwise, close all unwanted file descriptors according to
  *    #enbox_proc::fds_nr and #enbox_proc::fds content ;
  * -# setup the requested @man{umask(2)} attribute according to
@@ -1620,8 +1625,8 @@ struct enbox_proc {
  *    keyrings isolation...
  *
  * @param[in] proc Process runtime properties to enforce
- * @param[in] ids  Optional system IDs to switch to
  * @param[in] jail Optional properties of jail to create
+ * @param[in] ids  Optional system IDs to switch to
  *
  * @return 0 if successful, an errno-like error code otherwise.
  *
@@ -1642,9 +1647,8 @@ struct enbox_proc {
  */
 extern int
 enbox_prep_proc(const struct enbox_proc * __restrict proc,
-                const struct enbox_ids * __restrict  ids,
-                const struct enbox_jail * __restrict jail)
-
+                const struct enbox_jail * __restrict jail,
+                const struct enbox_ids * __restrict  ids)
 	__enbox_nonull(1) __warn_result;
 
 /**

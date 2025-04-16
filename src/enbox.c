@@ -1159,32 +1159,6 @@ enbox_destroy_file_conf(struct enbox_conf * __restrict conf __unused)
 
 #endif /* !defined(CONFIG_ENBOX_DEBUG) */
 
-static __enbox_nonull(1)
-struct enbox_conf *
-enbox_load_from_file(const char * __restrict path)
-{
-	enbox_assert(upath_validate_path_name(path) > 0);
-
-	struct enbox_conf * conf;
-
-	conf = enbox_create_conf_from_file(path);
-	if (!conf)
-		return NULL;
-
-	if (!conf->cmd) {
-		enbox_err("%s: invalid configuration: missing 'cmd' setting",
-		          path);
-		goto destroy;
-	}
-
-	return conf;
-
-destroy:
-	enbox_destroy_file_conf(conf);
-
-	return NULL;
-}
-
 #if !defined(CONFIG_ENBOX_DEBUG)
 
 static
@@ -1240,7 +1214,7 @@ main(int argc, char * const argv[])
 
 	switch (cmd) {
 	case RUN_CMD:
-		conf = enbox_load_from_file(argv[optind + 1]);
+		conf = enbox_create_conf_from_file(argv[optind + 1]);
 		if (!conf)
 			break;
 		if (!enbox_run_conf(conf))
@@ -1250,7 +1224,7 @@ main(int argc, char * const argv[])
 
 #if defined(CONFIG_ENBOX_SHOW)
 	case SHOW_CMD:
-		conf = enbox_load_from_file(argv[optind + 1]);
+		conf = enbox_create_conf_from_file(argv[optind + 1]);
 		if (!conf)
 			break;
 		enbox_show_conf(conf);

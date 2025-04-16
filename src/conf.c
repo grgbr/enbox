@@ -9,6 +9,8 @@
 #include <utils/path.h>
 #include <stdlib.h>
 
+#define ENBOX_DFLT_CONF_UMASK (0077)
+
 #if defined(CONFIG_ENBOX_SHOW) && defined(CONFIG_ENBOX_TOOL)
 
 #define __enbox_flag_descs_storage
@@ -206,7 +208,7 @@ enbox_load_type_setting(const config_setting_t * __restrict setting,
 	else if (!strcmp(str, "proc"))
 		*type = ENBOX_PROC_ENTRY_TYPE;
 	else {
-		enbox_conf_err(set, "unknown '%s' type", str);
+		enbox_conf_err(set, "'%s': unknown type", str);
 		return -EINVAL;
 	}
 
@@ -1073,26 +1075,26 @@ enbox_parse_mount_flags_setting(const config_setting_t * __restrict setting,
 	}
 
 	if (!enbox_mount_flag_descs[d].kword) {
-		enbox_conf_err(setting, "unknown '%s' mount flag", str);
+		enbox_conf_err(setting, "'%s': unknown mount flag", str);
 		return -ENOENT;
 	}
 
 	if (!(enbox_mount_flag_descs[d].value & valid)) {
-		enbox_conf_err(setting, "invalid '%s' mount flag", str);
+		enbox_conf_err(setting, "'%s': invalid mount flag", str);
 		return -EINVAL;
 	}
 
 	if (enbox_validate_mount_time_flags(*flags |
 	                                    enbox_mount_flag_descs[d].value)) {
 		enbox_conf_err(setting,
-		               "conflicting '%s' time mount flag",
+		               "'%s': conflicting time mount flag",
 		               str);
 		return -EINVAL;
 	}
 
 	if (*flags & enbox_mount_flag_descs[d].value) {
 		enbox_conf_warn(setting,
-		                "duplicate '%s' mount flag ignored",
+		                "'%s': duplicate mount flag ignored",
 		                str);
 		return 0;
 	}
@@ -1573,7 +1575,34 @@ STROLL_IGNORE_WARN("-Wcast-qual")
 STROLL_RESTORE_WARN
 }
 
-static int __enbox_nonull(1, 2)
+static __enbox_nonull(1)
+struct enbox_fsset *
+enbox_create_host(const config_setting_t * __restrict setting)
+{
+	enbox_assert(setting);
+
+	struct enbox_fsset * host;
+	int                  err;
+
+	host = calloc(1, sizeof(*host));
+	if (!host)
+		return NULL;
+
+	err = enbox_load_fsset(setting, host, enbox_load_host_entry);
+	if (err)
+		goto err;
+
+	return host;
+
+err:
+	free(host);
+	errno = -err;
+
+	return NULL;
+}
+
+static __enbox_nonull(1, 2)
+int
 enbox_load_host(const config_setting_t * __restrict setting,
                 void * __restrict                   data)
 {
@@ -1583,17 +1612,10 @@ enbox_load_host(const config_setting_t * __restrict setting,
 
 	struct enbox_conf *  conf = (struct enbox_conf *)data;
 	struct enbox_fsset * host;
-	int                  err;
 
-	host = calloc(1, sizeof(*host));
+	host = enbox_create_host(setting);
 	if (!host)
 		return -errno;
-
-	err = enbox_load_fsset(setting, host, enbox_load_host_entry);
-	if (err) {
-		free(host);
-		return err;
-	}
 
 	conf->host = host;
 
@@ -1601,7 +1623,7 @@ enbox_load_host(const config_setting_t * __restrict setting,
 }
 
 static void __enbox_nonull(1)
-enbox_unload_host(struct enbox_fsset * __restrict host)
+enbox_destroy_host(struct enbox_fsset * __restrict host)
 {
 	enbox_assert(host);
 
@@ -1734,7 +1756,7 @@ enbox_load_ids(const config_setting_t * __restrict setting,
 }
 
 static void __enbox_nonull(1)
-enbox_unload_ids(struct enbox_ids * __restrict ids)
+enbox_destroy_ids(struct enbox_ids * __restrict ids)
 {
 	enbox_assert(ids);
 
@@ -1772,18 +1794,18 @@ enbox_parse_namespaces_setting(const config_setting_t * __restrict setting,
 	}
 
 	if (!enbox_namespace_descs[d].kword) {
-		enbox_conf_err(setting, "unknown '%s' namespace", str);
+		enbox_conf_err(setting, "'%s': unknown namespace", str);
 		return -ENOENT;
 	}
 
 	if (!(enbox_namespace_descs[d].value & ENBOX_VALID_NAMESPACE_FLAGS)) {
-		enbox_conf_err(setting, "invalid '%s' namespace", str);
+		enbox_conf_err(setting, "'%s': invalid namespace", str);
 		return -EINVAL;
 	}
 
 	if ((unsigned int)*namespaces & enbox_namespace_descs[d].value) {
 		enbox_conf_warn(setting,
-		                "duplicate '%s' namespace ignored",
+		                "'%s': duplicate namespace ignored",
 		                str);
 		return 0;
 	}
@@ -1923,7 +1945,34 @@ enbox_do_load_jail(const config_setting_t * __restrict setting,
 	return 0;
 }
 
-static int __enbox_nonull(1, 2)
+static __enbox_nonull(1)
+struct enbox_jail *
+enbox_create_jail(const config_setting_t * __restrict setting)
+{
+	enbox_assert(setting);
+
+	struct enbox_jail * jail;
+	int                 err;
+
+	jail = calloc(1, sizeof(*jail));
+	if (!jail)
+		return NULL;
+
+	err = enbox_do_load_jail(setting, jail);
+	if (err)
+		goto err;
+
+	return jail;
+
+err:
+	free(jail);
+	errno = -err;
+
+	return NULL;
+}
+
+static __enbox_nonull(1, 2)
+int
 enbox_load_jail(const config_setting_t * __restrict setting,
                 void * __restrict                   data)
 {
@@ -1933,17 +1982,10 @@ enbox_load_jail(const config_setting_t * __restrict setting,
 
 	struct enbox_conf * conf = (struct enbox_conf *)data;
 	struct enbox_jail * jail;
-	int                 err;
 
-	jail = calloc(1, sizeof(*jail));
+	jail = enbox_create_jail(setting);
 	if (!jail)
 		return -errno;
-
-	err = enbox_do_load_jail(setting, jail);
-	if (err) {
-		free(jail);
-		return err;
-	}
 
 	conf->jail = jail;
 
@@ -1951,7 +1993,7 @@ enbox_load_jail(const config_setting_t * __restrict setting,
 }
 
 static void __enbox_nonull(1)
-enbox_unload_jail(struct enbox_jail * __restrict jail)
+enbox_destroy_jail(struct enbox_jail * __restrict jail)
 {
 	enbox_assert(jail);
 
@@ -1996,19 +2038,19 @@ enbox_parse_caps_setting(const config_setting_t * __restrict setting,
 	}
 
 	if (!enbox_caps_descs[d].kword) {
-		enbox_conf_err(setting, "unknown '%s' capability", str);
+		enbox_conf_err(setting, "'%s': unknown capability", str);
 		return -ENOENT;
 	}
 
 	msk = enbox_cap((int)enbox_caps_descs[d].value);
 	if (!(msk & ENBOX_CAPS_ALLOWED)) {
-		enbox_conf_err(setting, "invalid '%s' capability", str);
+		enbox_conf_err(setting, "'%s': invalid capability", str);
 		return -EINVAL;
 	}
 
 	if (*caps & msk) {
 		enbox_conf_warn(setting,
-		                "duplicate '%s' capability ignored",
+		                "'%s': duplicate capability ignored",
 		                str);
 		return 0;
 	}
@@ -2095,11 +2137,19 @@ enbox_parse_file_desc(const config_setting_t * __restrict setting,
 		return -ERANGE;
 	}
 
+	if (fd <= STDERR_FILENO) {
+		enbox_conf_warn(
+			setting,
+			"'%d': standard I/O file descriptor ignored",
+			fd);
+		return -EEXIST;
+	}
+
 	for (c = 0; c < count; c++) {
 		if (fd == fds[c]) {
-			enbox_conf_info(
+			enbox_conf_warn(
 				setting,
-				"duplicate '%d' file descriptor ignored",
+				"'%d': duplicate file descriptor ignored",
 				fd);
 			return -EEXIST;
 		}
@@ -2162,62 +2212,58 @@ enbox_load_proc_keep_fds(const config_setting_t * __restrict setting,
 		}
 	}
 
-	proc->fds_nr = (unsigned int)nr;
-	proc->fds = fds;
+	if (cnt) {
+		proc->fds_nr = (unsigned int)cnt;
+		proc->fds = fds;
+	}
+	else
+		free(fds);
 
 	return 0;
 }
 
-static int __enbox_nonull(1, 2)
+static __enbox_nonull(1, 2, 3)
+int
 enbox_do_load_proc(const config_setting_t * __restrict setting,
-                   struct enbox_proc * __restrict      proc)
+                   struct enbox_proc * __restrict      proc,
+                   const struct enbox_loader           loaders[__restrict_arr],
+                   unsigned int                        nr)
 {
 	enbox_assert(setting);
 	enbox_assert(proc);
-	enbox_assert(!proc->umask);
+	enbox_assert(proc->umask == (mode_t)-1);
 	enbox_assert(!proc->caps);
 	enbox_assert(!proc->cwd);
 	enbox_assert(!proc->fds_nr);
 	enbox_assert(!proc->fds);
+	enbox_assert(loaders);
+	enbox_assert(nr);
 
-	int                              err;
-	int                              nr;
-	static const struct enbox_loader loaders[] = {
-		{ .name = "umask",    .load = enbox_load_proc_umask },
-		{ .name = "caps",     .load = enbox_load_proc_caps },
-		{ .name = "cwd",      .load = enbox_load_proc_cwd },
-		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds }
-	};
+	int err;
+	int cnt;
 
 	if (!config_setting_is_group(setting)) {
 		enbox_conf_err(setting, "dictionary required");
 		return -EINVAL;
 	}
 
-	nr = config_setting_length(setting);
-	enbox_assert(nr >= 0);
-	if (nr < 1) {
+	cnt = config_setting_length(setting);
+	enbox_assert(cnt >= 0);
+	if (cnt < 1) {
 		/* Missing field definitions. */
 		enbox_conf_err(setting, "missing setting(s)");
 		return -ENODATA;
 	}
 
-	proc->umask = (mode_t)-1;
-
-	err = enbox_load_setting(setting,
-	                         proc,
-	                         loaders,
-	                         stroll_array_nr(loaders));
+	err = enbox_load_setting(setting, proc, loaders, nr);
 	if (err)
 		return err;
-
-	if (proc->umask == (mode_t)-1)
-		proc->umask = 0077;
 
 	return 0;
 }
 
-static int __enbox_nonull(1, 2)
+static __enbox_nonull(1, 2)
+int
 enbox_load_proc(const config_setting_t * __restrict setting,
                 void * __restrict                   data)
 {
@@ -2225,19 +2271,34 @@ enbox_load_proc(const config_setting_t * __restrict setting,
 	enbox_assert(data);
 	enbox_assert(!((struct enbox_conf *)data)->proc);
 
-	struct enbox_conf * conf = (struct enbox_conf *)data;
-	struct enbox_proc * proc;
-	int                 err;
+	struct enbox_conf *              conf = (struct enbox_conf *)data;
+	struct enbox_proc *              proc;
+	int                              err;
+	static const struct enbox_loader loaders[] = {
+		{ .name = "umask",    .load = enbox_load_proc_umask },
+		{ .name = "caps",     .load = enbox_load_proc_caps },
+		{ .name = "cwd",      .load = enbox_load_proc_cwd },
+		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds }
+	};
+
 
 	proc = calloc(1, sizeof(*proc));
 	if (!proc)
 		return -errno;
 
-	err = enbox_do_load_proc(setting, proc);
+	proc->umask = (mode_t)-1;
+
+	err = enbox_do_load_proc(setting,
+	                         proc,
+	                         loaders,
+	                         stroll_array_nr(loaders));
 	if (err) {
 		free(proc);
 		return err;
 	}
+
+	if (proc->umask == (mode_t)-1)
+		proc->umask = ENBOX_DFLT_CONF_UMASK;
 
 	conf->proc = proc;
 
@@ -2252,6 +2313,14 @@ enbox_unload_proc(struct enbox_proc * __restrict proc)
 STROLL_IGNORE_WARN("-Wcast-qual")
 	free((void *)proc->fds);
 STROLL_RESTORE_WARN
+}
+
+static void __enbox_nonull(1)
+enbox_destroy_proc(struct enbox_proc * __restrict proc)
+{
+	enbox_assert(proc);
+
+	enbox_unload_proc(proc);
 	free(proc);
 }
 
@@ -2348,7 +2417,7 @@ enbox_load_cmd(const config_setting_t * __restrict setting,
 }
 
 static void __enbox_nonull(1)
-enbox_unload_cmd(const char ** __restrict cmd)
+enbox_destroy_cmd(const char ** __restrict cmd)
 {
 	enbox_assert(cmd);
 
@@ -2361,15 +2430,15 @@ enbox_unload_conf(struct enbox_conf * __restrict conf)
 	enbox_assert(conf);
 
 	if (conf->host)
-		enbox_unload_host(conf->host);
+		enbox_destroy_host(conf->host);
 	if (conf->ids)
-		enbox_unload_ids(conf->ids);
+		enbox_destroy_ids(conf->ids);
 	if (conf->jail)
-		enbox_unload_jail(conf->jail);
+		enbox_destroy_jail(conf->jail);
 	if (conf->proc)
-		enbox_unload_proc(conf->proc);
+		enbox_destroy_proc(conf->proc);
 	if (conf->cmd)
-		enbox_unload_cmd(conf->cmd);
+		enbox_destroy_cmd(conf->cmd);
 }
 
 static int __enbox_nonull(1)
@@ -2427,21 +2496,21 @@ enbox_load_conf(struct enbox_conf * __restrict conf)
 		}
 
 		if (conf->ids) {
-			enbox_unload_ids(conf->ids);
+			enbox_destroy_ids(conf->ids);
 			conf->ids = NULL;
 			enbox_warn("%s: ignoring useless 'ids' setting",
 			           config_setting_source_file(root));
 		}
 
 		if (conf->jail) {
-			enbox_unload_jail(conf->jail);
+			enbox_destroy_jail(conf->jail);
 			conf->jail = NULL;
 			enbox_warn("%s: ignoring useless 'jail' setting",
 			           config_setting_source_file(root));
 		}
 
 		if (conf->proc) {
-			enbox_unload_proc(conf->proc);
+			enbox_destroy_proc(conf->proc);
 			conf->proc = NULL;
 			enbox_warn("%s: ignoring useless 'proc' setting",
 			           config_setting_source_file(root));
@@ -2456,23 +2525,27 @@ err:
 	return err;
 }
 
-static int __enbox_nonull(1, 2)
-enbox_load_conf_file(struct enbox_conf * __restrict conf,
-                     const char * __restrict        path)
+static __enbox_nonull(1)
+void
+enbox_fini_conf_file(config_t * __restrict lib)
 {
-	enbox_assert(conf);
-	enbox_assert(!conf->host);
-	enbox_assert(!conf->jail);
-	enbox_assert(!conf->proc);
-	enbox_assert(!conf->cmd);
+	enbox_assert(lib);
+
+	config_destroy(lib);
+}
+
+static int __enbox_nonull(1, 2)
+enbox_init_conf_file(config_t * __restrict lib, const char * __restrict path)
+{
+	enbox_assert(lib);
 	enbox_assert(upath_validate_path_name(path) > 0);
 
 	int err;
 
-	config_init(&conf->lib);
+	config_init(lib);
 
 	/* Setup default include directory path. */
-	config_set_include_dir(&conf->lib, CONFIG_ENBOX_INCLUDE_DIR);
+	config_set_include_dir(lib, CONFIG_ENBOX_INCLUDE_DIR);
 
 	/*
 	 * Setup default parser options:
@@ -2480,40 +2553,35 @@ enbox_load_conf_file(struct enbox_conf * __restrict conf,
 	 * - no duplicate settings,
 	 * - no required semicolon separators.
 	 */
-	config_set_options(&conf->lib, 0);
+	config_set_options(lib, 0);
 
-	if (!config_read_file(&conf->lib, path)) {
-		switch (config_error_type(&conf->lib)) {
+	if (!config_read_file(lib, path)) {
+		switch (config_error_type(lib)) {
 		case CONFIG_ERR_FILE_IO:
 			err = -errno;
 			enbox_err("%s: cannot load file: %s (%d)",
 			          path,
 			          strerror(-err),
 			          -err);
-			goto destroy;
+			goto fini;
 
 		case CONFIG_ERR_PARSE:
 			err = -EINVAL;
 			enbox_err("%s: line %d: %s",
-			          config_error_file(&conf->lib),
-			          config_error_line(&conf->lib),
-			          config_error_text(&conf->lib));
-			goto destroy;
+			          config_error_file(lib),
+			          config_error_line(lib),
+			          config_error_text(lib));
+			goto fini;
 
 		default:
 			enbox_assert(0);
 		}
 	}
 
-	err = enbox_load_conf(conf);
-	if (err)
-		goto destroy;
-
 	return 0;
 
-destroy:
-	enbox_err("%s: invalid configuration", path);
-	config_destroy(&conf->lib);
+fini:
+	enbox_fini_conf_file(lib);
 
 	return err;
 }
@@ -2529,22 +2597,22 @@ enbox_run_conf(const struct enbox_conf * __restrict conf)
 	if (conf->host) {
 		ret = enbox_populate_host(conf->host);
 		if (ret)
-			goto out;
+			goto err;
 	}
 
 	if (conf->proc) {
-		ret = enbox_prep_proc(conf->proc, conf->ids, conf->jail);
+		ret = enbox_prep_proc(conf->proc, conf->jail, conf->ids);
 		if (ret)
-			goto out;
+			goto err;
 
 		ret = enbox_run_proc(conf->proc, conf->ids, conf->cmd);
 		if (ret)
-			goto out;
+			goto err;
 	}
 
 	return 0;
 
-out:
+err:
 	{
 		const config_setting_t * root;
 
@@ -2573,13 +2641,20 @@ enbox_create_conf_from_file(const char * __restrict path)
 	if (!conf)
 		return NULL;
 
-	err = enbox_load_conf_file(conf, path);
+	err = enbox_init_conf_file(&conf->lib, path);
 	if (err)
 		goto free;
 
+	err = enbox_load_conf(conf);
+	if (err)
+		goto fini;
+
 	return conf;
 
+fini:
+	enbox_fini_conf_file(&conf->lib);
 free:
+	enbox_err("%s: invalid configuration", path);
 	free(conf);
 	errno = -err;
 
@@ -2596,3 +2671,197 @@ enbox_destroy_conf(struct enbox_conf * __restrict conf)
 	config_destroy(&conf->lib);
 	free(conf);
 }
+
+#if defined(CONFIG_ENBOX_PAM)
+
+#define enbox_assert_pam_conf(_conf) \
+	enbox_assert(_conf); \
+	enbox_assert(!(_conf)->host || \
+	             ({ enbox_assert_fsset((_conf)->host); true; })); \
+	enbox_assert(!(_conf)->jail || \
+	             ({ enbox_assert_jail((_conf)->jail); true; })); \
+	enbox_assert_proc(&(_conf)->proc); \
+	enbox_assert(!(_conf)->proc.caps)
+
+int
+enbox_run_pam_conf(const struct enbox_pam_conf * __restrict conf, gid_t gid)
+{
+	enbox_assert_setup();
+	enbox_assert_pam_conf(conf);
+
+	struct enbox_caps caps;
+	int               err;
+
+	if (conf->host) {
+		err = enbox_populate_host(conf->host);
+		if (err)
+			return err;
+	}
+
+	err = _enbox_prep_proc(&conf->proc, conf->jail, gid);
+	if (err)
+		return err;
+
+	enbox_enable_nonewprivs();
+
+	err = enbox_save_secbits(SECBIT_NOROOT |
+	                         SECBIT_NO_CAP_AMBIENT_RAISE |
+	                         SECURE_ALL_LOCKS);
+	if (err)
+		return err;
+
+	err = enbox_clear_bound_caps();
+	if (err)
+		return err;
+
+	enbox_clear_amb_caps();
+
+	enbox_load_epi_caps(&caps);
+	enbox_set_inh_caps(&caps, 0);
+	return enbox_save_epi_caps(&caps);
+}
+
+static int __enbox_nonull(1, 2)
+enbox_load_pam_host(const config_setting_t * __restrict setting,
+                    void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+	enbox_assert(!((struct enbox_pam_conf *)data)->host);
+
+	struct enbox_pam_conf * conf = (struct enbox_pam_conf *)data;
+	struct enbox_fsset *    host;
+
+	host = enbox_create_host(setting);
+	if (!host)
+		return -errno;
+
+	conf->host = host;
+
+	return 0;
+}
+
+static __enbox_nonull(1, 2)
+int
+enbox_load_pam_jail(const config_setting_t * __restrict setting,
+                    void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+	enbox_assert(!((struct enbox_pam_conf *)data)->jail);
+
+	struct enbox_pam_conf * conf = (struct enbox_pam_conf *)data;
+	struct enbox_jail *     jail;
+
+	jail = enbox_create_jail(setting);
+	if (!jail)
+		return -errno;
+
+	conf->jail = jail;
+
+	return 0;
+}
+
+static int __enbox_nonull(1, 2)
+enbox_load_pam_proc(const config_setting_t * __restrict setting,
+                    void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+
+	struct enbox_proc *              proc = &((struct enbox_pam_conf *)
+	                                          data)->proc;
+	static const struct enbox_loader loaders[] = {
+		{ .name = "umask",    .load = enbox_load_proc_umask },
+		{ .name = "cwd",      .load = enbox_load_proc_cwd },
+		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds }
+	};
+
+	return enbox_do_load_proc(setting,
+	                          proc,
+	                          loaders,
+	                          stroll_array_nr(loaders));
+}
+
+static __enbox_nonull(1)
+int
+enbox_load_pam_conf(struct enbox_pam_conf * __restrict conf)
+{
+	enbox_assert(conf);
+	enbox_assert(!conf->host);
+	enbox_assert(!conf->jail);
+
+	int                              err;
+	const config_setting_t *         root;
+	static const struct enbox_loader loaders[] = {
+		{ .name = "host", .load = enbox_load_pam_host },
+		{ .name = "jail", .load = enbox_load_pam_jail },
+		{ .name = "proc", .load = enbox_load_pam_proc }
+	};
+
+	/*
+	 * Root / top-level setting should always exist since already parsed by
+	 * caller.
+	 */
+	root = config_root_setting(&conf->lib);
+	enbox_assert(root);
+
+	memset(conf, 0, sizeof(*conf));
+	conf->proc.umask = (mode_t)-1;
+
+	err = enbox_load_setting(root, conf, loaders, stroll_array_nr(loaders));
+	if (err)
+		goto err;
+
+	if (conf->proc.umask == (mode_t)-1)
+		conf->proc.umask = ENBOX_DFLT_CONF_UMASK;
+
+	return 0;
+
+err:
+	enbox_unload_pam_conf(conf);
+
+	return err;
+}
+
+int
+enbox_load_pam_conf_file(struct enbox_pam_conf * __restrict conf,
+                         const char * __restrict            path)
+{
+	enbox_assert_setup();
+	enbox_assert(conf);
+	enbox_assert(upath_validate_path_name(path) > 0);
+
+	int err;
+
+	err = enbox_init_conf_file(&conf->lib, path);
+	if (err)
+		return err;
+
+	err = enbox_load_pam_conf(conf);
+	if (err)
+		goto fini;
+
+	return 0;
+
+fini:
+	enbox_fini_conf_file(&conf->lib);
+
+	return err;
+}
+
+void
+enbox_unload_pam_conf(struct enbox_pam_conf * __restrict conf)
+{
+	enbox_assert_setup();
+	enbox_assert(conf);
+
+	if (conf->host)
+		enbox_destroy_host(conf->host);
+	if (conf->jail)
+		enbox_destroy_jail(conf->jail);
+	enbox_unload_proc(&conf->proc);
+	config_destroy(&conf->lib);
+}
+
+#endif /* defined(CONFIG_ENBOX_PAM) */

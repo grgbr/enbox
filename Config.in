@@ -41,6 +41,12 @@ config ENBOX_SHOW
 	help
 	  Build enbox library tool with ability to display settings.
 
+config ENBOX_PAM
+	bool "Enbox pam module"
+	default y
+	help
+	  Build enbox PAM module.
+
 config ENBOX_TOOL
 	bool "Enable utility"
 	default y

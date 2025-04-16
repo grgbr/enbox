@@ -58,11 +58,11 @@ enbox_validate_exec_arg(const char * __restrict arg)
 
 #if defined(CONFIG_ENBOX_SHOW) && defined(CONFIG_ENBOX_TOOL)
 
-#define __enbox_validate_exec_export
+#define __enbox_validate_export
 
 #else  /* !(defined(CONFIG_ENBOX_SHOW) && defined(CONFIG_ENBOX_TOOL)) */
 
-#define __enbox_validate_exec_export __export_intern
+#define __enbox_validate_export __export_intern
 
 #endif /* defined(CONFIG_ENBOX_SHOW) && defined(CONFIG_ENBOX_TOOL) */
 
@@ -71,13 +71,30 @@ enbox_validate_exec(const char * const exec[__restrict_arr])
 	__enbox_nonull(1)
 	__enbox_pure
 	__enbox_nothrow
-	__enbox_validate_exec_export;
+	__warn_result
+	__enbox_validate_export;
+
+extern int
+enbox_validate_fds(const int    keep_fds[__restrict_arr], unsigned int nr)
+	__enbox_pure
+	__enbox_nothrow
+	__leaf
+	__warn_result
+	__enbox_validate_export;
 
 #else  /* !defined(CONFIG_ENBOX_ASSERT) */
 
 static inline __enbox_nonull(1) __const __nothrow
 int
 enbox_validate_exec(const char * const exec[__restrict_arr] __unused)
+{
+	return 0;
+}
+
+static inline __const __nothrow
+int
+enbox_validate_fds(const int    keep_fds[__restrict_arr] __unused,
+                   unsigned int nr __unused)
 {
 	return 0;
 }
@@ -112,9 +129,19 @@ enbox_validate_exec(const char * const exec[__restrict_arr] __unused)
 	               ~((UINT64_C(1) << ENBOX_CAPS_NR) - 1))); \
 	enbox_assert(!(_proc)->cwd || \
 	             (upath_validate_path_name((_proc)->cwd) > 0)); \
-	enbox_assert(!(_proc)->fds_nr || (_proc)->fds)
+	enbox_assert(!enbox_validate_fds((_proc)->fds, (_proc)->fds_nr))
 
 #define enbox_assert_cmd(_cmd) \
 	enbox_assert(!enbox_validate_exec(_cmd))
+
+#if defined(CONFIG_ENBOX_PAM)
+
+extern int
+_enbox_prep_proc(const struct enbox_proc * __restrict proc,
+                 const struct enbox_jail * __restrict jail,
+                 gid_t                                gid)
+	__enbox_nonull(1) __warn_result __export_intern;
+
+#endif /* defined(CONFIG_ENBOX_PAM) */
 
 #endif /* _ENBOX_LIB_H */

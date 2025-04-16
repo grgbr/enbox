@@ -1127,7 +1127,7 @@ enbox_close_one_fd(int          fd,
 	enbox_assert(keep_fds);
 	enbox_assert(nr);
 
-	if (fd >= STDERR_FILENO) {
+	if (fd > STDERR_FILENO) {
 		unsigned int k;
 		int          ret;
 
@@ -1146,10 +1146,43 @@ enbox_close_one_fd(int          fd,
 	return 0;
 }
 
+#if defined(CONFIG_ENBOX_ASSERT)
+
+int
+enbox_validate_fds(const int keep_fds[__restrict_arr], unsigned int nr)
+{
+	unsigned int f;
+
+	if (nr && !keep_fds)
+		return -EFAULT;
+
+	for (f = 0; f < nr; f++) {
+		unsigned int c;
+		bool         found = false;
+
+		if (keep_fds[f] <= STDERR_FILENO)
+			return -ERANGE;
+
+		for (c = 0; c < nr; c++) {
+			if (keep_fds[c] == keep_fds[f]) {
+				if (found)
+					return -EEXIST;
+				found = true;
+			}
+		}
+	}
+
+	return 0;
+}
+
+#endif /* defined(CONFIG_ENBOX_ASSERT) */
+
 static __warn_result
 int
 enbox_close_fds(const int keep_fds[__restrict_arr], unsigned int nr)
 {
+	enbox_assert(!enbox_validate_fds(keep_fds, nr));
+
 	int ret;
 
 	if (nr) {
@@ -1548,14 +1581,20 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
 	return -err;
 }
 
+#if defined(CONFIG_ENBOX_PAM)
+#define __enbox_pam_storage
+#else  /* !defined(CONFIG_ENBOX_PAM) */
+#define __enbox_pam_storage static
+#endif /* defined(CONFIG_ENBOX_PAM) */
+
+__enbox_pam_storage
 int
-enbox_prep_proc(const struct enbox_proc * __restrict proc,
-                const struct enbox_ids * __restrict  ids,
-                const struct enbox_jail * __restrict jail)
+_enbox_prep_proc(const struct enbox_proc * __restrict proc,
+                 const struct enbox_jail * __restrict jail,
+                 gid_t                                gid)
 {
 	enbox_assert_setup();
 	enbox_assert_proc(proc);
-	enbox_assert(!ids || ({ enbox_assert_ids(ids); true; }));
 	enbox_assert(!jail || ({ enbox_assert_jail(jail); true; }));
 
 	int err;
@@ -1569,10 +1608,7 @@ enbox_prep_proc(const struct enbox_proc * __restrict proc,
 	}
 
 	if (jail) {
-		err = enbox_enter_jail(jail,
-		                       ids ? ids->pwd->pw_gid : enbox_gid,
-		                       proc->fds,
-		                       proc->fds_nr);
+		err = enbox_enter_jail(jail, gid, proc->fds, proc->fds_nr);
 		if (err)
 			goto err;
 	}
@@ -1606,6 +1642,19 @@ err:
 	enbox_err("cannot setup process: %s (%d)", strerror(-err), -err);
 
 	return err;
+}
+
+int
+enbox_prep_proc(const struct enbox_proc * __restrict proc,
+                const struct enbox_jail * __restrict jail,
+                const struct enbox_ids * __restrict  ids)
+{
+	enbox_assert_setup();
+	enbox_assert_proc(proc);
+	enbox_assert(!jail || ({ enbox_assert_jail(jail); true; }));
+	enbox_assert(!ids || ({ enbox_assert_ids(ids); true; }));
+
+	return _enbox_prep_proc(proc, jail, ids ? ids->pwd->pw_gid : enbox_gid);
 }
 
 int

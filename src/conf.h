@@ -54,4 +54,28 @@ extern const struct enbox_flag_desc enbox_namespace_descs[];
 
 #endif /* defined(CONFIG_ENBOX_SHOW) && defined(CONFIG_ENBOX_TOOL) */
 
+#if defined(CONFIG_ENBOX_PAM)
+
+struct enbox_pam_conf {
+	struct enbox_fsset * host;
+	struct enbox_jail  * jail;
+	struct enbox_proc    proc;
+	config_t             lib;
+};
+
+extern int
+enbox_run_pam_conf(const struct enbox_pam_conf * __restrict conf, gid_t gid)
+	__enbox_nonull(1) __warn_result;
+
+extern int
+enbox_load_pam_conf_file(struct enbox_pam_conf * __restrict conf,
+                         const char * __restrict            path)
+	__enbox_nonull(1, 2) __warn_result;
+
+extern void
+enbox_unload_pam_conf(struct enbox_pam_conf * __restrict conf)
+	__enbox_nonull(1);
+
+#endif /* defined(CONFIG_ENBOX_PAM) */
+
 #endif /* _ENBOX_CONF_H */
