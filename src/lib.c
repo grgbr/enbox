@@ -1581,6 +1581,123 @@ enbox_load_ids_byname(struct enbox_ids * __restrict ids,
 	return -err;
 }
 
+static __enbox_nonull(1) __warn_result
+char *
+enbox_load_env_var(const struct enbox_env_var * __restrict var)
+{
+	enbox_assert_env_var(var);
+
+	char *       str;
+	const char * val;
+	int          ret;
+
+	if (!var->value) {
+		val = secure_getenv(var->name);
+		if (!val) {
+			errno = 0;
+			return NULL;
+		}
+	}
+	else
+		val = var->value;
+
+	ret = asprintf(&str, "%s=%s", var->name, val);
+	if (ret < 0) {
+		ret = errno;
+		goto err;
+	}
+	else if (ret >= ENBOX_ARG_SIZE) {
+		ret = ENAMETOOLONG;
+		goto err;
+	}
+
+	return str;
+
+toolong:
+	ret = errno;
+	free(str);
+	enbox_info("'%s': cannot instantiate environment variable", var->name);
+
+	errno = ret;
+
+	return NULL;
+}
+
+static __enbox_nonull(1) __warn_result
+char **
+enbox_load_env(const struct enbox_env_var vars[__restrict_arr],
+               unsigned int               nr)
+{
+	enbox_assert(vars);
+	enbox_assert(nr);
+
+	char **      env;
+	unsigned int v;
+	unsigned int cnt;
+	int          err;
+
+	env = malloc(((size_t)nr + 1) * sizeof(env[0]));
+	if (!env)
+		return NULL;
+
+	for (v = 0, cnt = 0; v < nr; v++) {
+		env[cnt] = enbox_load_env_var(&vars[v]);
+		if (!env[cnt]) {
+			if (!errno)
+				continue;
+			goto err;
+		}
+
+		cnt++;
+	}
+
+	if (!cnt) {
+		free(env);
+		errno = 0;
+		env = NULL;
+	}
+	else
+		env[cnt] = NULL;
+
+	return env;
+
+err:
+	{
+		int err = errno;
+
+		while (cnt--)
+			free(env[cnt]);
+		free(env);
+
+		enbox_err("cannot create environment vector: %s (%d)",
+		          strerror(err),
+		          err);
+		errno = err;
+	}
+
+	return NULL;
+}
+
+static __warn_result
+int
+enbox_loadn_clear_env(struct enbox_env_var * __restrict vars, unsigned int nr)
+{
+	unsigned int v;
+
+	for (v = 0; v < nr; v++) {
+	TODO: assert env var name; allocate env vector upon enbox_run_proc(), finish config support!!
+		if (!vars[v].value)
+			vars[v].value = secure_getenv();
+	}
+
+	if (!clearenv())
+		return 0;
+
+	enbox_info("cannot clear environment");
+
+	return -EPERM;
+}
+
 #if defined(CONFIG_ENBOX_PAM)
 #define __enbox_pam_storage
 #else  /* !defined(CONFIG_ENBOX_PAM) */
@@ -1599,13 +1716,9 @@ _enbox_prep_proc(const struct enbox_proc * __restrict proc,
 
 	int err;
 
-	err = clearenv();
-	if (err) {
-		enbox_info("cannot clear environment: %s (%d)",
-		           strerror(-err),
-		           -err);
+	err = enbox_loadn_clear_env(proc->env, proc->env_nr);
+	if (err)
 		goto err;
-	}
 
 	if (jail) {
 		err = enbox_enter_jail(jail, gid, proc->fds, proc->fds_nr);
@@ -1664,10 +1777,10 @@ enbox_validate_exec_arg(const char * __restrict arg)
 
 	size_t len;
 
-	len = strnlen(arg, ENBOX_EXEC_ARG_SIZE);
+	len = strnlen(arg, ENBOX_ARG_SIZE);
 	if (!len)
 		return -ENODATA;
-	else if (len == ENBOX_EXEC_ARG_SIZE)
+	else if (len == ENBOX_ARG_SIZE)
 		return -ENAMETOOLONG;
 	else
 		return 0;
@@ -1690,7 +1803,7 @@ enbox_validate_exec(const char * const args[__restrict_arr])
 	while (args[cnt]) {
 		int err;
 
-		if (cnt >= ENBOX_EXEC_ARGS_MAX)
+		if (cnt >= ENBOX_ARGS_MAX)
 			return -E2BIG;
 
 		err = enbox_validate_exec_arg(args[cnt]);

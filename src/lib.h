@@ -47,8 +47,8 @@ extern int
 enbox_validate_mount_time_flags(unsigned long flags)
 	__enbox_const __enbox_nothrow __leaf __warn_result __export_intern;
 
-#define ENBOX_EXEC_ARG_SIZE (1024U)
-#define ENBOX_EXEC_ARGS_MAX (1024U)
+#define ENBOX_ARG_SIZE (1024U)
+#define ENBOX_ARGS_MAX (1024U)
 
 extern int
 enbox_validate_exec_arg(const char * __restrict arg)

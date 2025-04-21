@@ -144,7 +144,7 @@ enbox_show_creds(FILE * __restrict stdio)
 }
 
 #define ENBOX_SHOW_BUFF_SZ \
-	STROLL_CONST_MAX(ENBOX_EXEC_ARGS_MAX * ENBOX_EXEC_ARG_SIZE, PATH_MAX)
+	STROLL_CONST_MAX(ENBOX_ARGS_MAX * ENBOX_ARG_SIZE, PATH_MAX)
 
 struct enbox_show {
 	int    depth;

@@ -8,6 +8,7 @@
 #include "conf.h"
 #include <utils/path.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #define ENBOX_DFLT_CONF_UMASK (0077)
 
@@ -1700,7 +1701,7 @@ enbox_do_load_ids(const config_setting_t * __restrict setting,
 
 	nr = config_setting_length(setting);
 	enbox_assert(nr >= 0);
-	if (nr < 1) {
+	if (!nr) {
 		/* Missing field definitions. 'user' setting is mandatory. */
 		enbox_conf_err(setting, "missing setting(s)");
 		return -ENODATA;
@@ -1745,14 +1746,17 @@ enbox_load_ids(const config_setting_t * __restrict setting,
 		return -errno;
 
 	err = enbox_do_load_ids(setting, ids);
-	if (err) {
-		free(ids);
-		return err;
-	}
+	if (err)
+		goto err;
 
 	conf->ids = ids;
 
 	return 0;
+
+err:
+	free(ids);
+
+	return err;
 }
 
 static void __enbox_nonull(1)
@@ -1917,7 +1921,7 @@ enbox_do_load_jail(const config_setting_t * __restrict setting,
 
 	nr = config_setting_length(setting);
 	enbox_assert(nr >= 0);
-	if (nr < 1) {
+	if (!nr) {
 		/*
 		 * Missing field definitions:  'path' settings is mandatory.
 		 */
@@ -1935,7 +1939,7 @@ enbox_do_load_jail(const config_setting_t * __restrict setting,
 	                         loaders,
 	                         stroll_array_nr(loaders));
 	if (err)
-		return err;
+		goto err;
 
 	if (!jail->root_path) {
 		enbox_conf_info(setting, "missing 'path' setting");
@@ -1943,6 +1947,11 @@ enbox_do_load_jail(const config_setting_t * __restrict setting,
 	}
 
 	return 0;
+
+err:
+	enbox_unload_fsset(&jail->fsset);
+
+	return err;
 }
 
 static __enbox_nonull(1)
@@ -2185,7 +2194,7 @@ enbox_load_proc_keep_fds(const config_setting_t * __restrict setting,
 		return -ENODATA;
 	}
 
-	fds = malloc(((size_t)nr + 1) * sizeof(fds[0]));
+	fds = malloc((size_t)nr * sizeof(fds[0]));
 	if (!fds)
 		return -ENOMEM;
 
@@ -2222,6 +2231,183 @@ enbox_load_proc_keep_fds(const config_setting_t * __restrict setting,
 	return 0;
 }
 
+#if 0
+static __enbox_nonull(1) __warn_result
+char *
+enbox_load_env_var(const char * __restrict string)
+{
+	compile_assert(ENBOX_ARG_SIZE <= SSIZE_MAX);
+	enbox_assert(string);
+
+	size_t       len;
+	const char * sep;
+	char *       var;
+
+	len = strnlen(string, ENBOX_ARG_SIZE);
+	enbox_assert(len);
+	enbox_assert(len < ENBOX_ARG_SIZE);
+
+	sep = strchr(string, '=');
+	if (!sep) {
+		enbox_assert(enbox_env_name_isvalid(string, &string[len]));
+
+		const char * val;
+		size_t       vlen;
+		size_t       tlen;
+
+		val = secure_getenv(string);
+		if (!val) {
+			errno = ENODATA;
+			return NULL;
+		}
+
+		vlen = strnlen(val, ENBOX_ARG_SIZE);
+		tlen = len + 1 + vlen;
+		if (tlen >= ENBOX_ARG_SIZE) {
+			errno = ENAMETOOLONG;
+			return NULL;
+		}
+
+		var = malloc(tlen + 1);
+		if (!var)
+			return NULL;
+
+		memcpy(var, string, len);
+		var[len] = '=';
+		memcpy(&var[len + 1], val, vlen + 1);
+	}
+	else {
+		enbox_assert(!enbox_env_name_isvalid(string, sep));
+
+		var = malloc(len + 1);
+		if (!var)
+			return NULL;
+
+		memcpy(var, string, len + 1);
+	}
+
+	return var;
+}
+#endif
+
+static __enbox_nonull(1, 2) __enbox_pure
+int
+enbox_env_name_isvalid(const char * __restrict name,
+                       const char * __restrict end)
+{
+	enbox_assert(name);
+	enbox_assert(end >= name);
+
+	if (end > name) {
+		const char * chr = name;
+
+		if (isdigit(*chr))
+			return -EINVAL;
+
+		do {
+			if (!(isupper(*chr) || isdigit(*chr) || (*chr == '_')))
+				return -EINVAL;
+			chr++;
+		} while (chr < end);
+
+		return 0;
+	}
+	else
+		return -ENODATA;
+}
+
+static __enbox_nonull(1)
+int
+enbox_validate_env_var(const char * __restrict string)
+{
+	enbox_assert(string);
+	compile_assert(ENBOX_ARG_SIZE <= SSIZE_MAX);
+
+	const char * sep;
+	size_t       len;
+	int          err;
+	char *       var;
+
+	len = strnlen(string, ENBOX_ARG_SIZE);
+	if (!len)
+		return -ENODATA;
+	else if (len >= ENBOX_ARG_SIZE)
+		return -ENAMETOOLONG;
+
+	sep = strchr(string, '=');
+	if (!sep)
+		sep = &string[len];
+
+	return enbox_env_name_isvalid(string, sep);
+}
+
+static int __enbox_nonull(1, 2)
+enbox_load_proc_env(const config_setting_t * __restrict setting,
+                    void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+
+	struct enbox_proc * proc = (struct enbox_proc *)data;
+	int                 nr;
+	char **             env;
+	int                 v;
+	unsigned int        cnt;
+	int                 err;
+
+	if (!config_setting_is_array(setting)) {
+		enbox_conf_err(setting, "array of strings required");
+		return -EINVAL;
+	}
+
+	nr = config_setting_length(setting);
+	enbox_assert(nr >= 0);
+	if (!nr) {
+		enbox_conf_err(setting, "missing environment variable(s)");
+		return -ENODATA;
+	}
+	else if ((unsigned int)nr > ENBOX_ARGS_MAX) {
+		enbox_conf_err(setting, "too many environment variables");
+		return -E2BIG;
+	}
+
+	env = malloc((size_t)nr * sizeof(env[0]));
+	if (!env)
+		return -ENOMEM;
+
+	for (v = 0, cnt = 0; v < nr; v++) {
+		const config_setting_t * set;
+		const char *             str;
+		char *                   var;
+
+		set = config_setting_get_elem(setting, (unsigned int)v);
+		enbox_assert(set);
+
+		str = config_setting_get_string(set);
+		if (!str) {
+			enbox_conf_err(setting, "string required");
+			err = -EINVAL;
+			goto free;
+		}
+
+		err = enbox_validate_env_var(str);
+		if (err)
+			goto free;
+
+		env[v] = str;
+	}
+
+	proc->env_nr = nr;
+	proc->env = (const char * const *)env;
+
+	return 0;
+
+free:
+	free(env);
+
+	return err;
+}
+
 static __enbox_nonull(1, 2, 3)
 int
 enbox_do_load_proc(const config_setting_t * __restrict setting,
@@ -2236,10 +2422,11 @@ enbox_do_load_proc(const config_setting_t * __restrict setting,
 	enbox_assert(!proc->cwd);
 	enbox_assert(!proc->fds_nr);
 	enbox_assert(!proc->fds);
+	enbox_assert(!proc->env_nr);
+	enbox_assert(!proc->env);
 	enbox_assert(loaders);
 	enbox_assert(nr);
 
-	int err;
 	int cnt;
 
 	if (!config_setting_is_group(setting)) {
@@ -2255,11 +2442,27 @@ enbox_do_load_proc(const config_setting_t * __restrict setting,
 		return -ENODATA;
 	}
 
-	err = enbox_load_setting(setting, proc, loaders, nr);
-	if (err)
-		return err;
+	return enbox_load_setting(setting, proc, loaders, nr);
+}
 
-	return 0;
+static void __enbox_nonull(1)
+enbox_unload_proc(struct enbox_proc * __restrict proc)
+{
+	enbox_assert(proc);
+
+STROLL_IGNORE_WARN("-Wcast-qual")
+	free((void *)proc->fds);
+	free((void *)proc->env);
+STROLL_RESTORE_WARN
+}
+
+static void __enbox_nonull(1)
+enbox_destroy_proc(struct enbox_proc * __restrict proc)
+{
+	enbox_assert(proc);
+
+	enbox_unload_proc(proc);
+	free(proc);
 }
 
 static __enbox_nonull(1, 2)
@@ -2278,7 +2481,8 @@ enbox_load_proc(const config_setting_t * __restrict setting,
 		{ .name = "umask",    .load = enbox_load_proc_umask },
 		{ .name = "caps",     .load = enbox_load_proc_caps },
 		{ .name = "cwd",      .load = enbox_load_proc_cwd },
-		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds }
+		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds },
+		{ .name = "env",      .load = enbox_load_proc_env }
 	};
 
 
@@ -2292,10 +2496,8 @@ enbox_load_proc(const config_setting_t * __restrict setting,
 	                         proc,
 	                         loaders,
 	                         stroll_array_nr(loaders));
-	if (err) {
-		free(proc);
-		return err;
-	}
+	if (err)
+		goto err;
 
 	if (proc->umask == (mode_t)-1)
 		proc->umask = ENBOX_DFLT_CONF_UMASK;
@@ -2303,25 +2505,11 @@ enbox_load_proc(const config_setting_t * __restrict setting,
 	conf->proc = proc;
 
 	return 0;
-}
 
-static void __enbox_nonull(1)
-enbox_unload_proc(struct enbox_proc * __restrict proc)
-{
-	enbox_assert(proc);
+err:
+	enbox_destroy_proc(proc);
 
-STROLL_IGNORE_WARN("-Wcast-qual")
-	free((void *)proc->fds);
-STROLL_RESTORE_WARN
-}
-
-static void __enbox_nonull(1)
-enbox_destroy_proc(struct enbox_proc * __restrict proc)
-{
-	enbox_assert(proc);
-
-	enbox_unload_proc(proc);
-	free(proc);
+	return err;
 }
 
 static int __enbox_nonull(1, 2)
@@ -2385,7 +2573,7 @@ enbox_load_cmd(const config_setting_t * __restrict setting,
 		enbox_conf_err(setting, "empty list not allowed");
 		return -ENODATA;
 	}
-	else if ((unsigned int)nr > ENBOX_EXEC_ARGS_MAX) {
+	else if ((unsigned int)nr > ENBOX_ARGS_MAX) {
 		enbox_conf_err(setting, "too many arguments");
 		return -E2BIG;
 	}

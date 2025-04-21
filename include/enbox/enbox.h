@@ -1483,6 +1483,11 @@ struct enbox_jail {
 	struct enbox_fsset fsset;
 };
 
+struct enbox_env_var {
+	const char * name;
+	const char * value;
+};
+
 /**
  * Process context descriptor.
  *
@@ -1535,6 +1540,9 @@ struct enbox_proc {
 	 * @see #enbox_proc::fds_nr
 	 */
 	int *                fds;
+
+	unsigned int                 env_nr;
+	const struct enbox_env_var * env;
 };
 
 /**
