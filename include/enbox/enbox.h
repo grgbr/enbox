@@ -1541,8 +1541,8 @@ struct enbox_proc {
 	 */
 	int *                fds;
 
-	unsigned int                 env_nr;
-	const struct enbox_env_var * env;
+	unsigned int           env_nr;
+	struct enbox_env_var * env;
 };
 
 /**

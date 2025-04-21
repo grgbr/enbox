@@ -8,7 +8,6 @@
 #include "conf.h"
 #include <utils/path.h>
 #include <stdlib.h>
-#include <ctype.h>
 
 #define ENBOX_DFLT_CONF_UMASK (0077)
 
@@ -2231,114 +2230,37 @@ enbox_load_proc_keep_fds(const config_setting_t * __restrict setting,
 	return 0;
 }
 
-#if 0
-static __enbox_nonull(1) __warn_result
-char *
-enbox_load_env_var(const char * __restrict string)
+static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
+int
+enbox_parse_env_var(struct enbox_env_var * __restrict var,
+                    const char * __restrict           string)
 {
-	compile_assert(ENBOX_ARG_SIZE <= SSIZE_MAX);
+	enbox_assert(var);
 	enbox_assert(string);
 
 	size_t       len;
 	const char * sep;
-	char *       var;
-
-	len = strnlen(string, ENBOX_ARG_SIZE);
-	enbox_assert(len);
-	enbox_assert(len < ENBOX_ARG_SIZE);
-
-	sep = strchr(string, '=');
-	if (!sep) {
-		enbox_assert(enbox_env_name_isvalid(string, &string[len]));
-
-		const char * val;
-		size_t       vlen;
-		size_t       tlen;
-
-		val = secure_getenv(string);
-		if (!val) {
-			errno = ENODATA;
-			return NULL;
-		}
-
-		vlen = strnlen(val, ENBOX_ARG_SIZE);
-		tlen = len + 1 + vlen;
-		if (tlen >= ENBOX_ARG_SIZE) {
-			errno = ENAMETOOLONG;
-			return NULL;
-		}
-
-		var = malloc(tlen + 1);
-		if (!var)
-			return NULL;
-
-		memcpy(var, string, len);
-		var[len] = '=';
-		memcpy(&var[len + 1], val, vlen + 1);
-	}
-	else {
-		enbox_assert(!enbox_env_name_isvalid(string, sep));
-
-		var = malloc(len + 1);
-		if (!var)
-			return NULL;
-
-		memcpy(var, string, len + 1);
-	}
-
-	return var;
-}
-#endif
-
-static __enbox_nonull(1, 2) __enbox_pure
-int
-enbox_env_name_isvalid(const char * __restrict name,
-                       const char * __restrict end)
-{
-	enbox_assert(name);
-	enbox_assert(end >= name);
-
-	if (end > name) {
-		const char * chr = name;
-
-		if (isdigit(*chr))
-			return -EINVAL;
-
-		do {
-			if (!(isupper(*chr) || isdigit(*chr) || (*chr == '_')))
-				return -EINVAL;
-			chr++;
-		} while (chr < end);
-
-		return 0;
-	}
-	else
-		return -ENODATA;
-}
-
-static __enbox_nonull(1)
-int
-enbox_validate_env_var(const char * __restrict string)
-{
-	enbox_assert(string);
-	compile_assert(ENBOX_ARG_SIZE <= SSIZE_MAX);
-
-	const char * sep;
-	size_t       len;
 	int          err;
-	char *       var;
 
 	len = strnlen(string, ENBOX_ARG_SIZE);
 	if (!len)
 		return -ENODATA;
-	else if (len >= ENBOX_ARG_SIZE)
+	else if (len == ENBOX_ARG_SIZE)
 		return -ENAMETOOLONG;
 
 	sep = strchr(string, '=');
 	if (!sep)
 		sep = &string[len];
 
-	return enbox_env_name_isvalid(string, sep);
+	err = enbox_env_name_isvalid(string, sep);
+	if (err)
+		return err;
+
+#warning TODO: exclude '=' character from env var name !!!!! implement tool show support !!
+	var->name = string;
+	var->value = sep ? sep + 1 : NULL;
+
+	return 0;
 }
 
 static int __enbox_nonull(1, 2)
@@ -2348,12 +2270,11 @@ enbox_load_proc_env(const config_setting_t * __restrict setting,
 	enbox_assert(setting);
 	enbox_assert(data);
 
-	struct enbox_proc * proc = (struct enbox_proc *)data;
-	int                 nr;
-	char **             env;
-	int                 v;
-	unsigned int        cnt;
-	int                 err;
+	struct enbox_proc *    proc = (struct enbox_proc *)data;
+	int                    nr;
+	struct enbox_env_var * vars;
+	int                    v;
+	int                    err;
 
 	if (!config_setting_is_array(setting)) {
 		enbox_conf_err(setting, "array of strings required");
@@ -2371,14 +2292,13 @@ enbox_load_proc_env(const config_setting_t * __restrict setting,
 		return -E2BIG;
 	}
 
-	env = malloc((size_t)nr * sizeof(env[0]));
-	if (!env)
+	vars = malloc((size_t)nr * sizeof(vars[0]));
+	if (!vars)
 		return -ENOMEM;
 
-	for (v = 0, cnt = 0; v < nr; v++) {
+	for (v = 0; v < nr; v++) {
 		const config_setting_t * set;
 		const char *             str;
-		char *                   var;
 
 		set = config_setting_get_elem(setting, (unsigned int)v);
 		enbox_assert(set);
@@ -2390,20 +2310,18 @@ enbox_load_proc_env(const config_setting_t * __restrict setting,
 			goto free;
 		}
 
-		err = enbox_validate_env_var(str);
+		err = enbox_parse_env_var(&vars[v], str);
 		if (err)
 			goto free;
-
-		env[v] = str;
 	}
 
-	proc->env_nr = nr;
-	proc->env = (const char * const *)env;
+	proc->env_nr = (unsigned int)nr;
+	proc->env = vars;
 
 	return 0;
 
 free:
-	free(env);
+	free(vars);
 
 	return err;
 }
@@ -2962,7 +2880,8 @@ enbox_load_pam_proc(const config_setting_t * __restrict setting,
 	static const struct enbox_loader loaders[] = {
 		{ .name = "umask",    .load = enbox_load_proc_umask },
 		{ .name = "cwd",      .load = enbox_load_proc_cwd },
-		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds }
+		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds },
+		{ .name = "env",      .load = enbox_load_proc_env }
 	};
 
 	return enbox_do_load_proc(setting,
