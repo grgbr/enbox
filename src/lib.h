@@ -47,9 +47,6 @@ extern int
 enbox_validate_mount_time_flags(unsigned long flags)
 	__enbox_const __enbox_nothrow __leaf __warn_result __export_intern;
 
-#define ENBOX_ARG_SIZE (1024U)
-#define ENBOX_ARGS_MAX (1024U)
-
 extern int
 enbox_validate_exec_arg(const char * __restrict arg)
 	__enbox_nonull(1) __enbox_pure __enbox_nothrow __leaf __export_intern;
@@ -127,6 +124,14 @@ enbox_validate_env_vars(
 }
 
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
+
+extern int
+enbox_setup_env(const struct enbox_env_var vars[__restrict_arr],
+                unsigned int               nr)
+	__enbox_nothrow
+	__leaf
+	__warn_result
+	__export_intern;
 
 #define enbox_assert_entry(_ent) \
 	enbox_assert(upath_validate_path_name((_ent)->path) > 0); \

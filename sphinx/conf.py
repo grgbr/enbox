@@ -171,7 +171,8 @@ latex_show_pagerefs = False
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('man/enbox',    'enbox',    '', author, 1)
+    ('man/enbox',     'enbox',     '', author, 1),
+    ('man/pam_enbox', 'pam_enbox', '', author, 8)
 ]
 
 man_show_urls = False

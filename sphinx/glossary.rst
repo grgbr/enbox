@@ -28,6 +28,14 @@ Glossary
        process will have when accessing shared resources (see section `User and
        group identifiers` of |credentials(7)|)
 
+   environment
+       An array of string variables made available when a process begins.
+       These strings have the form *name=value*; names shall not contain the
+       character ``=`` and values consist solely of uppercase letters, digits, and
+       the <underscore> ( ``_`` ) from the characters defined in the
+       |Portable Charset| (except ``NULL``).
+       See |environ(7)| for more informations.
+
    fifo
       Special file (a named pipe) similar to a |pipe|, except that it is accessed
       as part of the filesystem (see |fifo(7)|)

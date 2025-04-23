@@ -1888,11 +1888,6 @@ enbox_validate_exec_arg(const char * __restrict arg)
 
 #if defined(CONFIG_ENBOX_ASSERT)
 
-/*
- * TODO: Also check against ARG_MAX / MAX_ARG_STRLEN / MAX_ARG_STRINGS ?
- *       Watch out ! ARG_MAX depends onto RLIMIT_STACK rlimit (should use
- *       getconf() / sysconf() to retrieve its value)...
- */
 int
 enbox_validate_exec(const char * const args[__restrict_arr])
 {
@@ -1904,7 +1899,7 @@ enbox_validate_exec(const char * const args[__restrict_arr])
 	while (args[cnt]) {
 		int err;
 
-		if (cnt >= ENBOX_ARGS_MAX)
+		if (cnt > ENBOX_ARGS_MAX)
 			return -E2BIG;
 
 		err = enbox_validate_exec_arg(args[cnt]);
@@ -2023,7 +2018,6 @@ enbox_destroy_env_vect(char ** __restrict env)
 	}
 }
 
-static __enbox_nothrow __warn_result
 int
 enbox_setup_env(const struct enbox_env_var vars[__restrict_arr],
                 unsigned int               nr)
@@ -2090,24 +2084,28 @@ STROLL_IGNORE_WARN("-Wcast-qual")
 			                   (char * const *)cmd,
 			                   env,
 			                   proc->caps);
-
 STROLL_RESTORE_WARN
+		enbox_assert(err);
 
 		enbox_destroy_env_vect(env);
-	}
-	else {
-		err = enbox_setup_env(proc->env, proc->env_nr);
-		if (err)
-			goto err;
-
-		if (chid)
-			err = enbox_change_ids(pwd, ids->drop_supp, proc->caps);
-		else
-			err = enbox_enforce_safe(proc->caps);
+		goto err;
 	}
 
-	if (!err)
-		return 0;
+	err = enbox_setup_env(proc->env, proc->env_nr);
+	if (err)
+		goto err;
+
+	if (chid)
+		err = enbox_change_ids(pwd, ids->drop_supp, proc->caps);
+	else
+		err = enbox_enforce_safe(proc->caps);
+
+	if (err) {
+		clearenv();
+		goto err;
+	}
+
+	return 0;
 
 err:
 	enbox_err("cannot run process: %s (%d)", strerror(-err), -err);

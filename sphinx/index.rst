@@ -78,6 +78,7 @@ A copy of the license is included in the section entitled
    :caption: Man pages
 
    man/enbox
+   man/pam_enbox
 
 
 .. We use the latex_appendices setting into conf.py to benefit from native latex

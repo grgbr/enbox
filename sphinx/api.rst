@@ -103,7 +103,7 @@ runs a cleanup of inherited / ambient capabilities at post |execve(2)| time.
 
 The logic allows privileged callers of the |execve(2)| syscall to disable
 inherited / ambient capabilities cleanup for a fixed number of times specified
-thanks to the special ``ENBOX_KEEP_INH_CAPS`` environment variable.
+thanks to the special ``ENBOX_KEEP_INH_CAPS`` |environment| variable.
 
 It is implemented as following:
 
@@ -112,19 +112,19 @@ It is implemented as following:
 
   * process runs in privileged mode, i.e., its real, effective and saved user
     and group IDs are all zeros ;
-  * the environment variable ``ENBOX_KEEP_INH_CAPS`` is set to disable the
+  * the |environment| variable ``ENBOX_KEEP_INH_CAPS`` is set to disable the
     cleanup operation, i.e. its value is greater than zero ;
 
 * otherwise, cleanup inherited / ambient capabilities *AND* remove
-  ``ENBOX_KEEP_INH_CAPS`` from the environment.
+  ``ENBOX_KEEP_INH_CAPS`` from the |environment|.
     
 ``ENBOX_KEEP_INH_CAPS`` is handled in the following manner:
 
 * it holds a positive integer that the library decrements each time it is run,
   i.e., each time the current process performs an |execve(2)|
-* once the ``ENBOX_KEEP_INH_CAPS`` environment variable value reaches zero, the
-  variable is removed from the environment and the inherited capabilitiy cleanup
-  logic is re-enabled again and applied.
+* once the ``ENBOX_KEEP_INH_CAPS`` |environment| variable value reaches zero,
+  the variable is removed from the |environment| and the inherited capabilitiy
+  cleanup logic is re-enabled again and applied.
     
 .. todo:: add reference to library name and install
 
@@ -228,6 +228,7 @@ function.
 The caller may enforce the following properties for the current process thanks
 to the :c:struct:`enbox_proc` structure:
 
+* |environment|,
 * |umask|,
 * |capabilities|,
 * |cwd|,
@@ -395,6 +396,16 @@ CONFIG_ENBOX_TOOL_MQLOG_NAME
 Macros
 ------
 
+ENBOX_ARGS_MAX
+**************
+
+.. doxygendefine:: ENBOX_ARGS_MAX
+
+ENBOX_ARG_SIZE
+**************
+
+.. doxygendefine:: ENBOX_ARG_SIZE
+
 ENBOX_CAP
 *********
 
@@ -466,9 +477,14 @@ enbox_dir_entry
 .. doxygenstruct:: enbox_dir_entry
 
 enbox_entry
-***************
+***********
 
 .. doxygenstruct:: enbox_entry
+
+enbox_env_var
+*************
+
+.. doxygenstruct:: enbox_env_var
 
 enbox_fifo_entry
 ****************

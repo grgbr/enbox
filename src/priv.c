@@ -6,6 +6,7 @@
  ******************************************************************************/
 
 #include "priv.h"
+#include "lib.h"
 #include "caps.h"
 #include <unistd.h>
 #include <sys/prctl.h>
@@ -357,6 +358,47 @@ err:
 	return err;
 }
 
+#if defined(CONFIG_ENBOX_ASSERT)
+
+static __enbox_nonull(1) __enbox_pure __enbox_nothrow __warn_result
+int
+enbox_validate_env(const char * const envp[__restrict_arr])
+{
+	compile_assert(ENBOX_ARGS_MAX <= UINT_MAX);
+	enbox_assert(envp);
+
+	unsigned int cnt = 0;
+
+	while (envp[cnt]) {
+		size_t       len;
+		const char * sep;
+		int          err;
+
+		if (cnt > ENBOX_ARGS_MAX)
+			return -E2BIG;
+
+		len = strnlen(envp[cnt], ENBOX_ARG_SIZE);
+		if (!len)
+			return -ENODATA;
+		else if (len == ENBOX_ARG_SIZE)
+			return -ENAMETOOLONG;
+
+		sep = strchr(envp[cnt], '=');
+		if (!sep)
+			return -EINVAL;
+
+		err = enbox_env_name_isvalid(envp[cnt], sep);
+		if (err)
+			return err;
+
+		cnt++;
+	}
+
+	return cnt ? 0 : -ENODATA;
+}
+
+#endif /* defined(CONFIG_ENBOX_ASSERT) */
+
 static __enbox_nonull(1, 2, 3) __warn_result
 int
 enbox_execve_with_caps(struct enbox_caps * __restrict caps,
@@ -368,9 +410,8 @@ enbox_execve_with_caps(struct enbox_caps * __restrict caps,
 	enbox_assert_setup();
 	enbox_assert(caps);
 	enbox_assert(path);
-	enbox_assert(argv);
-	enbox_assert(argv[0]);
-	enbox_assert(*argv[0]);
+	enbox_assert(!enbox_validate_exec((const char * const *)argv));
+	enbox_assert(!envp || !enbox_validate_env((const char * const *)envp));
 	enbox_assert(kept_caps);
 	enbox_assert(!(kept_caps & ~ENBOX_CAPS_VALID));
 
@@ -438,9 +479,8 @@ enbox_execve(const char * __restrict path,
 {
 	enbox_assert_setup();
 	enbox_assert(path);
-	enbox_assert(argv);
-	enbox_assert(argv[0]);
-	enbox_assert(*argv[0]);
+	enbox_assert(!enbox_validate_exec((const char * const *)argv));
+	enbox_assert(!envp || !enbox_validate_env((const char * const *)envp));
 	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
 
 	struct enbox_caps caps;
@@ -505,9 +545,8 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
 	enbox_assert(!enbox_validate_pwd(pwd_entry, true));
 	enbox_assert(pwd_entry->pw_uid != enbox_uid);
 	enbox_assert(path);
-	enbox_assert(argv);
-	enbox_assert(argv[0]);
-	enbox_assert(*argv[0]);
+	enbox_assert(!enbox_validate_exec((const char * const *)argv));
+	enbox_assert(!envp || !enbox_validate_env((const char * const *)envp));
 	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
 	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
 

@@ -576,7 +576,7 @@ enbox_show_proc_conf(const struct enbox_proc * __restrict proc)
 {
 	enbox_assert_proc(proc);
 
-	unsigned int a;
+	unsigned int i;
 
 	puts("\n### Process ###\n");
 
@@ -596,12 +596,33 @@ enbox_show_proc_conf(const struct enbox_proc * __restrict proc)
 
 	if (proc->fds_nr) {
 		printf("Keep file descs  : %d", proc->fds[0]);
-		for (a = 1; a < proc->fds_nr; a++)
-			printf(", %d", proc->fds[a]);
+		for (i = 1; i < proc->fds_nr; i++)
+			printf(", %d", proc->fds[i]);
 		putchar('\n');
 	}
 	else
 		fputs("Keep file descs  : none\n", stdout);
+
+	if (proc->env_nr) {
+		const struct enbox_env_var * var = &proc->env[0];
+
+		printf("Environment      : %s%s%s%s",
+		       var->name,
+		       var->value ? "='" : "",
+		       var->value ? var->value : "",
+		       var->value ? "'" : "");
+		for (i = 1; i < proc->env_nr; i++) {
+			var = &proc->env[i];
+			printf(", %s%s%s%s",
+			       var->name,
+			       var->value ? "='" : "",
+			       var->value ? var->value : "",
+			       var->value ? "'" : "");
+		}
+		putchar('\n');
+	}
+	else
+		fputs("Environment      : none\n", stdout);
 }
 
 static __enbox_nonull(1)

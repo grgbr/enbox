@@ -2240,6 +2240,8 @@ enbox_parse_env_var(struct enbox_env_var * __restrict var,
 
 	size_t       len;
 	const char * sep;
+	const char * val = NULL;
+	char *       name;
 	int          err;
 
 	len = strnlen(string, ENBOX_ARG_SIZE);
@@ -2251,14 +2253,22 @@ enbox_parse_env_var(struct enbox_env_var * __restrict var,
 	sep = strchr(string, '=');
 	if (!sep)
 		sep = &string[len];
+	else
+		val = sep + 1;
 
 	err = enbox_env_name_isvalid(string, sep);
 	if (err)
 		return err;
 
-#warning TODO: exclude '=' character from env var name !!!!! implement tool show support !!
-	var->name = string;
-	var->value = sep ? sep + 1 : NULL;
+	name = malloc((size_t)(sep - string) + 1);
+	if (!name)
+		return -ENOMEM;
+
+	memcpy(name, string, (size_t)(sep - string));
+	name[sep - string] = '\0';
+
+	var->name = name;
+	var->value = val;
 
 	return 0;
 }
@@ -2321,6 +2331,11 @@ enbox_load_proc_env(const config_setting_t * __restrict setting,
 	return 0;
 
 free:
+	while (v--) {
+STROLL_IGNORE_WARN("-Wcast-qual")
+		free((void *)vars[v].name);
+STROLL_RESTORE_WARN
+	}
 	free(vars);
 
 	return err;
@@ -2370,8 +2385,21 @@ enbox_unload_proc(struct enbox_proc * __restrict proc)
 
 STROLL_IGNORE_WARN("-Wcast-qual")
 	free((void *)proc->fds);
-	free((void *)proc->env);
 STROLL_RESTORE_WARN
+
+	if (proc->env_nr) {
+		enbox_assert(proc->env);
+
+		unsigned int v;
+
+		for (v = 0; v < proc->env_nr; v++) {
+STROLL_IGNORE_WARN("-Wcast-qual")
+			free((void *)proc->env[v].name);
+STROLL_RESTORE_WARN
+		}
+
+		free((void *)proc->env);
+	}
 }
 
 static void __enbox_nonull(1)
@@ -2789,44 +2817,6 @@ enbox_destroy_conf(struct enbox_conf * __restrict conf)
 	enbox_assert_proc(&(_conf)->proc); \
 	enbox_assert(!(_conf)->proc.caps)
 
-int
-enbox_run_pam_conf(const struct enbox_pam_conf * __restrict conf, gid_t gid)
-{
-	enbox_assert_setup();
-	enbox_assert_pam_conf(conf);
-
-	struct enbox_caps caps;
-	int               err;
-
-	if (conf->host) {
-		err = enbox_populate_host(conf->host);
-		if (err)
-			return err;
-	}
-
-	err = _enbox_prep_proc(&conf->proc, conf->jail, gid);
-	if (err)
-		return err;
-
-	enbox_enable_nonewprivs();
-
-	err = enbox_save_secbits(SECBIT_NOROOT |
-	                         SECBIT_NO_CAP_AMBIENT_RAISE |
-	                         SECURE_ALL_LOCKS);
-	if (err)
-		return err;
-
-	err = enbox_clear_bound_caps();
-	if (err)
-		return err;
-
-	enbox_clear_amb_caps();
-
-	enbox_load_epi_caps(&caps);
-	enbox_set_inh_caps(&caps, 0);
-	return enbox_save_epi_caps(&caps);
-}
-
 static int __enbox_nonull(1, 2)
 enbox_load_pam_host(const config_setting_t * __restrict setting,
                     void * __restrict                   data)
@@ -2969,6 +2959,48 @@ enbox_unload_pam_conf(struct enbox_pam_conf * __restrict conf)
 		enbox_destroy_jail(conf->jail);
 	enbox_unload_proc(&conf->proc);
 	config_destroy(&conf->lib);
+}
+
+int
+enbox_run_pam_conf(const struct enbox_pam_conf * __restrict conf, gid_t gid)
+{
+	enbox_assert_setup();
+	enbox_assert_pam_conf(conf);
+
+	struct enbox_caps caps;
+	int               err;
+
+	if (conf->host) {
+		err = enbox_populate_host(conf->host);
+		if (err)
+			return err;
+	}
+
+	err = _enbox_prep_proc(&conf->proc, conf->jail, gid);
+	if (err)
+		return err;
+
+	err = enbox_setup_env(conf->proc.env, conf->proc.env_nr);
+	if (err)
+		return err;
+
+	enbox_enable_nonewprivs();
+
+	err = enbox_save_secbits(SECBIT_NOROOT |
+	                         SECBIT_NO_CAP_AMBIENT_RAISE |
+	                         SECURE_ALL_LOCKS);
+	if (err)
+		return err;
+
+	err = enbox_clear_bound_caps();
+	if (err)
+		return err;
+
+	enbox_clear_amb_caps();
+
+	enbox_load_epi_caps(&caps);
+	enbox_set_inh_caps(&caps, 0);
+	return enbox_save_epi_caps(&caps);
 }
 
 #endif /* defined(CONFIG_ENBOX_PAM) */

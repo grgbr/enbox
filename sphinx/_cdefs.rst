@@ -11,6 +11,10 @@
 .. |STRING| replace:: <:ref:`STRING <libconfig-types>`>
 .. |LSEP|   replace:: <:ref:`LSEP <syntax-sep>`>
 .. |SSEP|   replace:: <:ref:`SSEP <syntax-sep>`>
+.. |UPPER|  replace:: <:ref:`UPPER <charset-def>`>
+.. |DIGIT|  replace:: <:ref:`DIGIT <charset-def>`>
+.. |PRINT|  replace:: <:ref:`PRINT <charset-def>`>
+.. |OCTET|  replace:: <:ref:`OCTET <charset-def>`>
 
 
 ..
@@ -50,6 +54,7 @@
 .. |uid|                  replace:: :term:`uid`
 .. |username|             replace:: :term:`username`
 .. |umask|                replace:: :term:`umask`
+.. |environment|          replace:: :term:`environment`
 
 
 ..
@@ -86,27 +91,28 @@
 .. |user_namespaces(7)|    replace:: :manpage:`user_namespaces(7)`
 .. |syslog(3)|             replace:: :manpage:`syslog(3)`
 .. |mq_overview(7)|        replace:: :manpage:`mq_overview(7)`
+.. |environ(7)|            replace:: :manpage:`environ(7)`
+.. |pam(8)|                replace:: :manpage:`pam(8)`
 
 
 ..
    External hyperlinks definitions
 
-.. _libconfig-bool:      https://hyperrealm.github.io/libconfig/libconfig_manual.html#Boolean-Values
-.. _libconfig-int:       https://hyperrealm.github.io/libconfig/libconfig_manual.html#Integer-Values
-.. _libconfig-string:    https://hyperrealm.github.io/libconfig/libconfig_manual.html#String-Values
-.. _libconfig library:   https://hyperrealm.github.io/libconfig
-.. _libconfig manual:    http://www.hyperrealm.com/libconfig/libconfig_manual.html
-.. _utility conventions: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html
-.. _IEEE Std 1003.1:     https://pubs.opengroup.org/onlinepubs/9699919799/mindex.html
-.. _elog:                https://github.com/grgbr/elog/
-.. _elogd:               https://github.com/grgbr/elogd/
-.. _utils:               https://github.com/grgbr/utils/
-.. _breathe:             https://github.com/michaeljones/breathe/
-.. _gcc:                 https://gcc.gnu.org/
-.. _enbox:               https://github.com/grgbr/enbox/
-.. _no_new_privs:        https://docs.kernel.org/userspace-api/no_new_privs.html
-.. _PAM:                 https://github.com/linux-pam/linux-pam
-
+.. _libconfig-bool:         https://hyperrealm.github.io/libconfig/libconfig_manual.html#Boolean-Values
+.. _libconfig-int:          https://hyperrealm.github.io/libconfig/libconfig_manual.html#Integer-Values
+.. _libconfig-string:       https://hyperrealm.github.io/libconfig/libconfig_manual.html#String-Values
+.. _libconfig library:      https://hyperrealm.github.io/libconfig
+.. _libconfig manual:       http://www.hyperrealm.com/libconfig/libconfig_manual.html
+.. _utility conventions:    https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html
+.. _IEEE Std 1003.1:        https://pubs.opengroup.org/onlinepubs/9699919799/mindex.html
+.. _elog:                   https://github.com/grgbr/elog/
+.. _elogd:                  https://github.com/grgbr/elogd/
+.. _utils:                  https://github.com/grgbr/utils/
+.. _breathe:                https://github.com/michaeljones/breathe/
+.. _gcc:                    https://gcc.gnu.org/
+.. _enbox:                  https://github.com/grgbr/enbox/
+.. _no_new_privs:           https://docs.kernel.org/userspace-api/no_new_privs.html
+.. _PAM:                    https://github.com/linux-pam/linux-pam
 
 ..
    External hyperlinks definitions for ebuild related documentation
@@ -161,3 +167,5 @@
 .. |rsync|                     replace:: `Rsync <rsync_>`_
 .. _rest:                      https://docutils.sourceforge.io/rst.html
 .. |rest|                      replace:: `reStructuredText <rest_>`_
+.. _portable_charset:          https://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap06.html
+.. |Portable Charset|          replace:: `Portable Character Set <portable_charset_>`_

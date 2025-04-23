@@ -663,11 +663,19 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
  *
  * @warning
  * - Requires the ability to enable the CAP_SETPCAP capabilities.
- * - @p argv *MUST* contain an arbitrary program name as first argument. Failing
- *   to do will lead to unpredictable results.
  * - Does not preserve `CAP_SYS_ADMIN` and `CAP_SETPCAP` capabilities across
  *   @man{execve(2)} operation. Trying to do so will lead to unpredictable
  *   results.
+ * - @p argv *MUST* contain an arbitrary program name as first argument. Failing
+ *   to do will lead to unpredictable results.
+ * - Number of entries pointed to by @p argv is restricted to #ENBOX_ARGS_MAX
+ *   excluding the terminating `NULL` entry.
+ * - Each string pointed to by @p argv *MUST NOT* be larger than #ENBOX_ARG_SIZE
+ *   including their terminating `NULL` byte.
+ * - Number of entries pointed to by @p envp is restricted to #ENBOX_ARGS_MAX
+ *   excluding the terminating `NULL` entry.
+ * - Each string pointed to by @p envp *MUST NOT* be larger than #ENBOX_ARG_SIZE
+ *   including their terminating `NULL` byte.
  *
  * @param[in] path      Pathname to program to @man{execve(2)}
  * @param[in] argv      Program command-line arguments
@@ -751,6 +759,14 @@ enbox_execve(const char * __restrict path,
  *   to do will lead to unpredictable results.
  * - Does not preserve `CAP_SYS_ADMIN` and `CAP_SETPCAP` capabilities across
  *   operations. Trying to do so will lead to unpredictable results.
+ * - Number of entries pointed to by @p argv is restricted to #ENBOX_ARGS_MAX
+ *   excluding the terminating `NULL` entry.
+ * - Each string pointed to by @p argv *MUST NOT* be larger than #ENBOX_ARG_SIZE
+ *   including their terminating `NULL` byte.
+ * - Number of entries pointed to by @p envp is restricted to #ENBOX_ARGS_MAX
+ *   excluding the terminating `NULL` entry.
+ * - Each string pointed to by @p envp *MUST NOT* be larger than #ENBOX_ARG_SIZE
+ *   including their terminating `NULL` byte.
  *
  * @param[in]    pwd_entry A password file entry pointer to the user to change
  *                         to
@@ -1483,8 +1499,64 @@ struct enbox_jail {
 	struct enbox_fsset fsset;
 };
 
+/**
+ * Maximum size of environment variable or exeve(2) argument string.
+ *
+ * @see
+ * - #enbox_env_var
+ * - enbox_run_proc()
+ */
+#define ENBOX_ARG_SIZE (1024U)
+
+/**
+ * Maximum number of environment variables or exeve(2) arguments.
+ *
+ * @see
+ * - #enbox_env_var
+ * - enbox_run_proc()
+ */
+#define ENBOX_ARGS_MAX (1024U)
+
+/**
+ * Environment variable descriptor.
+ *
+ * This structure holds attributes required to setup an environment variable
+ * while preparing a runtime context for further secure operations such as
+ * enbox_prep_proc() or enbox_run_proc().
+ *
+ * At enbox_prep_proc() time, environment variables defined by these descriptors
+ * are saved and environment is cleaned up.
+ * Later on, when enbox_run_proc() is called, current process environment is
+ * populated according to these.
+ *
+ * @see
+ * - #enbox_proc::env_nr
+ * - #enbox_proc::env
+ * - enbox_prep_proc()
+ * - enbox_run_proc()
+ * - @man{environ(7)}
+ */
 struct enbox_env_var {
+	/**
+	 * Name of environment variable to setup.
+	 *
+	 * @note
+	 * - String length is limited to #ENBOX_ARG_SIZE - 1 bytes ;
+	 * - Allowed characters include upper case letters, digits and the
+	 *   underscore (`_`) only.
+	 */
 	const char * name;
+
+	/**
+	 * Value to assign to the #enbox_env_var::name environment variable.
+	 *
+	 * When given as `NULL`, requests enbox_prep_proc() to retreive the
+	 * value from current environment just before cleaning it.
+	 *
+	 * Otherwise, no particular rules are enforced upon content of
+	 * #enbox_env_var::value except that length of given string is limited
+	 * to #ENBOX_ARG_SIZE - 1 bytes.
+	 */
 	const char * value;
 };
 
@@ -1504,13 +1576,13 @@ struct enbox_proc {
 	 *
 	 * @see @man{umask(2)}
 	 */
-	mode_t               umask;
+	mode_t                 umask;
 	/**
 	 * Optional mask of system capabilities enabled for current process.
 	 *
 	 * @see @man{capabilities(7)}
 	 */
-	uint64_t             caps;
+	uint64_t               caps;
 	/**
 	 * Optional current working directory of current process.
 	 *
@@ -1521,17 +1593,16 @@ struct enbox_proc {
 	 * - @man{chdir(2)}
 	 * - @man{getcwd(2)}
 	 */
-	const char *         cwd;
+	const char *           cwd;
 	/**
-	 * Number of file descriptors to keep opened before running the final
-	 * program.
+	 * Number of file descriptors to keep opened for the current process.
 	 *
 	 * @see #enbox_proc::fds
 	 */
-	unsigned int         fds_nr;
+	unsigned int           fds_nr;
 	/**
-	 * Optional list of file descriptors to keep opened before running the
-	 * final program.
+	 * Optional list of file descriptors to keep opened for the current
+	 * process.
 	 *
 	 * @warning
 	 * Specifying `STDIN_FILENO`, `STDOUT_FILENO`, `STDERR_FILENO` as well
@@ -1539,9 +1610,30 @@ struct enbox_proc {
 	 *
 	 * @see #enbox_proc::fds_nr
 	 */
-	int *                fds;
+	const int *            fds;
 
+	/**
+	 * Number of environment variables to setup fo the current process.
+	 *
+	 * @warning
+	 * The maximum number of defined environment variables is restricted to
+	 * #ENBOX_ARGS_MAX.
+	 *
+	 * @see
+	 * - #enbox_proc::env
+	 * - @man{environ(7)}
+	 */
 	unsigned int           env_nr;
+
+	/**
+	 * Optional list of environment variables to setup for the current
+	 * process.
+	 *
+	 * @see
+	 * - #enbox_proc::env_nr
+	 * - #enbox_env_var
+	 * - @man{environ(7)}
+	 */
 	struct enbox_env_var * env;
 };
 
@@ -1572,9 +1664,10 @@ struct enbox_proc {
  * enbox_run_proc() *should* be performed.
  *
  * Basically, the following sequence of actions are carried out:
- * -# clear the whole environment using @man{clearenv(3)} ;
+ * -# Save environment variables according to #enbox_proc::env and clear the
+ *    whole environment using @man{clearenv(3)} ;
  * -# if @p jail is given as a non `NULL` argument, setup and enter the jail
- *  (see below);
+ *    (see below);
  * -# otherwise, close all unwanted file descriptors according to
  *    #enbox_proc::fds_nr and #enbox_proc::fds content ;
  * -# setup the requested @man{umask(2)} attribute according to
@@ -1663,8 +1756,11 @@ enbox_prep_proc(const struct enbox_proc * __restrict proc,
  * Change user / group IDs and execute arbitrary program according to a process
  * runtime context.
  *
- * Perform an optional change of user / group @rstsubst{credentials} for the
- * current process according to the @p ids argument, then optionally
+ * Start by populating the current process environment according to variables
+ * defined by the #enbox_proc::env field.
+ *
+ * Then, perform an optional change of user / group @rstsubst{credentials} for
+ * the current process according to the @p ids argument, then optionally
  * @man{exeve(2)} the program given as @p cmd argument.
  * This function is typically called after enbox_prep_proc() to complete the
  * process of securing the current runtime context in order to run the program
@@ -1696,6 +1792,10 @@ enbox_prep_proc(const struct enbox_proc * __restrict proc,
  *   the terminating `NULL` entry.
  * - Should an error occur, current program state will be left as-is, i.e. in an
  *   unpredictable state. Caller should exit(3) as soon as possible.
+ * - Number of entries pointed to by @p cmd is restricted to #ENBOX_ARGS_MAX
+ *   excluding the terminating `NULL` entry.
+ * - Each string pointed to by @p cmd *MUST NOT* be larger than #ENBOX_ARG_SIZE
+ *   including their terminating `NULL` byte.
  *
  * @param[in] proc Process runtime properties to enforce
  * @param[in] ids  Optional system IDs to switch to
@@ -1714,6 +1814,7 @@ enbox_prep_proc(const struct enbox_proc * __restrict proc,
  * - @man{exit(3)}
  * - @man{capabilities(7)}
  * - @man{credentials(7)}
+ * - @man{environ(7)}
  */
 extern int
 enbox_run_proc(const struct enbox_proc * __restrict proc,

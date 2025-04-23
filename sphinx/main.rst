@@ -219,19 +219,60 @@ into the `IEEE Std 1003.1`_ POSIX specification:
    * the *integer* type <`INT <libconfig-int_>`_>,
    * the *string* type <`STRING <libconfig-string_>`_>.
 
+.. _charset-def:
+
+.. topic:: String character set definitions
+
+   In addition, the following definitions are made available and used throughout
+   the rest of this document. These are:
+
+
+   .. parsed-literal::
+      :class: highlight
+
+      <**PRINT**>    ::= <**HT**>
+                   | <**LF**>
+                   | <**SPACE**>
+                   | <**LETTERS**>
+                   | <**DIGIT**>
+      <**HT**>       ::= '\\t'  *; horizontal tabulation*
+      <**LF**>       ::= '\\n'  *; line feed*
+      <**SPACE**>    ::= ' '
+
+      <**LETTERS**>  ::= <**UPPER**> | <**LOWER**>
+      <**UPPER**>    ::= 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J'
+                   | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T'
+                   | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
+      <**LOWER**>    ::= 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j'
+                   | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't'
+                   | 'u' | 'v' | 'w' | 'x' | 'y' | 'z'
+
+
+      <**HEXDIG**>   ::= 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+                   | 'a' | 'b' | 'c' | 'd' | 'e' | 'f'
+                   | <**DIGIT**>
+      <**DIGIT**>    ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+
+      <**SYMBOL**>   ::= '\|' | '!' | '#' | '$' | '%' | '&' | '(' | ')' | '*'
+                   | '+' | ',' | '-' | '.' | '/' | ':' | ';' | '>' | '=' | '<'
+                   | '?' | '@' | '[' | '\\\\' | ']' | '^' | '_' | '`' | '{' | '}'
+                   | '~'
+
+      <**OCTET**>    ::= '\\x' <**HEXDIG**> <**HEXDIG**>
+
 .. _syntax-sep:
 
 .. topic:: Separators
 
-   In addition, the following syntax token separators are used in production
+   Finally, the following syntax token separators are used in production
    rules. These are defined as:
 
    .. parsed-literal::
       :class: highlight
 
-      <**LF**>   ::= '\\n'                    *; line feed*
-      <**LSEP**> ::= ',' [<**LF**>]...           *; list separator*
-      <**SSEP**> ::= ';' [<**LF**>]... | <**LF**>... *; group setting separator*
+      <**LF**>       ::= '\\n'                    *; line feed*
+      <**LSEP**>     ::= ',' [<**LF**>]...           *; list separator*
+      <**SSEP**>     ::= ';' [<**LF**>]... | <**LF**>... *; group setting separator*
 
 Grammar
 -------
@@ -345,7 +386,7 @@ Within the context of a `top-proc`_ statement, specify the list of system
 This attribute is *optional*.
 
 .. important::
-   For obvisous security reasons, the propagation of ``CAP_SETPCAP`` and
+   For obvious security reasons, the propagation of ``CAP_SETPCAP`` and
    ``CAP_SYS_ADMIN`` capabilities are rejected.
 
 .. rubric:: Example
@@ -412,6 +453,55 @@ Note that group access list will always contain the user's primary group.
            user = "myuser"
            # Load supplementary groups myuser is a member of.
            drop_supp = false
+   }
+
+env-attr
+********
+
+Within the context of a `top-proc`_ statement, specify the list of |environment|
+variables to run the command process with.
+
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**env-attr**>    ::= 'env = [' <**env-list**> ']'
+   <**env-list**>    ::= '"' <**env-var**> '"' [|LSEP| '"' <**env-var**> '"']...
+
+   <**env-var**>     ::= <**inherit-var**> | <**set-var**>
+   <**inherit-var**> ::= '"' <**env-name**> '"'
+   <**set-var**>     ::= '"' <**env-name**> '=' [<**value-char**>]... '"'
+
+   <**env-name**>    ::= <**lead-char**> [<**name-char**>]...
+   <**lead-char**>   ::= |UPPER| | '_'
+   <**name-char**>   ::= |UPPER| | |DIGIT| | '_'
+
+   <**value-char**>  ::= |PRINT| | |OCTET|
+
+This statement must be a array of *comma-separated strings* where each item
+defines an |environment| variable. As shown above, 2 different kinds of
+definition may coexist:
+
+* the <**inherit-var**> form defines a variable which value should
+  be *inherited* from the existing |environment| ;
+* the <**set-var**> form defines a variable which should be assigned an
+  *optional explicit value*, i.e. which may be empty.
+
+This attribute is *optional*. By *default*, the |environment| is *cleared*
+before running the command process.
+
+.. rubric:: Example
+
+.. code-block::
+
+   # Run command process with the 3 environment variables defined below.
+   proc = {
+           ...
+           env = [ "AN_INHERITED_VAR",
+                   "AN_EMPTY_VAR=",
+                   "AN_EXPLICITLY_SET_VAR=a value\nwith a line feed into it..." ]
+           ...
    }
 
 fds-attr
@@ -1508,7 +1598,8 @@ Specify current process system runtime properties.
 .. parsed-literal::
    :class: highlight
 
-   <**top-proc**>   ::= 'proc = {' <**proc-umask**> <**proc-ids**> <**proc-caps**> <**proc-cwd**> <**proc-fds**> '}'
+   <**top-proc**>   ::= 'proc = {' <**proc-env**> <**proc-umask**> <**proc-ids**> <**proc-caps**> <**proc-cwd**> <**proc-fds**> '}'
+   <**proc-env**>   ::= [|SSEP| <`env-attr`_>]
    <**proc-umask**> ::= [|SSEP| <`umask-attr`_>]
    <**proc-caps**>  ::= [|SSEP| <`caps-attr`_>]
    <**proc-cwd**>   ::= [|SSEP| <`cwd-attr`_>]
@@ -1517,6 +1608,7 @@ Specify current process system runtime properties.
 `top-proc`_ is *mandatory* when a `top-cmd`_ statement is specified. It is
 *ignored* otherwise.
 
+Use `env-attr`_ to specify the |environment| to run the command process with.
 Use `umask-attr`_ to specify the |umask| to run the command process with.
 Use `caps-attr`_ to specify the |capabilities| to run the command process with.
 Use `cwd-attr`_ to specify the |cwd| to run the command process with.
@@ -1528,6 +1620,11 @@ Use `fds-attr`_ to specify the which unwanted file descriptors to close.
 
    # Specify a command to run
    proc = {
+           # Command process's environment variables
+           env = [ "USER",
+                   "HOME",
+                   "MYBOOLVAR=",
+                   "MYSTRINGVAR=a string value" ]
            # Command process's file mode creation mask
            umask = 0137
            # Command process will run with this user / group credentials
