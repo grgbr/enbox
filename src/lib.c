@@ -1721,11 +1721,18 @@ enbox_validate_env_vars(const struct enbox_env_var vars[__restrict_arr],
 		return -E2BIG;
 
 	for (v = 0; v < nr; v++) {
-		ssize_t err;
+		ssize_t      err;
+		unsigned int c;
 
 		err = enbox_validate_env_var(&vars[v]);
 		if (err < 0)
 			return (int)err;
+
+		for (c = 0; c < nr; c++) {
+			if (c != v)
+				if (!strcmp(vars[c].name, vars[v].name))
+					return -EEXIST;
+		}
 	}
 
 	return 0;

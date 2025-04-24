@@ -417,7 +417,7 @@ close:
 	return ret;
 }
 
-static __enbox_nonull(1, 2) __enbox_nothrow
+static __enbox_nonull(1, 2)
 void
 enbox_show_proc(FILE * __restrict stdio,
                 char * __restrict buffer,
@@ -427,7 +427,8 @@ enbox_show_proc(FILE * __restrict stdio,
 	enbox_assert(buffer);
 	enbox_assert(size >= PATH_MAX);
 
-	ssize_t sz;
+	ssize_t              sz;
+	const char * const * env = (const char * const *)environ;
 
 	fprintf(stdio, "pid                %d\n", getpid());
 	fprintf(stdio, "pgid               %d\n", getpgrp());
@@ -455,6 +456,15 @@ enbox_show_proc(FILE * __restrict stdio,
 		        -(int)sz);
 	else
 		fprintf(stdio, "command line       %s\n", buffer);
+
+	fputs("\nENVIRONMENT\n", stdio);
+	if (env && *env) {
+		do {
+			fprintf(stdio, "%s\n", *env++);
+		} while (*env);
+	}
+	else
+		fputs("none\n", stdio);
 }
 
 const char *

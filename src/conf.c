@@ -2284,6 +2284,7 @@ enbox_load_proc_env(const config_setting_t * __restrict setting,
 	int                    nr;
 	struct enbox_env_var * vars;
 	int                    v;
+	int                    cnt;
 	int                    err;
 
 	if (!config_setting_is_array(setting)) {
@@ -2306,9 +2307,10 @@ enbox_load_proc_env(const config_setting_t * __restrict setting,
 	if (!vars)
 		return -ENOMEM;
 
-	for (v = 0; v < nr; v++) {
+	for (v = 0, cnt = 0; v < nr; v++) {
 		const config_setting_t * set;
 		const char *             str;
+		int                      c;
 
 		set = config_setting_get_elem(setting, (unsigned int)v);
 		enbox_assert(set);
@@ -2320,20 +2322,35 @@ enbox_load_proc_env(const config_setting_t * __restrict setting,
 			goto free;
 		}
 
-		err = enbox_parse_env_var(&vars[v], str);
+		err = enbox_parse_env_var(&vars[cnt], str);
 		if (err)
 			goto free;
+
+		for (c = 0; c < cnt; c++) {
+			if (!strcmp(vars[c].name, vars[cnt].name)) {
+STROLL_IGNORE_WARN("-Wcast-qual")
+				free((void *)vars[cnt].name);
+STROLL_RESTORE_WARN
+				enbox_conf_warn(set,
+				                "'%s': duplicate environment variable ignored",
+				                vars[c].name);
+				break;
+			}
+		}
+
+		if (c == cnt)
+			cnt++;
 	}
 
-	proc->env_nr = (unsigned int)nr;
+	proc->env_nr = (unsigned int)cnt;
 	proc->env = vars;
 
 	return 0;
 
 free:
-	while (v--) {
+	while (cnt--) {
 STROLL_IGNORE_WARN("-Wcast-qual")
-		free((void *)vars[v].name);
+		free((void *)vars[cnt].name);
 STROLL_RESTORE_WARN
 	}
 	free(vars);
