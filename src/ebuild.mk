@@ -42,6 +42,8 @@ pam_enbox.so-ldflags = $(filter-out %nodlopen,$(common-ldflags)) \
 pam_enbox.so-pkgconf:= libelog libutils
 pam_enbox.so-path   := $(LIBDIR)/security/pam_enbox.so
 
+$(BUILDDIR)/pam_enbox.so: $(BUILDDIR)/libenbox.so
+
 bins                 = $(call kconf_enabled,ENBOX_TOOL,enbox)
 enbox-objs           = enbox.o
 enbox-cflags         = $(common-cflags)

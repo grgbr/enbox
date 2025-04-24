@@ -10,8 +10,8 @@
 
 #include "priv.h"
 #include "caps.h"
+#include <sys/mount.h>
 #include <linux/sched.h>
-#include <linux/mount.h>
 
 #define ENBOX_VALID_NAMESPACE_FLAGS \
 	(CLONE_NEWNS | \
