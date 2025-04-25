@@ -344,11 +344,17 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
 	if (err)
 		goto err;
 
+#if 0
 	/*
 	 * Just to be sure, clear all ambient capabilities: we do require none
 	 * of them since the targeted use case is not meant to call execve(2).
+	 *
+	 * Do not compile this since ambient capabilities are implicitly dropped
+	 * when enbox_set_inh_caps() / enbox_save_epi_caps() clear the
+	 * inheritable set above.
 	 */
 	enbox_clear_amb_caps();
+#endif
 
 	return 0;
 
@@ -640,7 +646,17 @@ enbox_enforce_safe(uint64_t kept_caps)
 	if (err)
 		goto err;
 
+#if 0
+	/*
+	 * We would no want our children to acquire capabilities from the actual
+	 * ambient set...
+	 *
+	 * Do not compile this since ambient capabilities are implicitly dropped
+	 * when enbox_set_inh_caps() / enbox_save_epi_caps() clear the
+	 * inheritable set below
+	 */
 	enbox_clear_amb_caps();
+#endif
 
 	enbox_set_eff_caps(&caps, kept_caps);
 	enbox_set_perm_caps(&caps, kept_caps);
@@ -700,13 +716,19 @@ enbox_ensure_safe(uint64_t kept_caps)
 		enbox_assert(!err);
 	}
 
+#if 0
 	/*
 	 * We would no want our children to acquire capabilities from the actual
 	 * ambient set...
+	 *
+	 * Do not compile this since ambient capabilities are implicitly dropped
+	 * when enbox_set_inh_caps() / enbox_save_epi_caps() clear the
+	 * inheritable set below
 	 */
 	enbox_clear_amb_caps();
+#endif
 
-	/* This should never fail since we only drop capabilities... */
+	/* This should never fail since we only drop capabilities. */
 	enbox_set_eff_caps(&caps, enbox_get_eff_caps(&caps) & kept_caps);
 	enbox_set_perm_caps(&caps, enbox_get_perm_caps(&caps) & kept_caps);
 	enbox_set_inh_caps(&caps, 0);

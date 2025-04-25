@@ -44,6 +44,18 @@ pam_enbox.so-path   := $(LIBDIR)/security/pam_enbox.so
 
 $(BUILDDIR)/pam_enbox.so: $(BUILDDIR)/libenbox.so
 
+solibs                       += libenbox_postproc.so
+libenbox_postproc.so-objs    := postproc.o
+libenbox_postproc.so-cflags  := $(common-cflags) -DPIC -fpic
+libenbox_postproc.so-ldflags := \
+	$(common-ldflags) \
+	-fvisibility=internal \
+	-Wl,-z,initfirst -Wl,-init=enbox_postproc_init \
+	-lenbox \
+	-shared -Bsymbolic -fpic -Wl,-soname,libenbox_postproc.so
+
+$(BUILDDIR)/libenbox_postproc.so: $(BUILDDIR)/libenbox.so
+
 bins                 = $(call kconf_enabled,ENBOX_TOOL,enbox)
 enbox-objs           = enbox.o
 enbox-cflags         = $(common-cflags)

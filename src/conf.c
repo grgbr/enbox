@@ -3013,7 +3013,14 @@ enbox_run_pam_conf(const struct enbox_pam_conf * __restrict conf, gid_t gid)
 	if (err)
 		return err;
 
+#if 0
+	/*
+	 * Do not compile this since ambient capabilities are implicitly dropped
+	 * when enbox_set_inh_caps() / enbox_save_epi_caps() clear the
+	 * inheritable set below.
+	 */
 	enbox_clear_amb_caps();
+#endif
 
 	enbox_load_epi_caps(&caps);
 	enbox_set_inh_caps(&caps, 0);
