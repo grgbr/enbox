@@ -372,7 +372,21 @@ enbox_clear_epi_caps(void)
 
 	memset(&caps, 0, sizeof(caps));
 
-	/* This should never fail since we simply drop all capabilities... */
+	/* This should never fail since we simply drop capabilities... */
+	err = _enbox_save_epi_caps(&caps);
+	enbox_assert(!err);
+}
+
+void
+enbox_clear_inh_caps(void)
+{
+	struct enbox_caps caps;
+	int               err __unused;
+
+	enbox_load_epi_caps(&caps);
+	enbox_set_inh_caps(&caps, 0);
+
+	/* This should never fail since we simply drop capabilities... */
 	err = _enbox_save_epi_caps(&caps);
 	enbox_assert(!err);
 }

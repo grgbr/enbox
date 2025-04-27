@@ -376,9 +376,31 @@ enbox_save_epi_caps(struct enbox_caps * __restrict caps)
  * @see
  * - sections `Thread capability sets` of @man{capabilities(7)}
  * - @man{capget(2)}
+ * - @man{capset(2)}
  */
 extern void
 enbox_clear_epi_caps(void) __export_intern;
 
+
+/**
+ * @internal
+ *
+ * Clear inheritable and ambient capability sets.
+ *
+ * Remove all capabilities from current thread's inheritable sets. Ambient
+ * capability set is also implicitly cleared.
+ *
+ * For more informations about Linux capability sets, refer to section `Thread
+ * capability sets` of @man{capabilities(7)}.
+ *
+ * No particular privileges is required to perform this operation.
+ *
+ * @see
+ * - sections `Thread capability sets` of @man{capabilities(7)}
+ * - @man{capget(2)}
+ * - @man{capset(2)}
+ */
+void
+enbox_clear_inh_caps(void) __export_intern;
 
 #endif /* _ENBOX_CAPS_H */

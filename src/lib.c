@@ -1670,6 +1670,8 @@ enbox_validate_env_str(const char * __restrict name,
 	return nlen + 1 + vlen;
 }
 
+#if defined(CONFIG_ENBOX_ASSERT)
+
 static __enbox_nonull(1) __enbox_nothrow __enbox_pure __warn_result
 ssize_t
 enbox_validate_env_var(const struct enbox_env_var * __restrict var)
@@ -1700,11 +1702,6 @@ enbox_validate_env_var(const struct enbox_env_var * __restrict var)
 
 	return nlen + 1 + vlen;
 }
-
-#define enbox_assert_env_var(_var) \
-	enbox_assert(enbox_validate_env_var(_var) > 0)
-
-#if defined(CONFIG_ENBOX_ASSERT)
 
 int
 enbox_validate_env_vars(const struct enbox_env_var vars[__restrict_arr],
@@ -1739,6 +1736,9 @@ enbox_validate_env_vars(const struct enbox_env_var vars[__restrict_arr],
 }
 
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
+
+#define enbox_assert_env_var(_var) \
+	enbox_assert(enbox_validate_env_var(_var) > 0)
 
 static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
 int

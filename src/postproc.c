@@ -5,22 +5,55 @@
  * Copyright (C) 2022-2025 Grégor Boirie <gregor.boirie@free.fr>
  ******************************************************************************/
 
-#include "common.h"
+#include "caps.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <sysexits.h>
 
-extern void enbox_postproc_init(void);
+#define ENBOX_KEEP_INH_CAPS_MAX (8U)
 
-#define ENBOX_CAPS_NR \
-	(CAP_LAST_CAP + 1)
-#define ENBOX_CAPS_VALID \
-	((UINT64_C(1) << ENBOX_CAPS_NR) - 1)
-#define ENBOX_CAPS_REJECTED \
-	(ENBOX_CAP(CAP_SETPCAP) | ENBOX_CAP(CAP_SYS_ADMIN))
-#define ENBOX_CAPS_ALLOWED \
-	(ENBOX_CAPS_VALID & ~ENBOX_CAPS_REJECTED)
+#define ENBOX_KEEP_INH_CAPS_STR_SIZE \
+	(sizeof(STROLL_STRING(ENBOX_KEEP_INH_CAPS_MAX)) - 1)
 
+struct elog * enbox_logger __unused;
+
+static __ctor(101)
 void
 enbox_postproc_init(void)
 {
-	enbox_setup(NULL);
-	enbox_ensure_safe(ENBOX_CAPS_ALLOWED);
+	char * keep;
+	int    ret;
+
+	keep = getenv("ENBOX_KEEP_INH_CAPS");
+	if (keep && (keep[0] != '\0')) {
+		unsigned long cnt;
+		char *        err;
+
+		cnt = strtoul(keep, &err, 0);
+		if ((*err == '\0') && cnt && (cnt <= ENBOX_KEEP_INH_CAPS_MAX)) {
+			char str[ENBOX_KEEP_INH_CAPS_STR_SIZE];
+
+			if (!--cnt)
+				goto unset;
+
+			ret = snprintf(str, sizeof(str), "%lu", cnt);
+			if ((ret > 0) && ((size_t)ret < sizeof(str))) {
+				ret = setenv("ENBOX_KEEP_INH_CAPS", str, 1);
+				if (!ret)
+					return;
+			}
+
+			enbox_assert(errno != EINVAL);
+			exit(EX_OSERR);
+		}
+	}
+
+	enbox_clear_inh_caps();
+
+	ret = unsetenv("LD_PRELOAD");
+	enbox_assert(!ret);
+
+unset:
+	ret = unsetenv("ENBOX_KEEP_INH_CAPS");
+	enbox_assert(!ret);
 }
