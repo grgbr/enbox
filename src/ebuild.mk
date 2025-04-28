@@ -51,6 +51,8 @@ pam_enbox.so-ldflags         := $(filter-out %nodlopen,$(common-ldflags)) \
 pam_enbox.so-pkgconf         := libelog libutils
 pam_enbox.so-path            := $(LIBDIR)/security/pam_enbox.so
 
+$(BUILDDIR)/pam_enbox.so: | $(BUILDDIR)/libenbox.so
+
 solibs                       += libenbox_postproc.so
 libenbox_postproc.so-objs    := postproc.o
 libenbox_postproc.so-cflags  := $(common-cflags) -DPIC -fpic
@@ -138,12 +140,12 @@ install: _install-ld_preload
 _install-ld_preload:
 	$(call install_recipe,--mode=644, \
 	                      $(SRCDIR)/ld.so.preload, \
-	                      $(DATADIR)/enbox/ld.so.preload)
+	                      $(DESTDIR)$(DATADIR)/enbox/ld.so.preload)
 
 uninstall: _uninstall-ld_preload
 
 .PHONY: _uninstall-ld_preload
 _uninstall-ld_preload:
-	$(call rm_recipe,$(DATADIR)/enbox/ld.so.preload)
+	$(call rm_recipe,$(DESTDIR)$(DATADIR)/enbox/ld.so.preload)
 
 # ex: filetype=make :
