@@ -132,4 +132,18 @@ _clean-generated:
 	$(call rm_recipe,$(BUILDDIR)/capabilities.h)
 	$(call rm_recipe,$(BUILDDIR)/capabilities.i)
 
+install: _install-ld_preload
+
+.PHONY: _install-ld_preload
+_install-ld_preload:
+	$(call install_recipe,--mode=644, \
+	                      $(SRCDIR)/ld.so.preload, \
+	                      $(DATADIR)/enbox/ld.so.preload)
+
+uninstall: _uninstall-ld_preload
+
+.PHONY: _uninstall-ld_preload
+_uninstall-ld_preload:
+	$(call rm_recipe,$(DATADIR)/enbox/ld.so.preload)
+
 # ex: filetype=make :

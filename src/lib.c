@@ -2016,9 +2016,11 @@ void
 enbox_destroy_env_vect(char ** __restrict env)
 {
 	if (env) {
-		while (*env) {
-			free(*env);
-			env++;
+		char ** ptr = env;
+
+		while (*ptr) {
+			free(*ptr);
+			ptr++;
 		}
 
 		free(env);

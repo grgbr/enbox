@@ -417,17 +417,22 @@ close:
 	return ret;
 }
 
-static __enbox_nonull(1, 2)
+static __enbox_nonull(1, 3, 4)
 void
-enbox_show_proc(FILE * __restrict stdio,
-                char * __restrict buffer,
-                size_t            size)
+enbox_show_proc(FILE * __restrict  stdio,
+                int                argc,
+                const char * const argv[__restrict_arr],
+                char * __restrict  buffer,
+                size_t             size)
 {
 	enbox_assert(stdio);
+	enbox_assert(argc);
+	enbox_assert(argv);
 	enbox_assert(buffer);
 	enbox_assert(size >= PATH_MAX);
 
 	ssize_t              sz;
+	int                  a;
 	const char * const * env = (const char * const *)environ;
 
 	fprintf(stdio, "pid                %d\n", getpid());
@@ -456,6 +461,11 @@ enbox_show_proc(FILE * __restrict stdio,
 		        -(int)sz);
 	else
 		fprintf(stdio, "command line       %s\n", buffer);
+
+	fprintf(stdio, "exec line          %s", argv[0]);
+	for (a = 1; a < argc; a++)
+		fprintf(stdio, " %s", argv[a]);
+	putc('\n', stdio);
 
 	fputs("\nENVIRONMENT\n", stdio);
 	if (env && *env) {
@@ -812,10 +822,15 @@ enbox_show_root_fs(struct etux_fstree_entry *      entry,
 }
 
 void
-enbox_show_status(FILE * __restrict stdio, int depth)
+enbox_show_status(FILE * __restrict  stdio,
+                  int                depth,
+                  int                argc,
+                  const char * const argv[__restrict_arr])
 {
 	enbox_assert_setup();
 	enbox_assert(stdio);
+	enbox_assert(argc);
+	enbox_assert(argv);
 
 	struct enbox_show * show;
 	int                 ret;
@@ -842,7 +857,7 @@ enbox_show_status(FILE * __restrict stdio, int depth)
 	enbox_show_creds(stdio);
 
 	fputs("\nPROCESS\n", stdio);
-	enbox_show_proc(stdio, show->buff, sizeof(show->buff));
+	enbox_show_proc(stdio, argc, argv, show->buff, sizeof(show->buff));
 
 	fputs("\nFILE DESC.  PATHNAME\n", stdio);
 	ret = etux_fstree_walk("/proc/self/fd", 0, enbox_show_proc_fd, show);

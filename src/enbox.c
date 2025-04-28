@@ -1254,7 +1254,7 @@ main(int argc, char * const argv[])
 		break;
 
 	case STAT_CMD:
-		enbox_show_status(stdout, 1);
+		enbox_show_status(stdout, 1, argc, (const char * const *)argv);
 		ret = EXIT_SUCCESS;
 		break;
 #endif /* defined(CONFIG_ENBOX_SHOW) */

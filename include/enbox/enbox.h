@@ -902,14 +902,20 @@ enbox_ensure_safe(uint64_t kept_caps) __leaf;
 #if defined(CONFIG_ENBOX_SHOW)
 
 extern void
-enbox_show_status(FILE * __restrict stdio, int depth)
-	__enbox_nonull(1);
+enbox_show_status(FILE * __restrict  stdio,
+                  int                depth,
+                  int                argc,
+                  const char * const argv[__restrict_arr])
+	__enbox_nonull(1, 4);
 
 #else  /* !defined(CONFIG_ENBOX_SHOW) */
 
-static inline __enbox_nonull(1)
+static inline __enbox_nonull(1, 4)
 void
-enbox_show_status(FILE * __restrict stdio __unused, unsigned int depth __unused)
+enbox_show_status(FILE * __restrict  stdio __unused,
+                  int                depth __unused,
+                  int                argc __unused,
+                  const char * const argv[__restrict_arr] __unused)
 {
 }
 

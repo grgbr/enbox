@@ -17,14 +17,14 @@
 
 struct elog * enbox_logger __unused;
 
-static __ctor(101)
+static __ctor()
 void
 enbox_postproc_init(void)
 {
 	char * keep;
 	int    ret;
 
-	keep = getenv("ENBOX_KEEP_INH_CAPS");
+	keep = secure_getenv("ENBOX_KEEP_INH_CAPS");
 	if (keep && (keep[0] != '\0')) {
 		unsigned long cnt;
 		char *        err;
@@ -49,9 +49,6 @@ enbox_postproc_init(void)
 	}
 
 	enbox_clear_inh_caps();
-
-	ret = unsetenv("LD_PRELOAD");
-	enbox_assert(!ret);
 
 unset:
 	ret = unsetenv("ENBOX_KEEP_INH_CAPS");
