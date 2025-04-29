@@ -1,0 +1,4 @@
+/* Assign local scope to all defined symbols. */
+{
+	local: *;
+};

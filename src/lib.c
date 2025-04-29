@@ -2074,7 +2074,7 @@ enbox_run_proc(const struct enbox_proc * __restrict proc,
 	int                   err;
 
 	if (cmd) {
-		char ** env;
+		char ** env = env; /* Avoid spurious warning... */
 
 		err = enbox_create_env_vect(proc->env, proc->env_nr, &env);
 		if (err)

@@ -10,18 +10,6 @@
 #include <stdio.h>
 #include <sysexits.h>
 
-/*
- * Redeclare stroll_assert_fail() symbol scope as internal to cleanup
- * libenbox_postproc.so symbol table.
- */
-extern void
-stroll_assert_fail(const char * __restrict prefix,
-                   const char * __restrict expr,
-                   const char * __restrict file,
-                   unsigned int            line,
-                   const char * __restrict func)
-	__nonull(1, 2, 3, 5) __noreturn __leaf __export_intern;
-
 #define ENBOX_KEEP_INH_CAPS_MAX (8U)
 
 #define ENBOX_KEEP_INH_CAPS_STR_SIZE \

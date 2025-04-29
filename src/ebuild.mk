@@ -18,7 +18,8 @@ common-cflags                := -Wall \
                                 -I ../include \
                                 $(EXTRA_CFLAGS)
 
-common-ldflags               := $(EXTRA_LDFLAGS) -Wl,--as-needed
+common-ldflags               := $(common-cflags) $(EXTRA_LDFLAGS) \
+                                -Wl,--as-needed
 
 ifneq ($(filter y,$(CONFIG_ENBOX_ASSERT)),)
 common-cflags                := $(filter-out -DNDEBUG,$(common-cflags))
@@ -53,16 +54,21 @@ pam_enbox.so-path            := $(LIBDIR)/security/pam_enbox.so
 
 $(BUILDDIR)/pam_enbox.so: | $(BUILDDIR)/libenbox.so
 
+# Build with a specific linker version script / map file to enforce all symbols
+# included from static library dependencies to be local symbols (builtin_caps.a
+# and libstroll.a)
+# For more informations, see
+# https://sourceware.org/binutils/docs/ld.html#VERSION
 solibs                       += libenbox_postproc.so
 libenbox_postproc.so-objs    := postproc.o
 libenbox_postproc.so-cflags  := $(common-cflags) -DPIC -fpic
 libenbox_postproc.so-ldflags := $(common-ldflags) \
-                                -fvisibility=internal \
-                                -fpic -shared -Bsymbolic \
-                                -Wl,-soname,libenbox_postproc.so \
-                                -l:builtin_caps.a
+	-fpic -shared -Bsymbolic \
+	-Wl,--version-script=$(SRCDIR)/libenbox_postproc.map \
+	-Wl,-soname,libenbox_postproc.so \
+	-l:builtin_caps.a
 ifneq ($(filter y,$(CONFIG_ENBOX_ASSERT)),)
-libenbox_postproc.so-ldflags += -Wl,--push-state,-static \
+libenbox_postproc.so-ldflags += -Wl,--push-state,-Bstatic \
                                 -lstroll \
                                 -Wl,--pop-state
 endif # ($(filter y,$(CONFIG_ENBOX_ASSERT)),)

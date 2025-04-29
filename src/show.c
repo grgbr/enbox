@@ -548,7 +548,7 @@ enbox_show_path(struct etux_fstree_entry * __restrict      entry,
 	if (!etux_fstree_entry_isdot(entry, iter)) {
 		int                 ret;
 		const char *        path;
-		int                 type;
+		int                 type = '?';
 		const struct stat * st;
 		char                mod[ENBOX_MODE_STRING_SIZE];
 		struct tm           tim;
@@ -566,10 +566,8 @@ enbox_show_path(struct etux_fstree_entry * __restrict      entry,
 		path = show->buff;
 
 		ret = etux_fstree_entry_type(entry, iter);
-		if (ret < 0) {
-			type = '?';
+		if (ret < 0)
 			goto invalid;
-		}
 
 		switch (ret) {
 		case DT_REG:
