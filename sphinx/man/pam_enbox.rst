@@ -80,6 +80,22 @@ group::
 
    session required pam_enbox.so /etc/security/enbox_login.conf
 
+Notes
+=====
+
+Note that contrary to the |enbox(1)| tool, the :program:`pam_enbox` PAM_ module
+treats the following statements in a specific way when found within the
+configuration file passed as the :option:`CONFIG` argument :
+
+* an error occurs when a ``cmd`` statement is specified (see the
+  :ref:`top-cmd <sect-main-top_cmd>` section of Enbox_\’s
+  :doc:`User guide </main>` ;
+* an error occurs when a ``caps`` attribute is specified within a top-level
+  ``proc`` statement (see :ref:`caps-attr <sect-main-caps_attr>` and
+  :ref:`top-proc <sect-main-top_proc>` sections of Enbox_\’s
+  :doc:`User guide </main>`.
+
+
 See also
 ========
 

@@ -403,7 +403,6 @@ enbox_validate_env(const char * const envp[__restrict_arr])
 
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
 
-static __enbox_nothrow __warn_result
 int
 enbox_clean_secbitsn_bound_caps(void)
 {

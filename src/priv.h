@@ -55,6 +55,11 @@ enbox_get_group_name(gid_t gid)
 	return grp ? grp->gr_name : "??";
 }
 
+extern
+int
+enbox_clean_secbitsn_bound_caps(void)
+	__enbox_nothrow  __leaf __warn_result __export_intern;
+
 #if defined(CONFIG_ENBOX_SHOW)
 
 extern bool

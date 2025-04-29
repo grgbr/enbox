@@ -599,9 +599,9 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
  * - Trying to change to the same UID as the current process effective UID will
  *   lead to unpredictable result.
  * - Trying to change to a zero UID will lead to unpredictable result.
- * - Does not preserve `CAP_SYS_ADMIN`, `CAP_SETPCAP`, `CAP_SETUID`, and
- *   `CAP_SETGID` capabilities across change IDs operation. Trying to do so
- *   will lead to unpredictable results.
+ * - Does not preserve `CAP_SYS_ADMIN`, `CAP_SETPCAP`, and `CAP_SETUID`
+ *   capabilities across change IDs operation. Trying to do so will lead to
+ *   unpredictable results.
  *
  * @param[in]    pwd_entry A password file entry pointer to the user to change
  *                         to
@@ -893,6 +893,11 @@ enbox_ensure_safe(uint64_t kept_caps) __leaf;
  *
  * @param[in] stdio The standard I/O stream onto which to print the report.
  * @param[in] depth Maximum root filesystem depth to show
+ * @param[in] argc  Number of valid string pointers passed throug @p argv
+ * @param[in] argv  Array of current process arguments string pointers
+ *
+ * @warning
+ * @p argv argument *MUST* be termated by a `NULL` pointer.
  *
  * @see
  * - @man{capabilities(7)}

@@ -159,6 +159,8 @@ isolation handling:
 Features
 ========
 
+Containment logic implemented provides:
+
 * optional process isolation thanks to |namespaces|
 * optional privileges restriction  thanks to |capabilities| and |credentials|
 * manage filesystem objects
@@ -173,9 +175,14 @@ Features
 Usage
 =====
 
-Enbox_ comes with the :program:`enbox` tool to load and run arbitray
-|configuration|\s. Refer to :doc:`/man/enbox` manual page to for more
-informations.
+Enbox_ comes with the :program:`enbox` tool to load and run arbitrary programs
+within secured containers according to a specified |configuration|.
+Refer to :doc:`/man/enbox` manual page to for more informations.
+
+In addition, Enbox_ also provides the :program:`pam_enbox` PAM_ module that,
+when declared within a PAM_ stack configuration, allows to perform containment
+at PAM_ session establishment.
+Refer to :doc:`/man/pam_enbox` manual page to for more informations.
 
 .. _sect-main-configuration:
 
@@ -1587,6 +1594,8 @@ content.
                    ...
            )
    }
+
+.. _sect-main-top_proc:
 
 top-proc
 ********

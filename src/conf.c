@@ -3003,13 +3003,7 @@ enbox_run_pam_conf(const struct enbox_pam_conf * __restrict conf, gid_t gid)
 
 	enbox_enable_nonewprivs();
 
-	err = enbox_save_secbits(SECBIT_NOROOT |
-	                         SECBIT_NO_CAP_AMBIENT_RAISE |
-	                         SECURE_ALL_LOCKS);
-	if (err)
-		return err;
-
-	err = enbox_clear_bound_caps();
+	err = enbox_clean_secbitsn_bound_caps();
 	if (err)
 		return err;
 
