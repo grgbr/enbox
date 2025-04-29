@@ -226,15 +226,13 @@ enbox_switch_ids(const struct passwd * __restrict pwd_entry, bool drop_supp)
 	return 0;
 }
 
-/* The set of capabilities required to perform a change of UIDs / * GIDs... */
+/* The set of capabilities required to perform a change of UIDs / GIDs... */
 #define ENBOX_CAPS_CHIDS_MASK \
 	(ENBOX_CAP(CAP_SETPCAP) | ENBOX_CAP(CAP_SETUID) | ENBOX_CAP(CAP_SETGID))
 
 /* Securebits used to perform a change of UIDs / GIDs... */
 #define ENBOX_CAPS_SECBITS \
-	(SECBIT_NOROOT | SECBIT_NOROOT_LOCKED | \
-	 SECBIT_KEEP_CAPS_LOCKED | \
-	 SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED)
+	(SECBIT_NOROOT | SECBIT_NO_CAP_AMBIENT_RAISE | SECURE_ALL_LOCKS)
 
 int
 enbox_change_ids(const struct passwd * __restrict pwd_entry,
@@ -244,7 +242,7 @@ enbox_change_ids(const struct passwd * __restrict pwd_entry,
 	enbox_assert_setup();
 	enbox_assert(!enbox_validate_pwd(pwd_entry, true));
 	enbox_assert(pwd_entry->pw_uid != enbox_uid);
-	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
+	enbox_assert(!(kept_caps & ENBOX_CAP(CAP_SETUID)));
 	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
 
 	struct enbox_caps caps;
@@ -405,6 +403,28 @@ enbox_validate_env(const char * const envp[__restrict_arr])
 
 #endif /* defined(CONFIG_ENBOX_ASSERT) */
 
+static __enbox_nothrow __warn_result
+int
+enbox_clean_secbitsn_bound_caps(void)
+{
+	int err;
+
+	/* Lock securebits in a fully restrictive state. */
+	err = enbox_save_secbits(ENBOX_CAPS_SECBITS);
+	if (err)
+		return err;
+
+	/*
+	 * Clear entire capability bounding set to inhibit file capabilities.
+	 * As stated into capabilities(7):
+	 *   -- Removing a capability from the bounding set does not remove it
+	 *      from the thread's inheritable set. However it does prevent the
+	 *      capability from being added back into the thread's inheritable
+	 *      set in the future.
+	 */
+	return enbox_clear_bound_caps();
+}
+
 static __enbox_nonull(1, 2, 3) __warn_result
 int
 enbox_execve_with_caps(struct enbox_caps * __restrict caps,
@@ -517,11 +537,8 @@ enbox_execve(const char * __restrict path,
 		                             kept_caps);
 	}
 	else {
-		err = enbox_save_secbits(ENBOX_CAPS_SECBITS);
-		if (err)
-			goto err;
 
-		err = enbox_clear_bound_caps();
+		err = enbox_clean_secbitsn_bound_caps();
 		if (err)
 			goto err;
 
@@ -553,7 +570,7 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
 	enbox_assert(path);
 	enbox_assert(!enbox_validate_exec((const char * const *)argv));
 	enbox_assert(!envp || !enbox_validate_env((const char * const *)envp));
-	enbox_assert(!(kept_caps & ENBOX_CAPS_CHIDS_MASK));
+	enbox_assert(!(kept_caps & ENBOX_CAP(CAP_SETUID)));
 	enbox_assert(!(kept_caps & ~ENBOX_CAPS_ALLOWED));
 
 	struct enbox_caps caps;
@@ -561,64 +578,87 @@ enbox_change_idsn_execve(const struct passwd * __restrict pwd_entry,
 
 	enbox_enable_nonewprivs();
 
-	/*
-	 * A change IDs is required before execve(2).
-	 *
-	 * Make sure we can modify :
-	 * - capabilities (at least, to clear the bounding set),
-	 * - and change UIDs / GIDs.
-	 * Also make sure `kept_caps' are added to the permitted set so
-	 * that we may enable them after the change IDs operation.
-	 *
-	 * Prepare capability sets for preservation across next change
-	 * IDs and execve(2). Basically, this means we must:
-	 * - enable CAP_SETUID and CAP_SETGID into the effective set to
-	 *   perform successful change IDs operation ;
-	 * - enable CAP_SETPCAP into the effective set for later
-	 *   bounding set and securebits configuration ;
-	 * - make sure `kept_caps' are added to the permitted set so
-	 *   that we may enable them after the change IDs operation.
-	 * - cleanup inheritable set to make things deterministic (this
-	 *   is not really required though).
-	 */
-	enbox_load_epi_caps(&caps);
-	enbox_raise_perm_caps(&caps, ENBOX_CAPS_CHIDS_MASK | kept_caps);
-	enbox_raise_eff_caps(&caps, ENBOX_CAPS_CHIDS_MASK);
-	enbox_set_inh_caps(&caps, 0);
-	err = enbox_save_epi_caps(&caps);
-	if (err)
-		goto err;
+	if (kept_caps) {
+		/*
+		 * A change IDs is required before execve(2).
+		 *
+		 * Make sure we can modify :
+		 * - capabilities (at least, to clear the bounding set),
+		 * - and change UIDs / GIDs.
+		 * Also make sure `kept_caps' are added to the permitted set so
+		 * that we may enable them after the change IDs operation.
+		 *
+		 * Prepare capability sets for preservation across next change
+		 * IDs and execve(2). Basically, this means we must:
+		 * - enable CAP_SETUID and CAP_SETGID into the effective set to
+		 *   perform successful change IDs operation ;
+		 * - enable CAP_SETPCAP into the effective set for later
+		 *   bounding set and securebits configuration ;
+		 * - make sure `kept_caps' are added to the permitted set so
+		 *   that we may enable them after the change IDs operation.
+		 * - cleanup inheritable set to make things deterministic (this
+		 *   is not really required though).
+		 */
+		enbox_load_epi_caps(&caps);
+		enbox_raise_perm_caps(&caps, ENBOX_CAPS_CHIDS_MASK | kept_caps);
+		enbox_raise_eff_caps(&caps, ENBOX_CAPS_CHIDS_MASK);
+		enbox_set_inh_caps(&caps, 0);
+		err = enbox_save_epi_caps(&caps);
+		if (err)
+			goto err;
 
-	/*
-	 * Request system to preserve capabilities (into the permitted
-	 * set) across change IDs operation.
-	 */
-	err = enbox_enable_keep_caps(true);
-	if (err)
-		goto err;
+		/*
+		 * Request system to preserve capabilities (into the permitted
+		 * set) across change IDs operation.
+		 */
+		err = enbox_enable_keep_caps(true);
+		if (err)
+			goto err;
 
-	/*
-	 * Change user and group IDs.
-	 * On return from enbox_switch_ids() / setresuid(2), effective
-	 * and ambients sets will be cleared.
-	 */
-	err = enbox_switch_ids(pwd_entry, drop_supp);
-	if (err)
-		goto err;
+		/*
+		 * Change user and group IDs.
+		 * On return from enbox_switch_ids() / setresuid(2), effective
+		 * and ambients sets will be cleared.
+		 */
+		err = enbox_switch_ids(pwd_entry, drop_supp);
+		if (err)
+			goto err;
 
-	/*
-	 * Re-enable CAP_SETPCAP into the effective set for later
-	 * bounding set and securebits configuration.
-	 * `kept_caps' capabilities have already been enabled into the
-	 * permitted set above, allowing later configuration of the
-	 * ambient set.
-	 * See enbox_execve_with_caps() for more details.
-	 */
-	enbox_raise_eff_caps(&caps, ENBOX_CAP(CAP_SETPCAP));
+		/*
+		 * Re-enable CAP_SETPCAP into the effective set for later
+		 * bounding set and securebits configuration.
+		 * `kept_caps' capabilities have already been enabled into the
+		 * permitted set above, allowing later configuration of the
+		 * ambient set.
+		 * See enbox_execve_with_caps() for more details.
+		 */
+		enbox_raise_eff_caps(&caps, ENBOX_CAP(CAP_SETPCAP));
 
-	/* Complete capability configuration and call execve(2). */
-	err = enbox_execve_with_caps(&caps, path, argv, envp, kept_caps);
-	enbox_assert(err);
+		/* Complete capability configuration and call execve(2). */
+		err = enbox_execve_with_caps(&caps, path, argv, envp, kept_caps);
+		enbox_assert(err);
+	}
+	else {
+		err = enbox_clean_secbitsn_bound_caps();
+		if (err)
+			goto err;
+
+		/*
+		 * Change user and group IDs.
+		 * On return from enbox_switch_ids() / setresuid(2), effective
+		 * and ambients sets will be cleared.
+		 */
+		err = enbox_switch_ids(pwd_entry, drop_supp);
+		if (err)
+			goto err;
+
+		enbox_clear_epi_caps();
+
+		/* Complete capability configuration and call execve(2). */
+		execve(path, argv, envp);
+		err = -errno;
+		enbox_assert(err);
+	}
 
 err:
 	enbox_info("failed to change IDs and execute: %s (%d)",
@@ -638,11 +678,7 @@ enbox_enforce_safe(uint64_t kept_caps)
 
 	enbox_enable_nonewprivs();
 
-	err = enbox_save_secbits(ENBOX_CAPS_SECBITS);
-	if (err)
-		goto err;
-
-	err = enbox_clear_bound_caps();
+	err = enbox_clean_secbitsn_bound_caps();
 	if (err)
 		goto err;
 
@@ -704,9 +740,7 @@ enbox_ensure_safe(uint64_t kept_caps)
 		 * However, since we just want to provide the caller with the
 		 * safest environment we can, ignore errors.
 		 */
-		enbox_save_secbits(SECBIT_NOROOT |
-		                   SECBIT_NO_CAP_AMBIENT_RAISE |
-		                   SECURE_ALL_LOCKS);
+		enbox_save_secbits(ENBOX_CAPS_SECBITS);
 
 		/*
 		 * This should never fail thanks to the enabled SETPCAP
