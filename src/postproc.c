@@ -15,8 +15,6 @@
 #define ENBOX_KEEP_INH_CAPS_STR_SIZE \
 	(sizeof(STROLL_STRING(ENBOX_KEEP_INH_CAPS_MAX)) - 1)
 
-struct elog * enbox_logger __unused;
-
 static __ctor()
 void
 enbox_postproc_init(void)

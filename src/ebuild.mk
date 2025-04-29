@@ -60,7 +60,11 @@ libenbox_postproc.so-ldflags := $(common-ldflags) \
                                 -fpic -shared -Bsymbolic \
                                 -Wl,-soname,libenbox_postproc.so \
                                 -l:builtin_caps.a
-libenbox_postproc.so-pkgconf := libelog libstroll
+ifneq ($(filter y,$(CONFIG_ENBOX_ASSERT_API)),)
+libenbox_postproc.so-ldflags += -Wl,--push-state,-static \
+                                -lstroll \
+                                -Wl,--pop-state
+endif
 
 bins                         := $(call kconf_enabled,ENBOX_TOOL,enbox)
 enbox-objs                   := enbox.o
