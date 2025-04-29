@@ -279,12 +279,12 @@ enbox_show_proc_ns(struct etux_fstree_entry * __restrict      entry,
 				iter,
 				show->buff,
 				ENBOX_PROC_NSLEN_MAX);
-			if ((len < 5) || (len > ENBOX_PROC_NSLEN_MAX))
+			if ((len < 5) || ((size_t)len > ENBOX_PROC_NSLEN_MAX))
 				goto invalid;
 
-			ns = index(show->buff, ':');
+			ns = strchr(show->buff, ':');
 			if (!ns ||
-			    ((len - (ns - show->buff)) < 3U) ||
+			    (((size_t)len - (size_t)(ns - show->buff)) < 3U) ||
 			    (ns[1] != '['))
 				goto invalid;
 			if (show->buff[--len] != ']')
@@ -620,7 +620,7 @@ enbox_show_path(struct etux_fstree_entry * __restrict      entry,
 				        "  %19lu  %19.19sZ  %s -> %s\n",
 				        type,
 				        mod,
-				        st->st_nlink,
+				        (unsigned long)st->st_nlink,
 				        (unsigned int)st->st_uid,
 				        (unsigned int)st->st_gid,
 				        major(st->st_dev),
@@ -636,7 +636,7 @@ enbox_show_path(struct etux_fstree_entry * __restrict      entry,
 				        "  %s -> ??  #%s (%d)#\n",
 				        type,
 				        mod,
-				        st->st_nlink,
+				        (unsigned long)st->st_nlink,
 				        (unsigned int)st->st_uid,
 				        (unsigned int)st->st_gid,
 				        major(st->st_dev),
@@ -653,7 +653,7 @@ enbox_show_path(struct etux_fstree_entry * __restrict      entry,
 			        "  %19.19sZ  %s\n",
 			        type,
 			        mod,
-			        st->st_nlink,
+			        (unsigned long)st->st_nlink,
 			        (unsigned int)st->st_uid,
 			        (unsigned int)st->st_gid,
 			        major(st->st_dev),
