@@ -20,10 +20,10 @@ common-cflags                := -Wall \
 
 common-ldflags               := $(EXTRA_LDFLAGS) -Wl,--as-needed
 
-ifneq ($(filter y,$(CONFIG_ENBOX_ASSERT_API)),)
+ifneq ($(filter y,$(CONFIG_ENBOX_ASSERT)),)
 common-cflags                := $(filter-out -DNDEBUG,$(common-cflags))
 common-ldflags               := $(filter-out -DNDEBUG,$(common-ldflags))
-endif # ($(filter y,$(CONFIG_ENBOX_ASSERT_API)),)
+endif # ($(filter y,$(CONFIG_ENBOX_ASSERT)),)
 
 builtins                     := builtin_caps.a
 builtin_caps.a-objs          := caps.o
@@ -57,14 +57,15 @@ solibs                       += libenbox_postproc.so
 libenbox_postproc.so-objs    := postproc.o
 libenbox_postproc.so-cflags  := $(common-cflags) -DPIC -fpic
 libenbox_postproc.so-ldflags := $(common-ldflags) \
+                                -fvisibility=internal \
                                 -fpic -shared -Bsymbolic \
                                 -Wl,-soname,libenbox_postproc.so \
                                 -l:builtin_caps.a
-ifneq ($(filter y,$(CONFIG_ENBOX_ASSERT_API)),)
+ifneq ($(filter y,$(CONFIG_ENBOX_ASSERT)),)
 libenbox_postproc.so-ldflags += -Wl,--push-state,-static \
                                 -lstroll \
                                 -Wl,--pop-state
-endif
+endif # ($(filter y,$(CONFIG_ENBOX_ASSERT)),)
 
 bins                         := $(call kconf_enabled,ENBOX_TOOL,enbox)
 enbox-objs                   := enbox.o
