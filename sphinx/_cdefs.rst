@@ -93,6 +93,7 @@
 .. |mq_overview(7)|        replace:: :manpage:`mq_overview(7)`
 .. |environ(7)|            replace:: :manpage:`environ(7)`
 .. |pam(8)|                replace:: :manpage:`pam(8)`
+.. |ld.so(8)|              replace:: :manpage:`ld.so(8)`
 
 
 ..

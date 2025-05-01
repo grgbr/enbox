@@ -33,9 +33,8 @@ Description
 The :program:`pam_enbox` PAM_ module sets up a container for a session
 according to an Enbox_ configuration defined into the file specified by the
 given :option:`CONFIG` argument.
-The module isolates the PAM_ session from the |host|
-system. For additional information about available features, refer to the |user
-guide|.
+The module may isolate the PAM_ session from the |host| system. For additional
+information about available features, refer to the |user guide|.
 
 Arguments
 =========

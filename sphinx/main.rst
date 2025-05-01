@@ -5,6 +5,9 @@
 
 .. include:: _cdefs.rst
 
+.. |SYSCONFDIR| replace:: :external+ebuild:ref:`var-sysconfdir`
+.. |DATADIR|    replace:: :external+ebuild:ref:`var-datadir`
+
 .. _sect-main-overview:
 
 Overview
@@ -22,14 +25,9 @@ other processes on the |host| machine. In addition, the whole system is
 hardened against software vulnerabilities since processes may be run with
 restricted privileges.
 
-Enbox_ ships with a :ref:`binary tool <usage>` and a
-:ref:`library <sect-api-overview>`.
-The :ref:`enbox tool <usage>` allows system administrators to setup and
-instantiate processes according to settings stored into dedicated configuration_
-files.
-The :ref:`library <sect-api-overview>`, which the :ref:`enbox tool <usage>` is
-based upon, provides developpers with a way to carry out Enbox_ related tasks
-directly from their own code.
+Enbox_ ships with a **library**, a **binary tool** as well as a PAM_ **session
+module**.
+See section Usage_ for more informations.
 
 .. _sect-main-terminology:
 
@@ -159,8 +157,6 @@ isolation handling:
 Features
 ========
 
-Containment logic implemented provides:
-
 * optional process isolation thanks to |namespaces|
 * optional privileges restriction  thanks to |capabilities| and |credentials|
 * manage filesystem objects
@@ -175,14 +171,20 @@ Containment logic implemented provides:
 Usage
 =====
 
-Enbox_ comes with the :program:`enbox` tool to load and run arbitrary programs
-within secured containers according to a specified |configuration|.
-Refer to :doc:`/man/enbox` manual page to for more informations.
+Enbox_ comes with the :program:`enbox` tool to allow system administrators to
+setup and instantiate processes according to settings stored into dedicated
+|configuration| files.
+Refer to :doc:`/man/enbox` manual page for more informations.
 
-In addition, Enbox_ also provides the :program:`pam_enbox` PAM_ module that,
-when declared within a PAM_ stack configuration, allows to perform containment
-at PAM_ session establishment.
+In addition, a PAM_ **session module** is provided to allow system
+administrators to setup and instantiate containers and / or processes from
+within a PAM_ stack according to settings stored into a specified
+|configuration| file.
 Refer to :doc:`/man/pam_enbox` manual page to for more informations.
+
+Finally, the :ref:`Enbox library <sect-api-overview>`, which the
+:program:`enbox` tool is based upon, provides developpers with a way to carry
+out Enbox_ related tasks directly from their own code.
 
 .. _sect-main-configuration:
 
@@ -271,15 +273,15 @@ into the `IEEE Std 1003.1`_ POSIX specification:
 
 .. topic:: Separators
 
-   Finally, the following syntax token separators are used in production
+   In addition, the following syntax token separators are used in production
    rules. These are defined as:
 
    .. parsed-literal::
       :class: highlight
 
-      <**LF**>       ::= '\\n'                    *; line feed*
-      <**LSEP**>     ::= ',' [<**LF**>]...           *; list separator*
-      <**SSEP**>     ::= ';' [<**LF**>]... | <**LF**>... *; group setting separator*
+      <**LF**>   ::= '\\n'                    *; line feed*
+      <**LSEP**> ::= ',' [<**LF**>]...           *; list separator*
+      <**SSEP**> ::= ';' [<**LF**>]... | <**LF**>... *; group setting separator*
 
 Grammar
 -------
@@ -292,9 +294,14 @@ at least one of the top-level statements according to the following syntax.
 .. parsed-literal::
    :class: highlight
 
-   <**config**>    ::= <**host-conf**> | <**cmd-conf**>
+   <**config**>    ::= <**host-conf**> | <**cmd-conf**> | <**pam-conf**>
    <**host-conf**> ::= <`top-host`_>
-   <**cmd-conf**>  ::= [<`top-host`_>] [<`top-ids`_>] [<`top-jail`_>] <`top-proc`_> <`top-cmd`_>
+   <**cmd-conf**>  ::= [<`top-host`_>] [<`top-ids`_>] [<`top-jail`_>] [`top-proc`_] <`top-cmd`_>
+   <**pam-conf**>  ::= [<`top-host`_>] [<`top-ids`_>] [<`top-jail`_>] <`top-proc`_>
+
+**host-conf** and **cmd-conf** syntax rules apply to a configuration loaded by
+the :doc:`Enbox tool </man/enbox>`, whereas **pam-conf** applies to a
+configuration loaded from within the :doc:`Enbox PAM module </man/pam_enbox>`.
 
 Each top-level statement configures a subset of the Enbox_ behavior as described
 below:
@@ -304,7 +311,7 @@ below:
 * `top-jail`_ statement relates to containment logic ;
 * `top-proc`_ statement relates to process logic ;
 * `top-cmd`_ statement relates to program execution.
-
+  
 .. rubric:: Example
 
 .. code-block::
@@ -331,6 +338,230 @@ below:
 
    # Command settings
    cmd = [ ... ]
+
+Important notes
+---------------
+
+Enbox_ being an |execve(2)| based containment system only, it is sometimes
+required to perform minor cleanup operations at post |execve(2)| time.
+
+Capabilities cleanup
+********************
+
+When a containerized process is required to run with system |capabilities|
+(configured thanks to a top-jail_ / caps-attr_ statements), it may be desirable
+to cleanup |capabilities| from the *inheritable* and *ambient* sets after Enbox_
+calls |execve(2)| to prevent from leaking runtime security context informations.
+
+In this case, Enbox_ provides a small post-processing library called
+:file:`libenbox_postproc.so` that may be |bind mount|'ed within the |jail| to
+perform the cleanup of |capabilities| at loading time.
+This library may be run thanks to the ability of the |ld.so(8)| system dynamic
+loader to preload arbitrary shared objects before jumping to the ``main()``
+entry point of the binary given as |execve(2)| argument (configured thanks to
+the top-cmd_ statement).
+
+The :file:`libenbox_postproc.so` library allows callers of the |execve(2)|
+syscall to enable inherited / ambient capabilities cleanup for a fixed number of
+times specified thanks to the special ``ENBOX_KEEP_INH_CAPS`` |environment|
+variable.
+When existing, the ``ENBOX_KEEP_INH_CAPS`` |environment| variable should hold a
+*positive integer* that the library decrements each time it is run, i.e., each
+time the current process performs an |execve(2)|.
+Once the ``ENBOX_KEEP_INH_CAPS`` |environment| variable value reaches zero, the
+variable is removed from the |environment| and the inherited capabilitiy cleanup
+logic is re-enabled again and applied.
+
+The |capabilities| cleanup logic is implemented as following:
+
+* runs after calls to |execve(2)| thanks to |ld.so(8)| preloading mechanism ;
+* cleanup inherited / ambient |capabilities| *AND* remove
+  ``ENBOX_KEEP_INH_CAPS`` from |environment| when *one* of the following
+  conditions are met:
+
+  * current process runs in non-privileged mode, i.e., its effective user /
+    group IDs differ from its real user / group IDs ;
+  * ``ENBOX_KEEP_INH_CAPS`` is *undefined* ;
+  * ``ENBOX_KEEP_INH_CAPS`` is *empty* ;
+  * ``ENBOX_KEEP_INH_CAPS`` value is ``0`` ;
+
+* otherwise, decrement the value of ``ENBOX_KEEP_INH_CAPS`` by ``1``.
+
+The 2 *recommended* ways to preload the ``libenbox_postproc.so`` library to
+perform a cleanup of |capabilities| are described in the following sections.
+
+.. note::
+
+   A third alternative, based upon usage of the ``LD_PRELOAD`` |environment|
+   variable, is not discussed here since its content would be required to be
+   cleared from any references to the ``libenbox_postproc.so`` library at some
+   point in time (and it is not implemented).
+
+ld.so.preload strategy
+^^^^^^^^^^^^^^^^^^^^^^
+
+This logic is based upon the ability of the |ld.so(8)| dynamic loader to preload
+libraries declared into the :file:`ld.so.preload` text file located under the
+|SYSCONFDIR| directory setup at C library build / install time.
+
+You *must* opt for this strategy when the processes |execve(2)| call tree
+requires a |capabilities| cleanup at depth ``>= 1``, i.e., when the initial
+value of ``ENBOX_KEEP_INH_CAPS`` |environment| variable is ``>= 1``.
+Section `OpenSSH server`_ below describes such a context where grand-children
+processes require |capabilities| cleanup operations.
+
+.. code-block::
+   :linenos:
+   :emphasize-lines: 18, 24, 30, 46, 50
+
+   # Define a jail for our daemon.
+   jail = {
+           ...
+           # Setup jail's filesystem content
+           fsset = (
+                   ...
+
+                   { # Create `/etc' directory meant to contain the
+                     # `ld.so.preload' file imported below.
+                           type   = "dir",
+                           path   = "etc",
+                           user   = 0,
+                           group  = 0,
+                           mode   = 0755
+                   },
+                   { # Import `ld.so.preload' file shipped with Enbox into jail.
+                           type   = "file",
+                           path   = "etc/ld.so.preload",
+                           orig   = "/usr/share/enbox/ld.so.preload",
+                           flags  = [ "ro", "nodev", "nosuid", "noatime", "noexec" ]
+                   },
+                   { # Import system dynamic loader into jail.
+                           type   = "file"
+                           path   = "lib64/ld-linux-x86-64.so.2"
+                           orig   = "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
+                           flags  = [ "ro", "nodev", "nosuid", "noatime" ]
+                   },
+                   { # Import Enbox post execve(2) processing library into jail.
+                           type   = "file"
+                           path   = "lib/libenbox_postproc.so"
+                           orig   = "/lib/libenbox_postproc.so"
+                           flags  = [ "ro", "nodev", "nosuid", "noatime" ]
+                   },
+
+                   ...
+           )
+   }
+
+   # Define our daemon process properties.
+   proc = {
+        ...
+
+        # Tell the Enbox post execve(2) processing library that inherited /
+        # ambient capability cleanup happens just after a grand-child of our
+        # daemon process calls execve(2).
+        env   = [ "ENBOX_KEEP_INH_CAPS=2" ]
+
+        # Our daemon process and its direct children run with
+        # CAP_NET_BIND_SERVICE and CAP_NET_RAW # capabilities enabled.
+        caps  = [ "net_bind_service", "net_raw" ]
+
+        ...
+   }
+
+   # Define the command to execve(2) used to run our daemon. Thanks to the
+   # `ld.so.preload' file installed above, ld.so(8) will preload Enbox's
+   # `libenbox_postproc.so' post execve(2) processing library so that it
+   # executes before our daemon's `main()' entry point.
+   cmd = [ "/sbin/mydaemon", "an_argument" ]
+
+For this logic to properly work, it is required to import a
+:file:`ld.so.preload` file as shown at line *16* of the above example. As stated
+into the |ld.so(8)| manual page, this file should contain a whitespace-separated
+list of ELF shared objects to be loaded before the |execve(2)|'ed program.
+You *must* declare :file:`libenbox_postproc.so` entry in this file as shown
+below:
+
+.. code-block::
+
+   libenbox_postproc.so
+
+Note that Enbox_ comes with a prebuilt :file:`ld.so.preload` file installed
+under the *|DATADIR|/enbox* directory. This is the one used in the configuration
+example shown above.
+
+This strategy is the most versatile one but note that the
+:file:`libenbox_postproc.so` library will run each time a process calls
+|execve(2)|, which may be suboptimal in some cases. This may happen, for
+example, when a single containerized process calling |execve(2)| does
+require no |capabilities| cleanup.
+See the section below for more informations about an optimal alternate
+configuration strategy.
+
+ld.so --preload strategy
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+This logic is based upon the ability of the |ld.so(8)| dynamic loader to preload
+libraries declared into its own command line thanks to the :option:`--preload`
+option. |ld.so(8)| will filter out the option from the final program command
+line given to |execve(2)|.
+
+You *should* opt for this strategy when the processes |execve(2)| call tree
+requires a |capabilities| cleanup at first depth only, i.e., when the
+``ENBOX_KEEP_INH_CAPS`` |environment| variable is *undefined*, *empty* or when
+its initial value equals to *zero*.
+
+.. code-block::
+   :emphasize-lines: 10, 16, 40
+
+   # Define a jail for our daemon.
+   jail = {
+           ...
+           # Setup jail's filesystem content
+           fsset = (
+                   ...
+
+                   { # Import Enbox post execve(2) processing library into jail.
+                           type   = "file"
+                           path   = "lib/libenbox_postproc.so"
+                           orig   = "/lib/libenbox_postproc.so"
+                           flags  = [ "ro", "nodev", "nosuid", "noatime" ]
+                   },
+                   { # Import system dynamic loader into jail.
+                           type   = "file"
+                           path   = "lib64/ld-linux-x86-64.so.2"
+                           orig   = "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
+                           flags  = [ "ro", "nodev", "nosuid", "noatime" ]
+                   },
+
+                   ...
+           )
+   }
+
+   # Define our daemon process properties.
+   proc = {
+        ...
+
+        # Our daemon process and its direct children run with
+        # CAP_NET_BIND_SERVICE and CAP_NET_RAW # capabilities enabled.
+        caps  = [ "net_bind_service", "net_raw" ]
+
+        ...
+   }
+
+   # Define the command to execve(2) used to run our daemon. Note how ld.so(8)
+   # is given the `--preload' option to enforce the preload of Enbox's
+   # `libenbox_postproc.so' post execve(2) processing library so that it
+   # executes before our daemon's `main()' entry point.
+   cmd = [ "/lib64/ld-linux-x86-64.so.2", "--preload", "libenbox_postproc.so",
+           "/sbin/mydaemon", "an_argument" ]
+
+
+Contrary to the strategy explained into `ld.so.preload strategy`_ section above,
+no :file:`ld.so.preload` file import into the jail is required here. In
+addition, as no |capabilities| cleanup is expected for process descendants, no
+``ENBOX_KEEP_INH_CAPS`` |environment| variable needs to be defined since the
+cleanup operation happens implicitly at ``libenbox_postproc.so`` library
+(pre)loading time in this case.
 
 Reference
 ---------
@@ -390,11 +621,16 @@ Within the context of a `top-proc`_ statement, specify the list of system
                  | 'bpf'
                  | 'checkpoint_restore'
 
-This attribute is *optional*.
+This attribute is *optional*. When unspecified, this *defaults* to an empty list
+of capabilities.
 
 .. important::
-   For obvious security reasons, the propagation of ``CAP_SETPCAP`` and
+   For obvisous security reasons, the propagation of ``CAP_SETPCAP`` and
    ``CAP_SYS_ADMIN`` capabilities are rejected.
+
+.. warning::
+   It is an *error* to specify this statement within a configuration loaded from
+   the :doc:`Enbox PAM module </man/pam_enbox>`.
 
 .. rubric:: Example
 
@@ -506,7 +742,7 @@ before running the command process.
    proc = {
            ...
            env = [ "AN_INHERITED_VAR",
-                   "AN_EMPTY_VAR=",
+                   "AN_EMPTY_OR_BOOLEAN_VAR=",
                    "AN_EXPLICITLY_SET_VAR=a value\nwith a line feed into it..." ]
            ...
    }
@@ -1452,6 +1688,10 @@ This attribute is *optional*, in which case `top-ids`_, `top-jail`_ and
 `top-proc`_ statements are *ignored*. However, specifying a `top-cmd`_
 *requires* a valid `top-proc`_ statement.
 
+.. warning::
+   It is an *error* to specify this statement within a configuration loaded from
+   the :doc:`Enbox PAM module </man/pam_enbox>`.
+
 .. rubric:: Example
 
 .. code-block::
@@ -1738,7 +1978,7 @@ informations.
      - disallow program execution
    * - nosuid
      - ``MS_NOSUID``
-     - do not honor SUID / SGID bits or file capabilites when executing programs
+     - do not honor SUID / SGID bits or file capabilities when executing programs
    * - ro
      - ``MS_RDONLY``
      - read-only
@@ -1856,7 +2096,7 @@ master sshd process
 
 privileged monitor process
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-   
+
 * |fork(2)|\'ed as *root* by the `master sshd process`_ upon incoming connection
   request
 * quickly |execve(2)| ``/libexec/sshd-session`` which...
@@ -1894,14 +2134,14 @@ postauthentication child
 * switches to final user
 * starts user session (see ``do_authenticated()``)
 * runs user session loop (see ``server_loop2()``) which may eventually:
-  
+
   * allocates and setup PTYs
   * renames process name to ``[<user>@<pts>]``
   * |fork(2)| and |execve(2)| final user shell (see ``do_exec_pty()``)
-    
+
 * then, upon end of user session, finalize PAM_ logic
 * and exits
-  
+
 lighttpd
 --------
 
@@ -1912,7 +2152,7 @@ lighttpd
 #. enter jail with its own namespaces
 #. |execve(2)| lighttpd as *root* and request it to switch to *lighttpd* user
    with the following capabilities:
-   
+
    * setuid
    * setgid
    * sys_chroot (for |chroot(8)|'ing into WWW document root)
@@ -1928,7 +2168,7 @@ lighttpd
 #. enter jail with its own namespaces except *net*
 #. |execve(2)| lighttpd as *root* and request it to switch to *lighttpd* user
    with the following capabilities:
-   
+
    * setuid
    * setgid
    * net_bind_service
