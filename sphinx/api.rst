@@ -93,41 +93,6 @@ As a consequence, upon session management, Enbox_'s PAM_ module only needs to
 setup and enter a jail filesystem with arbitrary filesystem entry group ID as
 well as its assotiated list of private |namespaces|.
 
-.. todo:: add reference to library setup/enter jail config API
-
-Capability cleanup library
---------------------------
-
-Library referenced by ``/etc/ld.so.preload`` file so that the dynamic loader
-runs a cleanup of inherited / ambient capabilities at post |execve(2)| time.
-
-The logic allows privileged callers of the |execve(2)| syscall to disable
-inherited / ambient capabilities cleanup for a fixed number of times specified
-thanks to the special ``ENBOX_KEEP_INH_CAPS`` |environment| variable.
-
-It is implemented as following:
-
-* runs as soon as possible after each system |execve(2)|
-* cleanup inherited / ambient capabilities except on the following conditions:
-
-  * process runs in privileged mode, i.e., its real, effective and saved user
-    and group IDs are all zeros ;
-  * the |environment| variable ``ENBOX_KEEP_INH_CAPS`` is set to disable the
-    cleanup operation, i.e. its value is greater than zero ;
-
-* otherwise, cleanup inherited / ambient capabilities *AND* remove
-  ``ENBOX_KEEP_INH_CAPS`` from the |environment|.
-    
-``ENBOX_KEEP_INH_CAPS`` is handled in the following manner:
-
-* it holds a positive integer that the library decrements each time it is run,
-  i.e., each time the current process performs an |execve(2)|
-* once the ``ENBOX_KEEP_INH_CAPS`` |environment| variable value reaches zero,
-  the variable is removed from the |environment| and the inherited capabilitiy
-  cleanup logic is re-enabled again and applied.
-    
-.. todo:: add reference to library name and install
-
 Initialization
 ==============
 
