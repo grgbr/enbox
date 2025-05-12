@@ -71,6 +71,7 @@ ifneq ($(filter y,$(CONFIG_ENBOX_ASSERT)),)
 libenbox_postproc.so-ldflags += -Wl,--push-state,-Bstatic \
                                 -lstroll \
                                 -Wl,--pop-state
+libenbox_postproc.so-pkgconf += libstroll
 endif # ($(filter y,$(CONFIG_ENBOX_ASSERT)),)
 
 bins                         := $(call kconf_enabled,ENBOX_TOOL,enbox)

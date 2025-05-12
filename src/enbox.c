@@ -787,6 +787,7 @@ enbox_log_parse_level(struct enbox_log_parse * __restrict parse,
 
 		default:
 			enbox_assert(0);
+			unreachable();
 		}
 
 		if (elog_parse_severity(prs, cfg, arg)) {
