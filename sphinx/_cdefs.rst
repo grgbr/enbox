@@ -25,6 +25,7 @@
 .. |jail|          replace:: :ref:`jail <sect-main-jail>`
 .. |namespaces|    replace:: :ref:`namespaces <sect-main-namespaces>`
 .. |capabilities|  replace:: :ref:`capabilities <sect-main-capabilities>`
+.. |audit|         replace:: :ref:`audit <sect-main-audit>`
 .. |configuration| replace:: :ref:`configuration <sect-main-configuration>`
 .. |cmd|           replace:: :ref:`cmd <sect-main-top_cmd>`
 .. |Enbox tool|    replace:: :ref:`Enbox tool <sect-main-usage>`
@@ -54,6 +55,8 @@
 .. |uid|                  replace:: :term:`uid`
 .. |username|             replace:: :term:`username`
 .. |umask|                replace:: :term:`umask`
+.. |auid|                 replace:: :term:`auid`
+.. |auditname|            replace:: :term:`auditname`
 .. |environment|          replace:: :term:`environment`
 
 
