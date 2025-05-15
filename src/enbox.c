@@ -582,6 +582,18 @@ enbox_show_proc_conf(const struct enbox_proc * __restrict proc)
 
 	printf("Umask            : %04o\n", proc->umask);
 
+	if (proc->auid != (unsigned int)-1) {
+		char str[5];
+
+		str[0] = (proc->auid >> 24) & 0xff;
+		str[1] = (proc->auid >> 16) & 0xff;
+		str[2] = (proc->auid >> 8) & 0xff;
+		str[3] = proc->auid & 0xff;
+		str[4] = 0;
+		printf("Audit id         : %d ('%s')\n", proc->auid, str);
+	} else
+		printf("Audit id         : unset\n");
+
 	if (proc->caps) {
 		char * str;
 

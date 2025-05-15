@@ -3,6 +3,7 @@
 #include <utils/file.h>
 #include <utils/fstree.h>
 #include <utils/time.h>
+#include <utils/string.h>
 #include <stdio.h>
 
 static __enbox_nonull(1)
@@ -417,6 +418,46 @@ close:
 	return ret;
 }
 
+static __enbox_nonull(1) __warn_result
+ssize_t
+enbox_load_auid(char * __restrict buffer, size_t size)
+{
+	enbox_assert(buffer);
+	enbox_assert(size);
+
+	int     fd;
+	ssize_t ret;
+
+	fd = ufile_nointr_open("/proc/self/loginuid",
+	                       O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	if (fd < 0)
+		return (ssize_t)fd;
+
+	ret = ufile_nointr_read(fd, buffer, size);
+	if (ret > 0) {
+		unsigned int auid;
+		char str[5];
+
+		ret = ustr_parse_uint(buffer, &auid);
+		if (ret)
+			return ret;
+
+		str[0] = (auid >> 24) & 0xff;
+		str[1] = (auid >> 16) & 0xff;
+		str[2] = (auid >> 8) & 0xff;
+		str[3] = auid & 0xff;
+		str[4] = 0;
+		ret = snprintf(buffer, size, "%d ('%s')\n", auid, str);
+	}
+	else if (!ret)
+		ret = -ENODATA;
+
+close:
+	ufile_close(fd);
+
+	return ret;
+}
+
 static __enbox_nonull(1, 3, 4)
 void
 enbox_show_proc(FILE * __restrict  stdio,
@@ -440,6 +481,15 @@ enbox_show_proc(FILE * __restrict  stdio,
 	fprintf(stdio, "ppid               %d\n", getppid());
 	fprintf(stdio, "sid                %d\n", getsid(0));
 	fprintf(stdio, "umask              %04o\n", enbox_get_umask());
+
+	sz = enbox_load_auid(buffer, size);
+	if (sz < 0)
+		fprintf(stdio,
+		        "audit id           ?? #%s (%d)\n",
+		        strerror(-(int)sz),
+		        -(int)sz);
+	else
+		fprintf(stdio, "audit id           %s\n", buffer);
 
 	if (!getcwd(buffer, PATH_MAX)) {
 		enbox_assert(errno != EFAULT);
