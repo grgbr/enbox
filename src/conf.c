@@ -2948,6 +2948,7 @@ enbox_load_pam_conf_file(struct enbox_pam_conf * __restrict conf,
 
 	int err;
 
+	memset(conf, 0, sizeof(*conf));
 	err = enbox_init_conf_file(&conf->lib, path);
 	if (err)
 		return err;
