@@ -154,6 +154,15 @@ isolation handling:
   for now (we have no use case for emulating a complete virtualized OS while
   running onto an embedded system).
 
+.. _sect-main-audit:
+
+Audit
+-----
+
+Audit event or log can be attach to unique audit id. This id is set to write in
+`/proc/self/loginuid`.
+See linux documentation `/Documentation/ABI/stable/procfs-audit_loginuid`.
+
 Features
 ========
 
@@ -1847,9 +1856,10 @@ Specify current process system runtime properties.
 .. parsed-literal::
    :class: highlight
 
-   <**top-proc**>   ::= 'proc = {' <**proc-env**> <**proc-umask**> <**proc-ids**> <**proc-caps**> <**proc-cwd**> <**proc-fds**> '}'
+   <**top-proc**>   ::= 'proc = {' <**proc-env**> <**proc-umask**> <**proc-auid**> <**proc-ids**> <**proc-caps**> <**proc-cwd**> <**proc-fds**> '}'
    <**proc-env**>   ::= [|SSEP| <`env-attr`_>]
    <**proc-umask**> ::= [|SSEP| <`umask-attr`_>]
+   <**proc-auid**>  ::= [|SSEP| <`auid-attr`_>]
    <**proc-caps**>  ::= [|SSEP| <`caps-attr`_>]
    <**proc-cwd**>   ::= [|SSEP| <`cwd-attr`_>]
    <**proc-fds**>   ::= [|SSEP| <`fds-attr`_>]
@@ -1859,6 +1869,7 @@ Specify current process system runtime properties.
 
 Use `env-attr`_ to specify the |environment| to run the command process with.
 Use `umask-attr`_ to specify the |umask| to run the command process with.
+Use `auid-attr`_ to specify the |audit| id to run the command process with.
 Use `caps-attr`_ to specify the |capabilities| to run the command process with.
 Use `cwd-attr`_ to specify the |cwd| to run the command process with.
 Use `fds-attr`_ to specify the which unwanted file descriptors to close.
@@ -1876,6 +1887,8 @@ Use `fds-attr`_ to specify the which unwanted file descriptors to close.
                    "MYSTRINGVAR=a string value" ]
            # Command process's file mode creation mask
            umask = 0137
+           # Command process audit id
+           auid = 'test'
            # Command process will run with this user / group credentials
            ids = {
                     ...
@@ -1911,6 +1924,42 @@ This attribute is optional and *defaults* to ``0077`` when unspecified.
    proc = {
            ...
            umask = 0022
+           ...
+   }
+
+auid-attr
+*********
+
+Assign specified |audit| id the process.
+
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**auid-attr**> ::= 'auid =' <**auid**>
+   <**auid**>      ::= <|auid|> | '"' <|auditname|> '"'
+
+This attribute is optional and *defaults* is not set.
+The |auid| can be unsigned integer or string of 4 bytes.
+
+.. rubric:: Example
+
+.. code-block::
+
+   # Load system user and groups
+   proc = {
+           ...
+           auid = 1000
+           ...
+   }
+
+.. code-block::
+
+   # Load system user and groups
+   proc = {
+           ...
+           auid = "test"
            ...
    }
 

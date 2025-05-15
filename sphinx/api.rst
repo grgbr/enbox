@@ -195,6 +195,7 @@ to the :c:struct:`enbox_proc` structure:
 
 * |environment|,
 * |umask|,
+* |auid|
 * |capabilities|,
 * |cwd|,
 * and the closing of unwanted file descriptors.

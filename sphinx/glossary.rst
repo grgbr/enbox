@@ -5,6 +5,12 @@ Glossary
 
 .. glossary::
 
+   auid:
+      audit id (see |audit|)
+
+   auditname:
+      audit id (see |audit|) converted from 4 bytes string to insigned int.
+
    bind mount
       ability to mount a file or directory over another file or directory
       respectively so that the mounted filesystem content may be viewed from an
