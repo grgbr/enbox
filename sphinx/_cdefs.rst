@@ -25,6 +25,7 @@
 .. |jail|          replace:: :ref:`jail <sect-main-jail>`
 .. |namespaces|    replace:: :ref:`namespaces <sect-main-namespaces>`
 .. |capabilities|  replace:: :ref:`capabilities <sect-main-capabilities>`
+.. |audit|         replace:: :ref:`audit <sect-main-audit>`
 .. |configuration| replace:: :ref:`configuration <sect-main-configuration>`
 .. |cmd|           replace:: :ref:`cmd <sect-main-top_cmd>`
 .. |Enbox tool|    replace:: :ref:`Enbox tool <sect-main-usage>`
@@ -54,7 +55,10 @@
 .. |uid|                  replace:: :term:`uid`
 .. |username|             replace:: :term:`username`
 .. |umask|                replace:: :term:`umask`
+.. |auid|                 replace:: :term:`auid`
+.. |auname|               replace:: :term:`auname`
 .. |environment|          replace:: :term:`environment`
+.. |loginuid|             replace:: :term:`loginuid`
 
 
 ..
@@ -94,6 +98,7 @@
 .. |environ(7)|            replace:: :manpage:`environ(7)`
 .. |pam(8)|                replace:: :manpage:`pam(8)`
 .. |ld.so(8)|              replace:: :manpage:`ld.so(8)`
+.. |audit_setloginuid(3)|  replace:: :manpage:`audit_setloginuid(3)`
 
 
 ..
@@ -114,6 +119,9 @@
 .. _enbox:                  https://github.com/grgbr/enbox/
 .. _no_new_privs:           https://docs.kernel.org/userspace-api/no_new_privs.html
 .. _PAM:                    https://github.com/linux-pam/linux-pam
+.. _Linux kernel loginuid documentation:
+   https://www.kernel.org/doc/Documentation/ABI/stable/procfs-audit_loginuid
+
 
 ..
    External hyperlinks definitions for ebuild related documentation

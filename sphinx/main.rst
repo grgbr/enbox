@@ -154,6 +154,21 @@ isolation handling:
   for now (we have no use case for emulating a complete virtualized OS while
   running onto an embedded system).
 
+.. _sect-main-audit:
+
+Audit
+-----
+
+Audit event or log can be attach to a unique Linux kernel audit identifier
+called `auid`. This identifier, stored into the :file:`/proc/self/loginuid`,
+may also be set by a call to |audit_setloginuid(3)|.
+
+The Linux kernel interprets the `auid` as a 32-bits long integer with the
+special value ``4294967295`` (or ``-1`` as a 32-bits signed integer) meaning the
+identifier is `unset`.
+
+See `Linux kernel loginuid documentation`_ for more informations.
+
 Features
 ========
 
@@ -565,6 +580,46 @@ cleanup operation happens implicitly at ``libenbox_postproc.so`` library
 
 Reference
 ---------
+
+auid-attr
+*********
+
+Assign specified |audit| identifier to current process.
+
+.. rubric:: Syntax
+
+.. parsed-literal::
+   :class: highlight
+
+   <**auid-attr**> ::= 'auid =' <|auid|> | 'auid= "' <|auname|> '"'
+
+|auid| should be specified as a *positive 32-bits integer*.
+
+Alternatively, this attribute may be specified as an exactly 4 characters long
+string |auname|. The allowed character set is composed of *letters* and *digits*
+only.
+
+This attribute is optional and is *unset by default*.
+
+.. rubric:: Example
+
+.. code-block::
+
+   # Load system user and groups
+   proc = {
+           ...
+           auid = 1000
+           ...
+   }
+
+.. code-block::
+
+   # Load system user and groups
+   proc = {
+           ...
+           auid = "test"
+           ...
+   }
 
 .. _sect-main-caps_attr:
 
@@ -1847,9 +1902,10 @@ Specify current process system runtime properties.
 .. parsed-literal::
    :class: highlight
 
-   <**top-proc**>   ::= 'proc = {' <**proc-env**> <**proc-umask**> <**proc-ids**> <**proc-caps**> <**proc-cwd**> <**proc-fds**> '}'
+   <**top-proc**>   ::= 'proc = {' <**proc-env**> <**proc-umask**> <**proc-auid**> <**proc-ids**> <**proc-caps**> <**proc-cwd**> <**proc-fds**> '}'
    <**proc-env**>   ::= [|SSEP| <`env-attr`_>]
    <**proc-umask**> ::= [|SSEP| <`umask-attr`_>]
+   <**proc-auid**>  ::= [|SSEP| <`auid-attr`_>]
    <**proc-caps**>  ::= [|SSEP| <`caps-attr`_>]
    <**proc-cwd**>   ::= [|SSEP| <`cwd-attr`_>]
    <**proc-fds**>   ::= [|SSEP| <`fds-attr`_>]
@@ -1859,6 +1915,7 @@ Specify current process system runtime properties.
 
 Use `env-attr`_ to specify the |environment| to run the command process with.
 Use `umask-attr`_ to specify the |umask| to run the command process with.
+Use `auid-attr`_ to specify the |audit| identifier to run the command process with.
 Use `caps-attr`_ to specify the |capabilities| to run the command process with.
 Use `cwd-attr`_ to specify the |cwd| to run the command process with.
 Use `fds-attr`_ to specify the which unwanted file descriptors to close.
@@ -1876,6 +1933,8 @@ Use `fds-attr`_ to specify the which unwanted file descriptors to close.
                    "MYSTRINGVAR=a string value" ]
            # Command process's file mode creation mask
            umask = 0137
+           # Command process audit ID
+           auid = 'test'
            # Command process will run with this user / group credentials
            ids = {
                     ...

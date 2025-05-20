@@ -20,4 +20,22 @@ enbox_build_mode_string(char str[ENBOX_MODE_STRING_SIZE], mode_t mode)
 
 #endif /* defined(CONFIG_ENBOX_SHOW) */
 
+#define ENBOX_AUNAME_LEN (4U)
+
+/*
+ * Enough room to hold non printable characters as `\x<nn>' and the terminating
+ * NULL byte...
+ */
+#define ENBOX_AUNAME_MAX \
+	((4 * ENBOX_AUNAME_LEN) + 1)
+
+#if defined(CONFIG_ENBOX_TOOL)
+
+extern void
+enbox_show_make_auname(char         buffer[__restrict_arr ENBOX_AUNAME_MAX],
+                       unsigned int auid)
+	__enbox_nonull(1) __enbox_nothrow;
+
+#endif /* defined(CONFIG_ENBOX_TOOL) */
+
 #endif /* _ENBOX_SHOW_H */

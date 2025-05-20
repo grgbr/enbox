@@ -1805,6 +1805,49 @@ err:
 	return err;
 }
 
+static __enbox_nothrow __warn_result
+int
+enbox_setup_audit(const struct enbox_proc * __restrict proc)
+{
+	enbox_assert_proc(proc);
+
+	int  len;
+	int  ret;
+	int  fd;
+	char buf[11];
+
+	if (proc->auid == (unsigned int)-1)
+		return 0;
+
+	fd = ufile_open("/proc/self/loginuid",
+	                O_WRONLY | O_CLOEXEC | O_NOFOLLOW);
+	if (fd < 0) {
+		ret = fd;
+		goto out;
+	}
+
+	len = snprintf(buf, sizeof(buf), "%u", proc->auid);
+	enbox_assert(len > 0);
+	enbox_assert((size_t)len < sizeof(buf));
+
+	ret = (int)ufile_write(fd, buf, (size_t)len);
+	if (ret != len) {
+		ret = (ret >= 0) ? -EAGAIN : ret;
+		goto close;
+	}
+
+	ret = 0;
+
+close:
+	ufile_close(fd);
+
+	if (ret)
+out:
+		enbox_info("cannot setup audit: %s (%d)", strerror(-ret), -ret);
+
+	return ret;
+}
+
 #if defined(CONFIG_ENBOX_PAM)
 #define __enbox_pam_storage
 #else  /* !defined(CONFIG_ENBOX_PAM) */
@@ -1822,6 +1865,10 @@ _enbox_prep_proc(const struct enbox_proc * __restrict proc,
 	enbox_assert(!jail || ({ enbox_assert_jail(jail); true; }));
 
 	int err;
+
+	err = enbox_setup_audit(proc);
+	if (err)
+		goto err;
 
 	err = enbox_clean_env(proc->env, proc->env_nr);
 	if (err)

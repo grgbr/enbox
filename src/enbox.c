@@ -378,8 +378,8 @@ enbox_show_jail_conf(const struct enbox_jail * __restrict jail)
 	enbox_assert(len <= ENBOX_NAMESPACES_LEN);
 
 	puts("\n### Jail attributes ###\n");
-	printf("Namespaces: %s\n", ns);
-	printf("Root path : %s\n", jail->root_path);
+	printf("Namespaces       : %s\n", ns);
+	printf("Root path        : %s\n", jail->root_path);
 
 	puts("\n### Jail filesystem entries ###\n");
 	enbox_show_fsset(&jail->fsset, showers);
@@ -581,6 +581,19 @@ enbox_show_proc_conf(const struct enbox_proc * __restrict proc)
 	puts("\n### Process ###\n");
 
 	printf("Umask            : %04o\n", proc->umask);
+
+	if (proc->auid != (unsigned int)-1) {
+		char buff[ENBOX_AUNAME_MAX];
+
+		enbox_show_make_auname(buff, proc->auid);
+
+		printf("Audit identifier : %u\n", proc->auid);
+		printf("Audit name       : '%s'\n", buff);
+	}
+	else {
+		fputs("Audit identifier : unset\n", stdout);
+		fputs("Audit name       : unset\n", stdout);
+	}
 
 	if (proc->caps) {
 		char * str;

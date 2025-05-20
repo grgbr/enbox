@@ -3,7 +3,9 @@
 #include <utils/file.h>
 #include <utils/fstree.h>
 #include <utils/time.h>
+#include <utils/string.h>
 #include <stdio.h>
+#include <ctype.h>
 
 static __enbox_nonull(1)
 void
@@ -417,6 +419,82 @@ close:
 	return ret;
 }
 
+static __enbox_nonull(1) __warn_result
+int
+enbox_load_auid(unsigned int * __restrict auid)
+{
+	enbox_assert(auid);
+
+	int     fd;
+	char    buff[11];
+	ssize_t ret;
+
+	fd = ufile_open("/proc/self/loginuid",
+	                O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	if (fd < 0)
+		return (ssize_t)fd;
+
+	ret = ufile_read(fd, buff, sizeof(buff) - 1);
+	enbox_assert(ret < (ssize_t)sizeof(buff));
+	if (ret > 0) {
+		buff[ret] = '\0';
+		ret = ustr_parse_uint(buff, auid);
+	}
+	else if (!ret)
+		ret = -ENODATA;
+
+	ufile_close(fd);
+
+	return (int)ret;
+}
+
+#if defined(CONFIG_ENBOX_TOOL)
+
+#define __enbox_show_auname_storage
+
+#else /* !defined(CONFIG_ENBOX_TOOL) */
+
+#define __enbox_show_auname_storage static
+
+#endif /* defined(CONFIG_ENBOX_TOOL) */
+
+__enbox_show_auname_storage
+void
+enbox_show_make_auname(char         buffer[__restrict_arr ENBOX_AUNAME_MAX],
+                       unsigned int auid)
+{
+	enbox_assert(buffer);
+	enbox_assert(auid != (unsigned int)-1);
+
+	unsigned int c;
+	char *       dst = buffer;
+
+	auid = htobe32(auid);
+
+	for (c = 0; c < ENBOX_AUNAME_LEN; c++) {
+		int src = *(((const unsigned char *)&auid) + c);
+
+		if (!isalnum(src)) {
+			int bytes;
+
+			bytes = sprintf(dst, "\\x%02x", src);
+			enbox_assert(bytes == 4);
+
+			dst += 4;
+		}
+		else
+			*dst++ = (char)src;
+
+		enbox_assert(dst < &buffer[ENBOX_AUNAME_MAX]);
+	}
+
+	*dst = '\0';
+}
+
+#if ENBOX_AUNAME_MAX > ENBOX_SHOW_BUFF_SZ
+#error Invalid ENBOX_AUNAME_MAX !
+#endif
+
 static __enbox_nonull(1, 3, 4)
 void
 enbox_show_proc(FILE * __restrict  stdio,
@@ -431,6 +509,8 @@ enbox_show_proc(FILE * __restrict  stdio,
 	enbox_assert(buffer);
 	enbox_assert(size >= PATH_MAX);
 
+	unsigned int         auid;
+	int                  err;
 	ssize_t              sz;
 	int                  a;
 	const char * const * env = (const char * const *)environ;
@@ -440,6 +520,25 @@ enbox_show_proc(FILE * __restrict  stdio,
 	fprintf(stdio, "ppid               %d\n", getppid());
 	fprintf(stdio, "sid                %d\n", getsid(0));
 	fprintf(stdio, "umask              %04o\n", enbox_get_umask());
+
+	err = enbox_load_auid(&auid);
+	if (!err) {
+		if (auid != (unsigned int)-1) {
+			enbox_show_make_auname(buffer, auid);
+
+			fprintf(stdout, "auid               %u\n", auid);
+			fprintf(stdout, "auname             '%s'\n", buffer);
+		}
+		else {
+			fputs("auid               unset\n", stdout);
+			fputs("auname             unset\n", stdout);
+		}
+	}
+	else
+		fprintf(stdio,
+		        "audid              ?? #%s (%d)\n",
+		        strerror(-err),
+		        -err);
 
 	if (!getcwd(buffer, PATH_MAX)) {
 		enbox_assert(errno != EFAULT);

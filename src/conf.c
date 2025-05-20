@@ -6,8 +6,10 @@
  ******************************************************************************/
 
 #include "conf.h"
+#include "show.h"
 #include <utils/path.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #define ENBOX_DFLT_CONF_UMASK (0077)
 
@@ -2022,6 +2024,46 @@ enbox_load_proc_umask(const config_setting_t * __restrict setting,
 }
 
 static int __enbox_nonull(1, 2)
+enbox_load_proc_auid(const config_setting_t * __restrict setting,
+                     void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+
+	struct enbox_proc * proc = (struct enbox_proc *)data;
+
+	if (config_setting_type(setting) == CONFIG_TYPE_STRING) {
+		const char * str = config_setting_get_string(setting);
+		unsigned int c;
+
+		if (strnlen(str, ENBOX_AUNAME_LEN + 1) != ENBOX_AUNAME_LEN) {
+			enbox_conf_err(setting, "4 bytes long string required");
+			return -EINVAL;
+		}
+
+		for (c = 0; c < ENBOX_AUNAME_LEN; c++) {
+			if (!isalnum(str[c])) {
+				enbox_conf_err(setting,
+				               "invalid audit string character "
+				               "(expecting alphanumeric only)");
+				return -EINVAL;
+			}
+		}
+
+		proc->auid = be32toh(*(const unsigned int *)str);
+	}
+	else if (config_setting_type(setting) == CONFIG_TYPE_INT) {
+		proc->auid = (unsigned int)config_setting_get_int(setting);
+	}
+	else {
+		enbox_conf_err(setting, "string or integer required");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __enbox_nonull(1, 2)
 enbox_parse_caps_setting(const config_setting_t * __restrict setting,
                          uint64_t * __restrict               caps)
 {
@@ -2442,6 +2484,7 @@ enbox_load_proc(const config_setting_t * __restrict setting,
 	int                              err;
 	static const struct enbox_loader loaders[] = {
 		{ .name = "umask",    .load = enbox_load_proc_umask },
+		{ .name = "auid",     .load = enbox_load_proc_auid },
 		{ .name = "caps",     .load = enbox_load_proc_caps },
 		{ .name = "cwd",      .load = enbox_load_proc_cwd },
 		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds },
@@ -2454,6 +2497,7 @@ enbox_load_proc(const config_setting_t * __restrict setting,
 		return -errno;
 
 	proc->umask = (mode_t)-1;
+	proc->auid = (unsigned int)-1;
 
 	err = enbox_do_load_proc(setting,
 	                         proc,
@@ -2886,6 +2930,7 @@ enbox_load_pam_proc(const config_setting_t * __restrict setting,
 	                                          data)->proc;
 	static const struct enbox_loader loaders[] = {
 		{ .name = "umask",    .load = enbox_load_proc_umask },
+		{ .name = "auid",     .load = enbox_load_proc_auid },
 		{ .name = "cwd",      .load = enbox_load_proc_cwd },
 		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds },
 		{ .name = "env",      .load = enbox_load_proc_env }
@@ -2921,7 +2966,9 @@ enbox_load_pam_conf(struct enbox_pam_conf * __restrict conf)
 	enbox_assert(root);
 
 	memset(conf, 0, sizeof(*conf));
+
 	conf->proc.umask = (mode_t)-1;
+	conf->proc.auid = (unsigned int)-1;
 
 	err = enbox_load_setting(root, conf, loaders, stroll_array_nr(loaders));
 	if (err)

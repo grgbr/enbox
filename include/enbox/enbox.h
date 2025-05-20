@@ -1595,6 +1595,14 @@ struct enbox_proc {
 	 */
 	uint64_t               caps;
 	/**
+	 * Optional audit ID (/proc/self/loginuid)
+	 *
+	 * @see
+	 * - @man{audit_setloginuid(3)}
+	 * - section @rstsubst{Audit}
+	 */
+	unsigned int           auid;
+	/**
 	 * Optional current working directory of current process.
 	 *
 	 * When unspecified, current working directory is set to the root of the

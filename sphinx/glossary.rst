@@ -5,6 +5,15 @@ Glossary
 
 .. glossary::
 
+   auid
+   audit ID
+      Linux kernel audit identifier (see |audit|).
+
+   auname
+   audit name
+      Linux kernel audit identifier (see |audit|) converted from a 4 characters
+      long string to an unsigned int.
+
    bind mount
       ability to mount a file or directory over another file or directory
       respectively so that the mounted filesystem content may be viewed from an
@@ -68,12 +77,15 @@ Glossary
    jail
       see |jail|
 
+   loginuid
+      Linux kernel audit login UID (see |audit|).
+
    named pipe
       see |fifo| and |pipe|
 
    namespaces
       see |namespaces|
-      
+
    no_new_privs
       A Linux kernel flag that prevents a parent program from gaining
       privileges through calls to |execve(2)|.
@@ -85,7 +97,7 @@ Glossary
 
    pid
       process identifier (see |getpid(2)| and |credentials(7)|)
-      
+
    pipe
       a unidirectional interprocess communication channel (see |pipe(7)|)
 
