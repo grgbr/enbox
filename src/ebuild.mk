@@ -62,7 +62,8 @@ $(BUILDDIR)/pam_enbox.so: | $(BUILDDIR)/libenbox.so
 solibs                       += libenbox_postproc.so
 libenbox_postproc.so-objs    := postproc.o
 libenbox_postproc.so-cflags  := $(common-cflags) -DPIC -fpic
-libenbox_postproc.so-ldflags := $(common-ldflags) \
+libenbox_postproc.so-ldflags := \
+	$(common-ldflags) \
 	-fpic -shared -Bsymbolic \
 	-Wl,--version-script=$(SRCDIR)/libenbox_postproc.map \
 	-Wl,-soname,libenbox_postproc.so \

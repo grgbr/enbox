@@ -475,7 +475,7 @@ enbox_show_make_auname(char         buffer[__restrict_arr ENBOX_AUNAME_MAX],
 		int src = *(((const unsigned char *)&auid) + c);
 
 		if (!isalnum(src)) {
-			int bytes;
+			int bytes __unused;
 
 			bytes = sprintf(dst, "\\x%02x", src);
 			enbox_assert(bytes == 4);

@@ -10,6 +10,21 @@
 #include <stdio.h>
 #include <sysexits.h>
 
+#if defined(CONFIG_ENBOX_VERBOSE)
+
+struct elog * enbox_logger __unused;
+
+__elog_nonull(1, 3) __printf(3, 4) __nothrow __unused
+void
+elog_log(struct elog * __restrict logger __unused,
+         enum elog_severity       severity __unused,
+         const char * __restrict  format __unused,
+         ...)
+{
+}
+
+#endif /* defined(CONFIG_ENBOX_VERBOSE) */
+
 #define ENBOX_KEEP_INH_CAPS_MAX (8U)
 
 #define ENBOX_KEEP_INH_CAPS_STR_SIZE \
