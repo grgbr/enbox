@@ -1427,12 +1427,18 @@ static __enbox_nothrow __warn_result
 int
 enbox_chroot_jail(void)
 {
-	struct statfs stat;
-	int           err;
+	struct statfs64 stat;
+	int             err;
 
-	if (statfs("/", &stat)) {
+	/*
+	 * Enforce usage of 64-bits version of the statfs() syscall since some
+	 * filesystems implement 64-bits support only (namely, EROFS) and would
+	 * return EOVERFLOW here...
+	 */
+	if (statfs64("/", &stat)) {
 		enbox_assert(errno != EFAULT);
 		enbox_assert(errno != ENAMETOOLONG);
+		enbox_assert(errno != EOVERFLOW);
 
 		return -errno;
 	}
@@ -1445,8 +1451,8 @@ enbox_chroot_jail(void)
 		return err;
 
 	/*
-	 * Assert if current working directory is not "/" (see above comment
-	 * related to pivot_root() and chroot().
+	 * Assert if current working directory is not "/".
+	 * See above comment related to pivot_root() and chroot().
 	 */
 	enbox_ensure_cwd_is_root();
 
