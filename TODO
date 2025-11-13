@@ -1,4 +1,5 @@
 Various:
+* add audit build option to make loginuid support optional
 * check documentation links (run sphinx-build -b linkcheck...)
 * license all files
 
@@ -14,7 +15,6 @@ Features:
 * forbid ld_preload / ld_audit
 * rlimits
 * scheduling
-* environment variables
 * keyring
 * seccomp
 
