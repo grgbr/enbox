@@ -1572,6 +1572,22 @@ struct enbox_env_var {
 };
 
 /**
+ * Keyring descriptor.
+ *
+ * This structure holds properties used to attach key to session keyring.
+ *
+ * [keyrings(7)]: https://man7.org/linux/man-pages/man7/keyrings.7.html
+ *
+ * @see enbox_enter_jail()
+ *
+ * @ingroup instance
+ */
+struct enbox_keyring {
+       const char *type;
+       const char *description;
+};
+
+/**
  * Process context descriptor.
  *
  * This structure holds properties used to prepare runtime context for further
@@ -1654,6 +1670,20 @@ struct enbox_proc {
 	 * - @man{environ(7)}
 	 */
 	struct enbox_env_var * env;
+
+	/**
+	 * Number of #enbox_keyring entries contained into
+	 * #enbox_keyring::entries.
+	 */
+	unsigned int                 keyring_nr;
+
+	/**
+	 * Optional list of keyring linked to session keyring.
+	 *
+	 * @see
+	 * - @man{keyrings(7)}
+	 */
+	 struct enbox_keyring * keyring;
 };
 
 /**

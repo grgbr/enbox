@@ -2274,6 +2274,102 @@ enbox_load_proc_keep_fds(const config_setting_t * __restrict setting,
 
 static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
 int
+enbox_parse_keyring(const config_setting_t * __restrict setting,
+                    struct enbox_keyring * __restrict key)
+{
+	enbox_assert(setting);
+	enbox_assert(key);
+
+	int                      nr;
+	const config_setting_t * set;
+	const char             * type = NULL;
+	const char             * desc = NULL;
+
+	if (!config_setting_is_array(setting)) {
+		enbox_conf_err(setting, "array of strings required");
+		return -EINVAL;
+	}
+
+	nr = config_setting_length(setting);
+	if (nr != 2) {
+		enbox_conf_err(setting, "keyring must be array with type and description");
+		return -ENODATA;
+	}
+
+	set = config_setting_get_elem(setting, 0);
+	enbox_assert(set);
+	type = config_setting_get_string(set);
+	if (!type) {
+		enbox_conf_err(set, "string required");
+		return -EINVAL;
+	}
+
+	set = config_setting_get_elem(setting, 1);
+	enbox_assert(set);
+	desc = config_setting_get_string(set);
+	if (!desc) {
+		enbox_conf_err(set, "string required");
+		return -EINVAL;
+	}
+
+	key->type = type;
+	key->description = desc;
+
+	return 0;
+}
+
+static int __enbox_nonull(1, 2)
+enbox_load_proc_keyring(const config_setting_t * __restrict setting,
+                        void * __restrict                   data)
+{
+	enbox_assert(setting);
+	enbox_assert(data);
+
+	struct enbox_proc *    proc = (struct enbox_proc *)data;
+	int                    nr;
+	struct enbox_keyring * keys;
+	int                    v;
+	int                    err;
+
+	if (!config_setting_is_list(setting)) {
+		enbox_conf_err(setting, "list required");
+		return -EINVAL;
+	}
+
+	nr = config_setting_length(setting);
+	enbox_assert(nr >= 0);
+	if (!nr) {
+		enbox_conf_err(setting, "missing keyring variable(s)");
+		return -ENODATA;
+	}
+	else if ((unsigned int)nr > ENBOX_ARGS_MAX) {
+		enbox_conf_err(setting, "too many keyring variables");
+		return -E2BIG;
+	}
+
+	keys = malloc((size_t)nr * sizeof(keys[0]));
+	if (!keys)
+		return -ENOMEM;
+
+	for (v = 0; v < nr; v++) {
+		const config_setting_t * set;
+
+		set = config_setting_get_elem(setting, (unsigned int)v);
+		enbox_assert(set);
+
+		err = enbox_parse_keyring(set, &keys[v]);
+		if (err)
+			return err;
+	}
+
+	proc->keyring_nr = (unsigned int)nr;
+	proc->keyring = keys;
+
+	return 0;
+}
+
+static __enbox_nonull(1, 2) __enbox_nothrow __warn_result
+int
 enbox_parse_env_var(struct enbox_env_var * __restrict var,
                     const char * __restrict           string)
 {
@@ -2416,6 +2512,8 @@ enbox_do_load_proc(const config_setting_t * __restrict setting,
 	enbox_assert(!proc->fds);
 	enbox_assert(!proc->env_nr);
 	enbox_assert(!proc->env);
+	enbox_assert(!proc->keyring_nr);
+	enbox_assert(!proc->keyring);
 	enbox_assert(loaders);
 	enbox_assert(nr);
 
@@ -2459,6 +2557,11 @@ STROLL_RESTORE_WARN
 
 		free((void *)proc->env);
 	}
+
+	if (proc->keyring_nr) {
+		enbox_assert(proc->keyring);
+		free((void *)proc->keyring);
+	}
 }
 
 static void __enbox_nonull(1)
@@ -2485,6 +2588,7 @@ enbox_load_proc(const config_setting_t * __restrict setting,
 	static const struct enbox_loader loaders[] = {
 		{ .name = "umask",    .load = enbox_load_proc_umask },
 		{ .name = "auid",     .load = enbox_load_proc_auid },
+		{ .name = "keyring",  .load = enbox_load_proc_keyring },
 		{ .name = "caps",     .load = enbox_load_proc_caps },
 		{ .name = "cwd",      .load = enbox_load_proc_cwd },
 		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds },
@@ -2498,6 +2602,7 @@ enbox_load_proc(const config_setting_t * __restrict setting,
 
 	proc->umask = (mode_t)-1;
 	proc->auid = (unsigned int)-1;
+	proc->keyring_nr = 0;
 
 	err = enbox_do_load_proc(setting,
 	                         proc,
@@ -2931,6 +3036,7 @@ enbox_load_pam_proc(const config_setting_t * __restrict setting,
 	static const struct enbox_loader loaders[] = {
 		{ .name = "umask",    .load = enbox_load_proc_umask },
 		{ .name = "auid",     .load = enbox_load_proc_auid },
+		{ .name = "keyring",  .load = enbox_load_proc_keyring },
 		{ .name = "cwd",      .load = enbox_load_proc_cwd },
 		{ .name = "keep_fds", .load = enbox_load_proc_keep_fds },
 		{ .name = "env",      .load = enbox_load_proc_env }
@@ -2969,6 +3075,7 @@ enbox_load_pam_conf(struct enbox_pam_conf * __restrict conf)
 
 	conf->proc.umask = (mode_t)-1;
 	conf->proc.auid = (unsigned int)-1;
+	conf->proc.keyring_nr = 0;
 
 	err = enbox_load_setting(root, conf, loaders, stroll_array_nr(loaders));
 	if (err)

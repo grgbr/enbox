@@ -13,6 +13,7 @@
 #include <dirent.h>
 #include <sys/vfs.h>
 #include <linux/magic.h>
+#include <linux/keyctl.h>
 
 struct elog * enbox_logger;
 mode_t        enbox_umask = (mode_t)-1;
@@ -1854,6 +1855,43 @@ out:
 	return ret;
 }
 
+static __enbox_nothrow __warn_result
+int
+enbox_setup_keyring(const struct enbox_proc * __restrict proc)
+{
+	enbox_assert_proc(proc);
+
+	unsigned int i;
+	int          err;
+
+	if (!proc->keyring_nr)
+		return 0;
+
+	err = syscall(SYS_keyctl, KEYCTL_JOIN_SESSION_KEYRING, NULL);
+	if (err < 0) {
+		enbox_err("cannot join session: %s (%d)", strerror(-err), -err);
+		return err;
+	}
+
+	for(i = 0; i < proc->keyring_nr; i++) {
+		err = syscall(SYS_keyctl,
+		              KEYCTL_SEARCH,
+		              KEY_SPEC_USER_KEYRING,
+		              proc->keyring[i].type,
+		              proc->keyring[i].description,
+		              KEY_SPEC_SESSION_KEYRING);
+		if (err < 0) {
+			enbox_err("cannot link %s %s: %s (%d)",
+			          proc->keyring[i].type,
+			          proc->keyring[i].description,
+			          strerror(-err), -err);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 #if defined(CONFIG_ENBOX_PAM)
 #define __enbox_pam_storage
 #else  /* !defined(CONFIG_ENBOX_PAM) */
@@ -1873,6 +1911,10 @@ _enbox_prep_proc(const struct enbox_proc * __restrict proc,
 	int err;
 
 	err = enbox_setup_audit(proc);
+	if (err)
+		goto err;
+
+	err = enbox_setup_keyring(proc);
 	if (err)
 		goto err;
 
