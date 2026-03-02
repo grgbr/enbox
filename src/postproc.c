@@ -25,33 +25,6 @@ elog_log(struct elog * __restrict logger __unused,
 
 #endif /* defined(CONFIG_ENBOX_VERBOSE) */
 
-#if defined(CONFIG_ENBOX_SECCOMP_AUDIT)
-#include <linux/seccomp.h>  /* Definition of SECCOMP_* constants */
-#include <linux/filter.h>   /* Definition of struct sock_fprog */
-#include <linux/audit.h>    /* Definition of AUDIT_* constants */
-#include <sys/ptrace.h>     /* Definition of PTRACE_* constants */
-#include <sys/syscall.h>    /* Definition of SYS_* constants */
-#include <unistd.h>
-#include <sys/prctl.h>
-
-static const struct sock_filter preauth_insns[] = {
-	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_LOG),
-};
-
-static const struct sock_fprog preauth_program = {
-	.len = (unsigned short)(sizeof(preauth_insns)/sizeof(preauth_insns[0])),
-	.filter = (struct sock_filter *)preauth_insns,
-};
-
-static __ctor(65535)
-void
-enbox_seccomp_init(void)
-{
-	prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
-	prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &preauth_program);
-}
-#endif /* defined(CONFIG_ENBOX_SECCOMP_AUDIT) */
-
 #define ENBOX_KEEP_INH_CAPS_MAX (8U)
 
 #define ENBOX_KEEP_INH_CAPS_STR_SIZE \

@@ -47,13 +47,6 @@ config ENBOX_PAM
 	help
 	  Build enbox PAM module.
 
-config ENBOX_SECCOMP_AUDIT
-	bool "Build postproc with audit seccomp"
-	default n
-	help
-	  Build portproc with constructor who install seccomp to audit all
-	  syscall.
-
 config ENBOX_TOOL
 	bool "Enable utility"
 	default y
