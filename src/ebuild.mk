@@ -82,6 +82,11 @@ enbox-ldflags                := $(common-ldflags) -lenbox
 enbox-pkgconf                := libelog libutils
 enbox-path                   := $(SBINDIR)/enbox
 
+bins                         += $(call kconf_enabled,ENBOX_SHELL,esh)
+esh-objs                     := esh.o
+esh-cflags                   := $(common-cflags)
+esh-ldflags                  := $(common-ldflags)
+
 $(addprefix $(BUILDDIR)/,$(libenbox.so-objs)): $(SRCDIR)/common.h
 
 # Common definitions depend on generated mounting flag definitions.

@@ -47,6 +47,12 @@ config ENBOX_PAM
 	help
 	  Build enbox PAM module.
 
+config ENBOX_SHELL
+	bool "Enbox shell"
+	default y
+	help
+	  Build enbox shell lite to use libc function who use "/bin/sh -c".
+
 config ENBOX_TOOL
 	bool "Enable utility"
 	default y
