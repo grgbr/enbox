@@ -947,7 +947,8 @@ enbox_load_fifo_mode_setting(const config_setting_t * __restrict setting,
 {
 	struct enbox_entry * ent = (struct enbox_entry *)data;
 
-	enbox_assert(ent->type == ENBOX_FIFO_ENTRY_TYPE);
+	enbox_assert((ent->type == ENBOX_FIFO_ENTRY_TYPE) ||
+	             (ent->type == ENBOX_FILE_ENTRY_TYPE));
 
 	return enbox_load_mode_setting(setting, &ent->fifo.mode, DEFFILEMODE);
 }
@@ -961,7 +962,8 @@ enbox_load_fifo_entry(const config_setting_t * __restrict setting,
 	enbox_assert(config_setting_is_group(setting));
 	enbox_assert(config_setting_length(setting) >= 2);
 	enbox_assert(entry);
-	enbox_assert(entry->type == ENBOX_FIFO_ENTRY_TYPE);
+	enbox_assert((entry->type == ENBOX_FIFO_ENTRY_TYPE) ||
+	             (entry->type == ENBOX_FILE_ENTRY_TYPE));
 
 	int                              err;
 	static const struct enbox_loader loaders[] = {
@@ -1033,6 +1035,10 @@ enbox_load_host_entry(const config_setting_t * __restrict setting,
 		break;
 
 	case ENBOX_FIFO_ENTRY_TYPE:
+		ret = enbox_load_fifo_entry(setting, ent, false);
+		break;
+
+	case ENBOX_FILE_ENTRY_TYPE:
 		ret = enbox_load_fifo_entry(setting, ent, false);
 		break;
 

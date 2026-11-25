@@ -339,7 +339,7 @@ enbox_show_host_conf(const struct enbox_fsset * __restrict host)
 		[ENBOX_FIFO_ENTRY_TYPE]   = enbox_show_fifo_entry,
 		[ENBOX_PROC_ENTRY_TYPE]   = NULL,
 		[ENBOX_TREE_ENTRY_TYPE]   = NULL,
-		[ENBOX_FILE_ENTRY_TYPE]   = NULL
+		[ENBOX_FILE_ENTRY_TYPE]   = enbox_show_fifo_entry
 	};
 
 	puts("\n### Host filesystem entries ###\n");

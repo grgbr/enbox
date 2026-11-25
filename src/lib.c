@@ -469,6 +469,75 @@ err:
 	return err;
 }
 
+
+int
+enbox_make_file(const char * __restrict path, uid_t uid, gid_t gid, mode_t mode)
+{
+	enbox_assert_setup();
+	enbox_assert(upath_validate_path_name(path) > 0);
+	enbox_assert(uid != ENBOX_KEEP_UID);
+	enbox_assert(gid != ENBOX_KEEP_GID);
+	enbox_assert(!(mode & ~((mode_t)DEFFILEMODE)));
+
+	int err;
+
+	err = ufile_new(path, O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR);
+	if (err < 0) {
+		if (err == -EEXIST) {
+			struct stat stat;
+
+			err = upath_lstat(path, &stat);
+			if (err)
+				goto err;
+
+			if (!S_ISFIFO(stat.st_mode)) {
+				err = -EEXIST;
+				goto err;
+			}
+
+			if ((uid != stat.st_uid) || (gid != stat.st_gid)) {
+				err = enbox_chown(path, uid, gid);
+				if (err)
+					goto err;
+			}
+
+			if (mode != (stat.st_mode & ALLPERMS)) {
+				err = enbox_chmod(path, mode);
+				if (err)
+					goto err;
+			}
+		}
+		else
+			goto err;
+	}
+	else {
+		ufile_close(err);
+		if ((uid != enbox_uid) || (gid != enbox_gid)) {
+			err = enbox_chown(path, uid, gid);
+			if (err)
+				goto unlink;
+		}
+
+		if (mode != (S_IRUSR | S_IWUSR)) {
+			err = enbox_chmod(path, mode);
+			if (err)
+				goto unlink;
+		}
+	}
+
+	return 0;
+
+unlink:
+	upath_unlink(path);
+err:
+	enbox_info("'%s': cannot touch file: %s (%d)",
+	           path,
+	           strerror(-err),
+	           -err);
+
+	return err;
+}
+
 /******************************************************************************
  * High-level API
  ******************************************************************************/
@@ -527,6 +596,16 @@ enbox_make_fifo_entry(const struct enbox_entry * __restrict ent)
 	                       ent->fifo.mode);
 }
 
+static __enbox_nonull(1) __enbox_nothrow __warn_result
+int
+enbox_make_file_entry(const struct enbox_entry * __restrict ent)
+{
+	return enbox_make_file(ent->path,
+	                       ent->uid,
+	                       ent->gid,
+	                       ent->fifo.mode);
+}
+
 typedef int  (enbox_make_entry_fn)(const struct enbox_entry * __restrict entry)
 	__enbox_nonull(1);
 
@@ -569,7 +648,8 @@ enbox_populate_host(const struct enbox_fsset * __restrict fsset)
 		[ENBOX_SLINK_ENTRY_TYPE]  = enbox_make_slink_entry,
 		[ENBOX_CHRDEV_ENTRY_TYPE] = enbox_make_chrdev_entry,
 		[ENBOX_BLKDEV_ENTRY_TYPE] = enbox_make_blkdev_entry,
-		[ENBOX_FIFO_ENTRY_TYPE]   = enbox_make_fifo_entry
+		[ENBOX_FIFO_ENTRY_TYPE]   = enbox_make_fifo_entry,
+		[ENBOX_FILE_ENTRY_TYPE]   = enbox_make_file_entry
 	};
 
 	err = enbox_make_entries(fsset->entries, fsset->nr, makers);

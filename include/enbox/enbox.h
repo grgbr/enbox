@@ -447,6 +447,11 @@ extern int
 enbox_make_fifo(const char * __restrict path, uid_t uid, gid_t gid, mode_t mode)
 	__enbox_nonull(1) __enbox_nothrow __warn_result;
 
+
+extern int
+enbox_make_file(const char * __restrict path, uid_t uid, gid_t gid, mode_t mode)
+	__enbox_nonull(1) __enbox_nothrow __warn_result;
+
 /**
  * Make a capability mask out of a constant capability index.
  *
